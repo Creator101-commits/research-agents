@@ -1,0 +1,677 @@
+{
+  "metadata": {
+    "name": "baseline-placeholder-calibration",
+    "version": "0.2.0",
+    "description": "Executable baseline values for the dairy ABM. Defaults marked assumption=true require later calibration before scientific use."
+  },
+  "genetics": {
+    "heritability_h2_rfi_fat": {
+      "value": 0.35,
+      "unit": "fraction",
+      "valid_range": "0.26..0.43",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Midpoint default for RFI_fat heritability."
+    },
+    "cross_diet_repeatability_modifier": {
+      "value": 0.5,
+      "unit": "fraction",
+      "valid_range": "0.33..0.67",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Midpoint default for cross-diet RFI expression repeatability."
+    },
+    "minimum_intake_record_days": {
+      "value": 35,
+      "unit": "days",
+      "valid_range": "35..",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Minimum continuous intake records before reliable RFI_fat assignment."
+    },
+    "annual_rfi_gain_fraction": {
+      "value": 0.00875,
+      "unit": "fraction/year",
+      "valid_range": "0.0075..0.01",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Midpoint of supported annual gain range for RFI-supported traits."
+    },
+    "selection_intensity": {
+      "value": 0.2,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Share of eligible breeding candidates selected each annual cycle."
+    },
+    "trait_weights": {
+      "milk_yield": {
+        "value": 0.35,
+        "unit": "weight",
+        "valid_range": "0..1",
+        "source": "implementation",
+        "assumption": true,
+        "description": "Baseline breeding-index weight for milk production."
+      },
+      "feed_efficiency": {
+        "value": 0.3,
+        "unit": "weight",
+        "valid_range": "0..1",
+        "source": "implementation",
+        "assumption": true,
+        "description": "Baseline breeding-index weight for low RFI and feed efficiency."
+      },
+      "fertility": {
+        "value": 0.15,
+        "unit": "weight",
+        "valid_range": "0..1",
+        "source": "implementation",
+        "assumption": true,
+        "description": "Baseline breeding-index weight for reproduction."
+      },
+      "health": {
+        "value": 0.1,
+        "unit": "weight",
+        "valid_range": "0..1",
+        "source": "implementation",
+        "assumption": true,
+        "description": "Baseline breeding-index weight for disease resilience."
+      },
+      "survivability": {
+        "value": 0.1,
+        "unit": "weight",
+        "valid_range": "0..1",
+        "source": "implementation",
+        "assumption": true,
+        "description": "Baseline breeding-index weight for livability."
+      }
+    }
+  },
+  "cow": {
+    "base_milk_l_per_cow_day": {
+      "value": 30.0,
+      "unit": "L/cow/day",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline daily milk production before health, genetics, and heat-stress modifiers."
+    },
+    "base_dmi_kg_per_cow_day": {
+      "value": 22.0,
+      "unit": "kg dry matter/cow/day",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline dry-matter intake demand."
+    },
+    "base_manure_kg_per_cow_day": {
+      "value": 60.0,
+      "unit": "kg wet manure/cow/day",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline wet manure output."
+    },
+    "enteric_ch4_kg_per_cow_day": {
+      "value": 0.42,
+      "unit": "kg CH4/cow/day",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline enteric methane emission before feed-efficiency adjustment."
+    },
+    "heat_stress_milk_loss_fraction": {
+      "value": 0.08,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Milk reduction when heat stress is active."
+    },
+    "mortality_rate_annual": {
+      "value": 0.04,
+      "unit": "fraction/year",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline annual mortality probability."
+    },
+    "pregnancy_rate_monthly": {
+      "value": 0.18,
+      "unit": "fraction/month",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline monthly pregnancy probability for eligible cows."
+    }
+  },
+  "feed_crop": {
+    "ration_cost_per_kg_dm": {
+      "value": 0.32,
+      "unit": "currency/kg dry matter",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline ration cost used when no market packet overrides feed cost."
+    },
+    "crop_yield_kg_dm_per_ha_day": {
+      "value": 35.0,
+      "unit": "kg dry matter/ha/day",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline crop dry-matter production."
+    },
+    "fertilizer_n_kg_per_ha_month": {
+      "value": 12.0,
+      "unit": "kg N/ha/month",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline fertilizer nitrogen application."
+    },
+    "nutrient_return_efficiency": {
+      "value": 0.55,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Fraction of manure nutrients credited back to crop production."
+    },
+    "irrigation_l_per_ha_day": {
+      "value": 1200.0,
+      "unit": "L/ha/day",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline irrigation demand."
+    }
+  },
+  "manure": {
+    "digester_route_fraction": {
+      "value": 0.45,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Share of manure routed to anaerobic digestion."
+    },
+    "compost_route_fraction": {
+      "value": 0.35,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Share of manure routed to composting."
+    },
+    "storage_route_fraction": {
+      "value": 0.2,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Share of manure routed to storage."
+    },
+    "biochemical_methane_potential_m3_per_kg_vs": {
+      "value": 0.24,
+      "unit": "m3 CH4/kg volatile solids",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Biochemical methane potential for digested manure."
+    },
+    "volatile_solids_fraction": {
+      "value": 0.08,
+      "unit": "fraction wet mass",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Volatile solids fraction in wet manure."
+    },
+    "storage_ch4_kg_per_kg_manure": {
+      "value": 0.0012,
+      "unit": "kg CH4/kg wet manure",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Methane from stored manure."
+    },
+    "compost_n2o_kg_per_kg_manure": {
+      "value": 0.00008,
+      "unit": "kg N2O/kg wet manure",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Nitrous oxide from composting."
+    }
+  },
+  "energy": {
+    "kwh_per_ton_feedstock": {
+      "value": 85.73,
+      "unit": "kWh/ton feedstock",
+      "valid_range": "0..",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Blueprint energy calibration benchmark."
+    },
+    "electricity_price_per_kwh": {
+      "value": 0.12,
+      "unit": "currency/kWh",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Static electricity value when no market packet is available."
+    },
+    "heat_value_per_kwh": {
+      "value": 0.04,
+      "unit": "currency/kWh",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Static heat value for recovered energy."
+    },
+    "parasitic_load_fraction": {
+      "value": 0.12,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Fraction of generated energy consumed by system operation."
+    },
+    "grid_offset_kg_co2e_per_kwh": {
+      "value": 0.38,
+      "unit": "kg CO2e/kWh",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Avoided grid emissions credit for exported electricity."
+    }
+  },
+  "disease": {
+    "mastitis_daily_probability": {
+      "value": 0.0008,
+      "unit": "probability/cow/day",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline daily mastitis transition probability."
+    },
+    "lameness_daily_probability": {
+      "value": 0.0005,
+      "unit": "probability/cow/day",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline daily lameness transition probability."
+    },
+    "milk_loss_sick_fraction": {
+      "value": 0.18,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Milk production reduction for sick cows."
+    },
+    "treatment_cost_per_case": {
+      "value": 110.0,
+      "unit": "currency/case",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline disease treatment cost."
+    },
+    "recovery_daily_probability": {
+      "value": 0.18,
+      "unit": "probability/cow/day",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline daily recovery probability."
+    }
+  },
+  "environment": {
+    "ch4_gwp100": {
+      "value": 27.2,
+      "unit": "kg CO2e/kg CH4",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Methane GWP100 factor used for reporting."
+    },
+    "n2o_gwp100": {
+      "value": 273.0,
+      "unit": "kg CO2e/kg N2O",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Nitrous oxide GWP100 factor used for reporting."
+    },
+    "circularity_weight_energy": {
+      "value": 0.3,
+      "unit": "weight",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Circularity score weight for energy recovery."
+    },
+    "circularity_weight_nutrients": {
+      "value": 0.3,
+      "unit": "weight",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Circularity score weight for nutrient recycling."
+    },
+    "circularity_weight_water": {
+      "value": 0.2,
+      "unit": "weight",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Circularity score weight for water reuse."
+    },
+    "circularity_weight_products": {
+      "value": 0.2,
+      "unit": "weight",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Circularity score weight for by-product/product routing."
+    }
+  },
+  "farm_manager": {
+    "labor_cost_per_cow_day": {
+      "value": 3.5,
+      "unit": "currency/cow/day",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline labor cost."
+    },
+    "fixed_cost_per_day": {
+      "value": 250.0,
+      "unit": "currency/day",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline non-labor fixed operating cost."
+    },
+    "discount_rate_annual": {
+      "value": 0.08,
+      "unit": "fraction/year",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Annual discount rate for ROI calculations."
+    },
+    "carbon_credit_price_per_tonne_co2e": {
+      "value": 0.0,
+      "unit": "currency/t CO2e",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Optional carbon credit price; zero by default."
+    }
+  },
+  "sensors": {
+    "milk_sensor_noise_fraction": {
+      "value": 0.02,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Observation noise for milk sensors."
+    },
+    "dmi_sensor_noise_fraction": {
+      "value": 0.04,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Observation noise for intake sensors."
+    },
+    "alert_sensitivity": {
+      "value": 0.75,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Threshold for converting abnormal readings into alerts."
+    },
+    "missing_reading_probability": {
+      "value": 0.01,
+      "unit": "probability/reading",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Daily probability of a missing sensor reading."
+    }
+  },
+  "water": {
+    "drinking_l_per_cow_day": {
+      "value": 95.0,
+      "unit": "L/cow/day",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline drinking water demand."
+    },
+    "parlor_l_per_cow_day": {
+      "value": 18.0,
+      "unit": "L/cow/day",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline milking/parlor water demand."
+    },
+    "water_saving_l_per_cow_day": {
+      "value": 21.0,
+      "unit": "L/cow/day",
+      "valid_range": "0..",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Blueprint water reduction anchor."
+    },
+    "treatment_recovery_fraction": {
+      "value": 0.35,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Fraction of wastewater recovered for reuse."
+    },
+    "water_cost_per_l": {
+      "value": 0.001,
+      "unit": "currency/L",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline water cost."
+    }
+  },
+  "dairy_processor": {
+    "enabled": {
+      "value": false,
+      "unit": "boolean",
+      "valid_range": "true,false",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Processor route is off by default while the agent remains available."
+    },
+    "whey_processing_enabled": {
+      "value": false,
+      "unit": "boolean",
+      "valid_range": "true,false",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Whey route is off by default."
+    },
+    "product_mix_cheese": {
+      "value": 0.4,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Default product mix share for cheese."
+    },
+    "product_mix_butter": {
+      "value": 0.2,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Default product mix share for butter."
+    },
+    "product_mix_yogurt": {
+      "value": 0.15,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Default product mix share for yogurt."
+    },
+    "product_mix_fresh": {
+      "value": 0.15,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Default product mix share for fresh milk."
+    },
+    "product_mix_functional": {
+      "value": 0.1,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Default product mix share for functional products."
+    },
+    "processing_energy_kwh_per_l_milk": {
+      "value": 0.08,
+      "unit": "kWh/L milk",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Processor energy use when processor route is enabled."
+    },
+    "whey_l_per_l_processed_milk": {
+      "value": 0.85,
+      "unit": "L whey/L milk",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Whey generated by processing route."
+    }
+  },
+  "market": {
+    "milk_price_per_l": {
+      "value": 0.42,
+      "unit": "currency/L",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Static farm-gate milk price when CSV market data is absent."
+    },
+    "feed_cost_per_kg_dm": {
+      "value": 0.32,
+      "unit": "currency/kg dry matter",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Static feed cost when CSV market data is absent."
+    },
+    "cull_cow_price": {
+      "value": 900.0,
+      "unit": "currency/cow",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Static cull-cow value for management and genetics signals."
+    },
+    "price_shock_stddev_fraction": {
+      "value": 0.0,
+      "unit": "fraction",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Optional stochastic price shock standard deviation; disabled by default."
+    },
+    "class_cwt_to_l_conversion": {
+      "value": 43.97,
+      "unit": "L/cwt milk",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Explicit conversion placeholder for class price to volume price; must be validated before use."
+    }
+  },
+  "land": {
+    "enabled": {
+      "value": false,
+      "unit": "boolean",
+      "valid_range": "true,false",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Agent 13 is disabled by default."
+    },
+    "cropland_ha": {
+      "value": 80.0,
+      "unit": "ha",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline cropland area."
+    },
+    "pasture_ha": {
+      "value": 40.0,
+      "unit": "ha",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline pasture area."
+    },
+    "silvopastoral_tree_cover_fraction": {
+      "value": 0.1,
+      "unit": "fraction",
+      "valid_range": "0..0.5",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Dashboard range for silvopastoral tree cover."
+    },
+    "soil_carbon_sequestration_index": {
+      "value": 1.0,
+      "unit": "index",
+      "valid_range": "0.5..2.0",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Dashboard range for soil-carbon sequestration index."
+    }
+  },
+  "runtime": {
+    "daily_tick_hours": {
+      "value": 24,
+      "unit": "hours",
+      "valid_range": "24",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Daily base simulation tick."
+    },
+    "monthly_report_day": {
+      "value": "calendar_month_end",
+      "unit": "enum",
+      "valid_range": "calendar_month_end",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Monthly reports emit on calendar month end."
+    },
+    "annual_genetics_day": {
+      "value": "calendar_year_end",
+      "unit": "enum",
+      "valid_range": "calendar_year_end",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Annual genetics cycle emits on calendar year end."
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "baseline",
+  "start_date": "2026-12-25",
+  "days": 10,
+  "seed": 1,
+  "herd_size": 100,
+  "land_cropland_ha": 80,
+  "land_pasture_ha": 40,
+  "enable_processor": false,
+  "enable_whey_processing": false,
+  "enable_land_agent": false
+}
