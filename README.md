@@ -2,10 +2,6 @@
 
 > Agent-based model of a dairy farm for simulating milk production, emissions, energy, water, and economic performance.
 
-![GitHub last commit](https://img.shields.io/github/last-commit/Creator101-commits/research-agents)
-![GitHub](https://img.shields.io/github/license/Creator101-commits/research-agents)
-![GitHub issues](https://img.shields.io/github/issues-raw/Creator101-commits/research-agents)
-
 A zero-dependency Python simulation of a dairy farm using 13 agent-based model (ABM) components. Each day, agents for cows, feed crops, manure, energy, disease, water, market, and more interact through a packet-based messaging system to produce detailed physical, environmental, and economic outputs. Designed for research, policy analysis, and education — no external packages required.
 
 ## Table of Contents
