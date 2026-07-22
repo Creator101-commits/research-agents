@@ -2,7 +2,7 @@
 
 > Agent-based model of a dairy farm for simulating milk production, emissions, energy, water, and economic performance.
 
-A zero-dependency Python simulation of a dairy farm using 13 agent-based model (ABM) components. Each day, agents for cows, feed crops, manure, energy, disease, water, market, and more interact through a packet-based messaging system to produce detailed physical, environmental, and economic outputs. Designed for research, policy analysis, and education — no external packages required.
+A zero-dependency Python simulation of a dairy farm using 13 agent-based model (ABM) components. Each day, agents for cows, feed crops, manure, energy, disease, water, market, and more interact through a packet-based messaging system to produce detailed physical, environmental, and economic outputs. Designed for research, policy analysis, and education, no external packages required.
 
 ## Table of Contents
 
@@ -45,7 +45,7 @@ ls output/
 ## Installation
 [(Back to top)](#table-of-contents)
 
-**Requirements:** Python 3.10+ — no third-party packages.
+**Requirements:** Python 3.10+ - no third-party packages.
 
 ```sh
 git clone https://github.com/Creator101-commits/research-agents.git
@@ -156,7 +156,7 @@ dairy_abm/
 ├── cli.py               # argparse CLI (run, validate-config, list-calibrations)
 ├── config.py            # Calibration loading, validation, inventory
 ├── core.py              # Packet, EventLog, SimulationContext, SimulationClock, BaseAgent
-├── model.py             # DairyFarmModel — daily loop, phase scheduling
+├── model.py             # DairyFarmModel - daily loop, phase scheduling
 ├── reports.py           # Output writer (summary, CSV, inventory)
 └── agents/              # 13 agent implementations
     ├── cow_agent.py
@@ -200,11 +200,11 @@ All 46 tests cover deterministic replay, agent contracts, calibration inventory,
 
 ### Project conventions
 
-- **No external dependencies** — standard library only
-- **Packet-based agent communication** — agents publish and consume data through `SimulationContext.packets`
-- **Calibration-first** — every parameter has metadata (source, range, assumption flag)
-- **Deterministic** — same seed always produces identical output
-- **Test-first** — new agents or parameters require corresponding tests
+- **No external dependencies** - standard library only
+- **Packet-based agent communication** - agents publish and consume data through `SimulationContext.packets`
+- **Calibration-first** - every parameter has metadata (source, range, assumption flag)
+- **Deterministic** - same seed always produces identical output
+- **Test-first** - new agents or parameters require corresponding tests
 
 ## Contributing
 [(Back to top)](#table-of-contents)
