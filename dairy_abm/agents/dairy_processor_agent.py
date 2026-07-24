@@ -56,6 +56,17 @@ class DairyProcessorAgent(BaseAgent):
             self.ctx.scenario.get("enable_whey_processing", False)
         )
         whey_l = milk_l * float(value(self.ctx.calibration, "dairy_processor.whey_l_per_l_processed_milk")) if whey_enabled else 0.0
+        l4_enabled = bool(
+            self.ctx.scenario.get(
+                "l4_byproduct_loop_enabled",
+                value(self.ctx.calibration, "dairy_processor.l4_byproduct_loop_enabled"),
+            )
+        )
+        if l4_enabled and whey_l > 0.0:
+            substitution_kg = float(
+                value(self.ctx.calibration, "dairy_processor.byproduct_loop_feed_substitution_kg_per_kg")
+            )
+            self.ctx.state["loop_credits"]["feed_offset_kg"] += whey_l * substitution_kg
         processor_revenue = milk_l * milk_price * 1.15
         self.ctx.publish(
             Packet(

@@ -8,5 +8,9 @@
   "land_pasture_ha": 40,
   "enable_processor": false,
   "enable_whey_processing": false,
-  "enable_land_agent": false
+  "enable_land_agent": false,
+  "l1_nutrient_loop_enabled": true,
+  "l2_water_loop_enabled": true,
+  "l3_energy_loop_enabled": true,
+  "l4_byproduct_loop_enabled": true
 }

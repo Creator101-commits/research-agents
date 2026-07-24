@@ -60,6 +60,7 @@ class IntegrationContractsTest(unittest.TestCase):
         scenario["start_date"] = "2025-12-31"
         scenario["seed"] = 1
         scenario["herd_size"] = 10
+        scenario["l4_byproduct_loop_enabled"] = False
         with_improvement = DairyFarmModel(scenario, calibration_high).run()
         without_improvement = DairyFarmModel(scenario, calibration_low).run()
         avg_feed_improved = sum(float(r["feed_cost"]) for r in with_improvement.daily_records[-30:])

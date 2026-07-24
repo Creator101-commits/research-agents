@@ -73,8 +73,11 @@ python3 -m dairy_abm run \
   --seed 42 \
   --enable-processor \
   --enable-whey-processing \
-  --enable-land-agent
+  --enable-land-agent \
+  --disable-l1-loop
 ```
+
+Use `--enable-l1-loop` / `--disable-l1-loop`, `--enable-l2-loop` / `--disable-l2-loop`, `--enable-l3-loop` / `--disable-l3-loop`, or `--enable-l4-loop` / `--disable-l4-loop` to override a loop setting in a scenario file for a single run.
 
 ### Validate calibration config
 
@@ -110,6 +113,10 @@ Scenarios are JSON files with these supported keys:
 | `enable_processor` | bool | `false` | Enable dairy processor agent |
 | `enable_whey_processing` | bool | `false` | Enable whey processing route |
 | `enable_land_agent` | bool | `false` | Enable land management agent |
+| `l1_nutrient_loop_enabled` | bool | calibration default (`true`) | Enable compost-derived feed credits for the following day |
+| `l2_water_loop_enabled` | bool | calibration default (`true`) | Enable recovered-water credits for the following day's irrigation demand |
+| `l3_energy_loop_enabled` | bool | calibration default (`true`) | Enable biogas energy generation without a cross-agent mass credit |
+| `l4_byproduct_loop_enabled` | bool | calibration default (`true`) | Enable whey-derived feed credits for the following day when processing is active |
 
 ### Calibration system
 

@@ -9,6 +9,13 @@ from dairy_abm.model import DairyFarmModel
 from dairy_abm.reports import write_reports
 
 
+def _add_loop_toggle_arguments(parser: argparse.ArgumentParser, loop: str, destination: str) -> None:
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(f"--enable-{loop}-loop", dest=destination, action="store_true")
+    group.add_argument(f"--disable-{loop}-loop", dest=destination, action="store_false")
+    parser.set_defaults(**{destination: None})
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="dairy-abm")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -22,6 +29,10 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--enable-processor", action="store_true")
     run_parser.add_argument("--enable-whey-processing", action="store_true")
     run_parser.add_argument("--enable-land-agent", action="store_true")
+    _add_loop_toggle_arguments(run_parser, "l1", "l1_nutrient_loop_enabled")
+    _add_loop_toggle_arguments(run_parser, "l2", "l2_water_loop_enabled")
+    _add_loop_toggle_arguments(run_parser, "l3", "l3_energy_loop_enabled")
+    _add_loop_toggle_arguments(run_parser, "l4", "l4_byproduct_loop_enabled")
 
     validate_parser = subparsers.add_parser("validate-config")
     validate_parser.add_argument("--calibration")
@@ -61,6 +72,14 @@ def main(argv: list[str] | None = None) -> int:
             scenario["enable_whey_processing"] = True
         if args.enable_land_agent:
             scenario["enable_land_agent"] = True
+        if args.l1_nutrient_loop_enabled is not None:
+            scenario["l1_nutrient_loop_enabled"] = args.l1_nutrient_loop_enabled
+        if args.l2_water_loop_enabled is not None:
+            scenario["l2_water_loop_enabled"] = args.l2_water_loop_enabled
+        if args.l3_energy_loop_enabled is not None:
+            scenario["l3_energy_loop_enabled"] = args.l3_energy_loop_enabled
+        if args.l4_byproduct_loop_enabled is not None:
+            scenario["l4_byproduct_loop_enabled"] = args.l4_byproduct_loop_enabled
         model = DairyFarmModel(scenario, load_calibration(args.calibration))
         ctx = model.run()
         write_reports(Path(args.output), ctx)

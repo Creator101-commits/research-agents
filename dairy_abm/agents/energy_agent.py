@@ -16,6 +16,14 @@ class EnergyAgent(BaseAgent):
             float(manure_packet.payload["digester_kg"]) / 1000.0 if manure_packet is not None else 0.0
         )
         gross_kwh = feedstock_tons * float(value(self.ctx.calibration, "energy.kwh_per_ton_feedstock"))
+        l3_enabled = bool(
+            self.ctx.scenario.get(
+                "l3_energy_loop_enabled",
+                value(self.ctx.calibration, "energy.l3_energy_loop_enabled"),
+            )
+        )
+        if not l3_enabled:
+            gross_kwh = 0.0
         parasitic = gross_kwh * float(value(self.ctx.calibration, "energy.parasitic_load_fraction"))
         net_kwh = max(0.0, gross_kwh - parasitic)
         electricity_price = (

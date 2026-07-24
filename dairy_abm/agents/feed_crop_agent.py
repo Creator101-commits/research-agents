@@ -10,6 +10,11 @@ class FeedCropAgent(BaseAgent):
     name = "feed_crop"
 
     def tick(self, day: date) -> None:
+        credits = self.ctx.state.get("loop_credits", {"feed_offset_kg": 0.0, "water_offset_l": 0.0})
+        feed_offset = float(credits["feed_offset_kg"])
+        water_offset = float(credits["water_offset_l"])
+        self.ctx.state["loop_credits"] = {"feed_offset_kg": 0.0, "water_offset_l": 0.0}
+
         cow_packet = self.ctx.get_packet("cow_daily_packet")
         cow_count = int(cow_packet.payload["cow_count"]) if cow_packet is not None else 0
         total_dmi = float(cow_packet.payload["dmi_kg"]) if cow_packet is not None else 0.0
@@ -29,8 +34,12 @@ class FeedCropAgent(BaseAgent):
             land_owner = "feed_crop"
             self.ctx.state.setdefault("land_owner", "feed_crop")
         crop_supply = cropland_ha * float(value(self.ctx.calibration, "feed_crop.crop_yield_kg_dm_per_ha_day"))
-        purchased_feed = max(0.0, total_dmi - crop_supply)
+        purchased_feed = max(0.0, total_dmi - crop_supply - feed_offset)
         feed_cost_total = purchased_feed * feed_cost
+        irrigation_l = max(
+            0.0,
+            cropland_ha * float(value(self.ctx.calibration, "feed_crop.irrigation_l_per_ha_day")) - water_offset,
+        )
         packet = Packet(
             source=self.name,
             name="feed_crop_packet",
@@ -42,7 +51,9 @@ class FeedCropAgent(BaseAgent):
                 "purchased_feed_kg_dm": purchased_feed,
                 "feed_cost": feed_cost_total,
                 "feed_cost_per_kg_dm": feed_cost,
-                "irrigation_l": cropland_ha * float(value(self.ctx.calibration, "feed_crop.irrigation_l_per_ha_day")),
+                "irrigation_l": irrigation_l,
+                "feed_offset_kg": feed_offset,
+                "water_offset_l": water_offset,
                 "land_owner": land_owner,
             },
         )

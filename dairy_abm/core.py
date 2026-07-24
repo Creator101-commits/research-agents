@@ -51,6 +51,9 @@ class SimulationContext:
     monthly_records: list[dict[str, Any]] = field(default_factory=list)
     annual_records: list[dict[str, Any]] = field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        self.state.setdefault("loop_credits", {"feed_offset_kg": 0.0, "water_offset_l": 0.0})
+
     def publish(self, packet: Packet) -> None:
         self.packets[packet.name] = packet
 

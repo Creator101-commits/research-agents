@@ -39,6 +39,18 @@ class ManureAgent(BaseAgent):
         compost_n2o_kg = compost_kg * float(value(self.ctx.calibration, "manure.compost_n2o_kg_per_kg_manure"))
         nutrient_return_kg = manure_kg * float(value(self.ctx.calibration, "feed_crop.nutrient_return_efficiency"))
 
+        l1_enabled = bool(
+            self.ctx.scenario.get(
+                "l1_nutrient_loop_enabled",
+                value(self.ctx.calibration, "manure.l1_nutrient_loop_enabled"),
+            )
+        )
+        if l1_enabled:
+            substitution_fraction = float(
+                value(self.ctx.calibration, "feed_crop.nutrient_loop_feed_substitution_fraction")
+            )
+            self.ctx.state["loop_credits"]["feed_offset_kg"] += compost_kg * substitution_fraction
+
         self.ctx.publish(
             Packet(
                 source=self.name,

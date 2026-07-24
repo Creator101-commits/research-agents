@@ -118,6 +118,8 @@ class DairyFarmModel:
                 "enteric_ch4_kg": cow_packet.payload["enteric_ch4_kg"] if cow_packet is not None else 0.0,
                 "milk_revenue": cow_packet.payload["milk_revenue"] if cow_packet is not None else 0.0,
                 "feed_cost": feed_packet.payload["feed_cost"] if feed_packet is not None else 0.0,
+                "feed_loop_offset_kg": feed_packet.payload["feed_offset_kg"] if feed_packet is not None else 0.0,
+                "water_loop_offset_l": feed_packet.payload["water_offset_l"] if feed_packet is not None else 0.0,
                 "new_disease_cases": disease_packet.payload["new_cases"] if disease_packet is not None else 0,
                 "active_disease_cases": disease_packet.payload["active_cases"] if disease_packet is not None else 0,
                 "milk_price_per_l": market_packet.payload["milk_price_per_l"] if market_packet is not None else 0.0,

@@ -20,6 +20,15 @@ class WaterAgent(BaseAgent):
         saving_l = cow_count * float(value(self.ctx.calibration, "water.water_saving_l_per_cow_day"))
         recoverable_l = max(0.0, parlor_l - saving_l)
         recovered_l = recoverable_l * float(value(self.ctx.calibration, "water.treatment_recovery_fraction"))
+        l2_enabled = bool(
+            self.ctx.scenario.get(
+                "l2_water_loop_enabled",
+                value(self.ctx.calibration, "water.l2_water_loop_enabled"),
+            )
+        )
+        if l2_enabled:
+            offset_fraction = float(value(self.ctx.calibration, "water.water_loop_fresh_water_offset_fraction"))
+            self.ctx.state["loop_credits"]["water_offset_l"] += recovered_l * offset_fraction
         net_l = max(0.0, gross_l - saving_l - recovered_l)
         cost = net_l * float(value(self.ctx.calibration, "water.water_cost_per_l"))
         self.ctx.publish(

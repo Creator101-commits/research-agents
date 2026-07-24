@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from dairy_abm.config import calibration_inventory
+from dairy_abm.config import calibration_inventory, value
 from dairy_abm.core import SimulationContext, write_csv, write_json
 
 
@@ -26,6 +26,30 @@ def write_reports(output_dir: Path, ctx: SimulationContext) -> None:
             "enable_processor": bool(ctx.scenario.get("enable_processor", False)),
             "enable_whey_processing": bool(ctx.scenario.get("enable_whey_processing", False)),
             "enable_land_agent": bool(ctx.scenario.get("enable_land_agent", False)),
+            "l1_nutrient_loop_enabled": bool(
+                ctx.scenario.get(
+                    "l1_nutrient_loop_enabled",
+                    value(ctx.calibration, "manure.l1_nutrient_loop_enabled"),
+                )
+            ),
+            "l2_water_loop_enabled": bool(
+                ctx.scenario.get(
+                    "l2_water_loop_enabled",
+                    value(ctx.calibration, "water.l2_water_loop_enabled"),
+                )
+            ),
+            "l3_energy_loop_enabled": bool(
+                ctx.scenario.get(
+                    "l3_energy_loop_enabled",
+                    value(ctx.calibration, "energy.l3_energy_loop_enabled"),
+                )
+            ),
+            "l4_byproduct_loop_enabled": bool(
+                ctx.scenario.get(
+                    "l4_byproduct_loop_enabled",
+                    value(ctx.calibration, "dairy_processor.l4_byproduct_loop_enabled"),
+                )
+            ),
         },
         "events": ctx.events.events,
         "latest_packets": {
