@@ -33,7 +33,7 @@ class CliOutputsAndReadmeTest(unittest.TestCase):
             self.assertEqual(set(summary["output_files"]), expected)
             self.assertEqual(summary["daily_records"], 10)
             self.assertGreaterEqual(summary["monthly_records"], 2)
-            self.assertEqual(summary["annual_records"], 1)
+            self.assertEqual(summary["annual_records"], 2)
             self.assertFalse(summary["scenario_flags"]["enable_processor"])
             self.assertFalse(summary["scenario_flags"]["enable_land_agent"])
 

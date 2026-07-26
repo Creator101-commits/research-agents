@@ -45,6 +45,78 @@
       "assumption": true,
       "description": "Share of eligible breeding candidates selected each annual cycle."
     },
+    "phenotypic_sd_rfi_fat": {
+      "value": 0.054,
+      "unit": "RFI_fat trait units",
+      "valid_range": "0.01..0.1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Phenotypic standard deviation scaled to the blueprint's annual 0.75-1.0 percent RFI gain target."
+    },
+    "generation_interval_years": {
+      "value": 3.0,
+      "unit": "years",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Generation interval required to annualize breeder-equation gain."
+    },
+    "offspring_trait_variation_fraction": {
+      "value": 0.02,
+      "unit": "fraction of parental mean",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Seeded random variation around the parental mean for prospective offspring trait vectors."
+    },
+    "feed_cost_stress_threshold_per_kg_dm": {
+      "value": 0.4,
+      "unit": "currency/kg DM",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Feed-cost signal threshold that increases feed-efficiency selection emphasis."
+    },
+    "feed_efficiency_weight_multiplier_under_feed_stress": {
+      "value": 1.25,
+      "unit": "multiplier",
+      "valid_range": "1..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Feed-efficiency weight multiplier applied when feed cost exceeds the configured stress threshold."
+    },
+    "disease_frequency_stress_threshold": {
+      "value": 1,
+      "unit": "active cases",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Disease-pressure threshold that increases health selection emphasis."
+    },
+    "health_weight_multiplier_under_disease_stress": {
+      "value": 1.25,
+      "unit": "multiplier",
+      "valid_range": "1..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Health weight multiplier applied when active disease cases exceed the stress threshold."
+    },
+    "low_cull_price_threshold": {
+      "value": 700.0,
+      "unit": "currency/cow",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Cull-price threshold below which survivability receives additional breeding emphasis."
+    },
+    "survivability_weight_multiplier_under_low_cull_price": {
+      "value": 1.15,
+      "unit": "multiplier",
+      "valid_range": "1..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Survivability weight multiplier applied when the cull-price signal is low."
+    },
     "trait_weights": {
       "milk_yield": {
         "value": 0.35,
@@ -144,9 +216,225 @@
       "source": "implementation",
       "assumption": true,
       "description": "Baseline monthly pregnancy probability for eligible cows."
+    },
+    "initial_age_days": {
+      "value": 1460,
+      "unit": "days",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Default age assigned to a simulated cow when a scenario does not provide one."
+    },
+    "initial_days_in_milk": {
+      "value": 100,
+      "unit": "days",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Default lactation day assigned when a scenario does not provide one."
+    },
+    "initial_parity": {
+      "value": 2,
+      "unit": "count",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Default completed-lactation count assigned when a scenario does not provide one."
+    },
+    "initial_body_weight_kg": {
+      "value": 650.0,
+      "unit": "kg/cow",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Default body weight assigned when a scenario does not provide one."
+    },
+    "initial_body_condition_score": {
+      "value": 3.0,
+      "unit": "score",
+      "valid_range": "0..5",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Default body-condition score assigned when a scenario does not provide one."
+    },
+    "mild_heat_stress_thi": {
+      "value": 68.0,
+      "unit": "THI",
+      "valid_range": "0..",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "THI threshold at which mild heat-stress effects begin."
+    },
+    "severe_heat_stress_thi": {
+      "value": 72.0,
+      "unit": "THI",
+      "valid_range": "0..",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "THI threshold at which severe heat-stress effects begin."
+    },
+    "mild_heat_stress_dmi_loss_fraction": {
+      "value": 0.05,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "DMI reduction applied in the mild THI band."
+    },
+    "severe_heat_stress_dmi_loss_fraction": {
+      "value": 0.12,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": true,
+      "description": "DMI reduction applied above the severe THI threshold."
+    },
+    "mild_heat_stress_milk_loss_fraction": {
+      "value": 0.03,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Milk reduction applied in the mild THI band."
+    },
+    "severe_heat_stress_milk_loss_fraction": {
+      "value": 0.15,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": true,
+      "description": "Milk reduction applied above the severe THI threshold."
+    },
+    "sara_rumen_ph_threshold": {
+      "value": 5.8,
+      "unit": "pH",
+      "valid_range": "0..14",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Rumen pH below which subacute ruminal acidosis is tracked."
+    },
+    "sara_consecutive_ticks": {
+      "value": 3,
+      "unit": "ticks",
+      "valid_range": "1..",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Consecutive low-pH observations required before SARA production effects apply."
+    },
+    "sara_dmi_loss_fraction": {
+      "value": 0.10,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "DMI reduction applied to cows affected by sustained SARA."
+    },
+    "sara_milk_loss_fraction": {
+      "value": 0.06,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": true,
+      "description": "Milk reduction applied to cows affected by sustained SARA."
+    },
+    "reproduction_eligibility_days_in_milk": {
+      "value": 60,
+      "unit": "days",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Minimum lactation day before a non-pregnant cow enters the reproduction pool."
+    },
+    "ration_shortfall_milk_loss_fraction": {
+      "value": 1.0,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Milk-production reduction per unit of unmet prior-day ration coverage."
+    },
+    "grazing_intake_kg_dm_per_ha_day": {
+      "value": 15.0,
+      "unit": "kg DM/ha/day",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Dry-matter intake contribution from pasture grazing per hectare."
+    },
+    "milk_protein_fraction": {
+      "value": 0.033,
+      "unit": "kg protein/L milk",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Milk protein mass represented per litre of simulated milk."
+    },
+    "replacement_maturity_days": {
+      "value": 730,
+      "unit": "days",
+      "valid_range": "365..1200",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Age at which a female replacement enters first lactation in the simplified lifecycle."
+    },
+    "lactation_peak_days": {
+      "value": 60,
+      "unit": "days in milk",
+      "valid_range": "1..365",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Peak-day parameter for the normalized Wood-style lactation curve."
     }
   },
   "feed_crop": {
+    "initial_feed_inventory_kg_dm": {
+      "value": 0.0,
+      "unit": "kg dry matter",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Opening on-farm feed inventory when a scenario does not provide one."
+    },
+    "initial_soil_n_kg": {
+      "value": 0.0,
+      "unit": "kg N",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Opening plant-available soil nitrogen when a scenario does not provide one."
+    },
+    "local_feed_crude_protein_fraction": {
+      "value": 0.18,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Crude-protein fraction assigned to locally produced feed dry matter."
+    },
+    "imported_feed_crude_protein_fraction": {
+      "value": 0.16,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Crude-protein fraction assigned to imported feed dry matter."
+    },
+    "metabolizable_protein_fraction_of_crude_protein": {
+      "value": 0.64,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Share of ration crude protein represented as metabolizable protein."
+    },
+    "nitrogen_fraction_of_crude_protein": {
+      "value": 0.16,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Nitrogen mass fraction represented by ration crude protein."
+    },
     "ration_cost_per_kg_dm": {
       "value": 0.32,
       "unit": "currency/kg dry matter",
@@ -194,6 +482,38 @@
       "source": "implementation",
       "assumption": true,
       "description": "Baseline irrigation demand."
+    },
+    "seasonal_yield_modifier": {
+      "value": 1.0,
+      "unit": "fraction",
+      "valid_range": "0..2",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Seasonal multiplier on baseline crop yield; scenario can override per month."
+    },
+    "catch_crop_n_leaching_fraction": {
+      "value": 0.02,
+      "unit": "fraction/day",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Fraction of plant-available soil nitrogen lost to leaching per day."
+    },
+    "metabolizable_energy_mj_per_kg_dm": {
+      "value": 11.5,
+      "unit": "MJ/kg DM",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Metabolizable energy content of ration dry matter."
+    },
+    "neutral_detergent_fiber_fraction": {
+      "value": 0.38,
+      "unit": "fraction of DM",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Neutral-detergent fibre fraction of ration dry matter."
     }
   },
   "manure": {
@@ -260,6 +580,126 @@
       "source": "implementation",
       "assumption": true,
       "description": "Nitrous oxide from composting."
+    },
+    "collection_efficiency": {
+      "value": 1.0,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Fraction of cow manure captured by the managed manure system."
+    },
+    "storage_capacity_kg": {
+      "value": 10000.0,
+      "unit": "kg wet manure",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Managed manure storage capacity used for inventory and overflow checks."
+    },
+    "storage_release_fraction": {
+      "value": 0.0,
+      "unit": "fraction/day",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Daily fraction of stored manure released from inventory; zero retains storage until a later policy path is added."
+    },
+    "uncollected_ch4_kg_per_kg_manure": {
+      "value": 0.0012,
+      "unit": "kg CH4/kg wet manure",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Methane loss factor for manure outside managed collection."
+    },
+    "urinary_n_excess_fraction": {
+      "value": 0.75,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Share of feed nitrogen above metabolizable-protein supply assigned to urinary nitrogen."
+    },
+    "digestate_n_retention_fraction": {
+      "value": 1.0,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Retained nitrogen fraction for the digester nutrient-return package."
+    },
+    "compost_n_retention_fraction": {
+      "value": 1.0,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Retained nitrogen fraction for the compost nutrient-return package."
+    },
+    "phosphorus_to_nitrogen_fraction": {
+      "value": 0.2,
+      "unit": "kg P/kg N",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Placeholder phosphorus-to-nitrogen ratio for route-specific nutrient packages."
+    },
+    "potassium_to_nitrogen_fraction": {
+      "value": 0.2,
+      "unit": "kg K/kg N",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Placeholder potassium-to-nitrogen ratio for route-specific nutrient packages."
+    },
+    "digester_feedstock_manure_fraction": {
+      "value": 0.68,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Approved digester-feedstock manure share."
+    },
+    "digester_feedstock_grass_fraction": {
+      "value": 0.17,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Approved digester-feedstock grass co-feed share."
+    },
+    "digester_feedstock_food_waste_fraction": {
+      "value": 0.15,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Approved digester-feedstock food-waste co-feed share."
+    },
+    "thermochemical_route_fraction": {
+      "value": 0.0,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Share of digester-routed manure diverted to the optional thermochemical route."
+    },
+    "thermochemical_biochar_yield_fraction": {
+      "value": 0.0,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Biochar yield retained as a physical reporting output until externally calibrated."
+    },
+    "thermochemical_syngas_kwh_per_kg": {
+      "value": 0.0,
+      "unit": "kWh/kg wet manure",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Syngas energy yield retained as a physical reporting output until externally calibrated."
     }
   },
   "energy": {
@@ -310,6 +750,22 @@
       "source": "implementation",
       "assumption": true,
       "description": "Avoided grid emissions credit for exported electricity."
+    },
+    "farm_energy_demand_kwh_per_day": {
+      "value": 100.0,
+      "unit": "kWh/day",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Fallback farm electricity demand used for demand-capped displacement reporting."
+    },
+    "heat_mj_per_kwh": {
+      "value": 0.0,
+      "unit": "MJ/kWh",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Optional heat conversion coefficient; zero denotes unavailable external calibration."
     }
   },
   "disease": {
@@ -352,6 +808,78 @@
       "source": "implementation",
       "assumption": true,
       "description": "Baseline daily recovery probability."
+    },
+    "transmission_daily_probability": {
+      "value": 0.02,
+      "unit": "probability/cow/day",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Per-infected-cow daily transmission contribution in the simplified SIR model."
+    },
+    "disease_mortality_daily_probability": {
+      "value": 0.0,
+      "unit": "probability/infected cow/day",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Disease-specific mortality probability; zero until calibrated."
+    },
+    "quarantine_enabled": {
+      "value": true,
+      "unit": "boolean",
+      "valid_range": "true,false",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Whether infected cows are flagged for quarantine."
+    },
+    "quarantine_effectiveness_fraction": {
+      "value": 0.7,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Reduction in infectious transmission contribution from quarantined cows."
+    },
+    "biosecurity_effectiveness_fraction": {
+      "value": 0.8,
+      "unit": "fraction at full biosecurity",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Maximum transmission reduction applied by scenario biosecurity level."
+    },
+    "vaccination_effectiveness_fraction": {
+      "value": 0.7,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Reduction in infection probability for vaccinated cows."
+    },
+    "inherited_resistance_effectiveness_fraction": {
+      "value": 0.3,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Additional reduction in infection probability per unit health trait above baseline."
+    },
+    "stress_susceptibility_multiplier": {
+      "value": 1.25,
+      "unit": "multiplier",
+      "valid_range": "1..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Multiplier applied to infection probability for cows under active stress (heat, SARA)."
+    },
+    "herd_density_transmission_multiplier": {
+      "value": 1.0,
+      "unit": "multiplier at reference density",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Multiplier on transmission pressure based on herd density relative to an operational reference. Values >1 amplify transmission in dense herds."
     }
   },
   "environment": {
@@ -370,6 +898,22 @@
       "source": "implementation",
       "assumption": true,
       "description": "Nitrous oxide GWP100 factor used for reporting."
+    },
+    "field_n2o_kg_n2o_per_kg_n": {
+      "value": 0.01,
+      "unit": "kg N2O/kg field-N precursor",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Conversion of Manure field-N2O precursor into an Environment ledger stream."
+    },
+    "fertilizer_n_kg_co2e_per_kg_n": {
+      "value": 5.0,
+      "unit": "kg CO2e/kg fertilizer N",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Avoided-emission factor for recycled nitrogen displacing synthetic fertilizer."
     },
     "circularity_weight_energy": {
       "value": 0.3,
@@ -405,6 +949,30 @@
     }
   },
   "farm_manager": {
+    "cofeed_safety_approved": {
+      "value": false,
+      "unit": "boolean",
+      "valid_range": "true,false",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Allow safety-approved co-feed inputs to manure energy routes."
+    },
+    "coproduct_feed_allowed": {
+      "value": true,
+      "unit": "boolean",
+      "valid_range": "true,false",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Allow dairy coproducts to return to the feed system."
+    },
+    "thermochemical_route_active": {
+      "value": false,
+      "unit": "boolean",
+      "valid_range": "true,false",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Enable optional thermochemical manure valorization routes."
+    },
     "labor_cost_per_cow_day": {
       "value": 3.5,
       "unit": "currency/cow/day",
@@ -436,6 +1004,38 @@
       "source": "implementation",
       "assumption": true,
       "description": "Optional carbon credit price; zero by default."
+    },
+    "objective_weight_profit": {
+      "value": 0.5,
+      "unit": "weight",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Farm-manager objective weight for profit maximisation."
+    },
+    "objective_weight_environment": {
+      "value": 0.2,
+      "unit": "weight",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Farm-manager objective weight for environmental performance."
+    },
+    "objective_weight_animal_welfare": {
+      "value": 0.2,
+      "unit": "weight",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Farm-manager objective weight for animal health and welfare."
+    },
+    "objective_weight_circularity": {
+      "value": 0.1,
+      "unit": "weight",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Farm-manager objective weight for circular-economy performance."
     }
   },
   "sensors": {
@@ -470,6 +1070,110 @@
       "source": "implementation",
       "assumption": true,
       "description": "Daily probability of a missing sensor reading."
+    },
+    "ambient_temperature_c": {
+      "value": 20.0,
+      "unit": "degrees C",
+      "valid_range": "-50..60",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Fallback ambient temperature when no scenario weather input is supplied."
+    },
+    "relative_humidity_pct": {
+      "value": 60.0,
+      "unit": "percent",
+      "valid_range": "0..100",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Fallback relative humidity when no scenario weather input is supplied."
+    },
+    "rumen_ph_baseline": {
+      "value": 6.2,
+      "unit": "pH",
+      "valid_range": "0..14",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Fallback rumen-pH reading when no bolus value is supplied."
+    },
+    "bolus_replacement_ticks": {
+      "value": 90,
+      "unit": "ticks",
+      "valid_range": "1..",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Bolus age at which replacement is due within the blueprint's 80-90 tick guidance."
+    },
+    "sara_consecutive_ticks": {
+      "value": 3,
+      "unit": "ticks",
+      "valid_range": "1..",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Consecutive low-pH readings required for a sensor SARA-risk flag."
+    },
+    "estrus_activity_threshold": {
+      "value": 1.2,
+      "unit": "activity index",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Activity threshold used by the simplified estrus detector."
+    },
+    "estrus_rumination_change_threshold": {
+      "value": -0.2,
+      "unit": "fraction from baseline",
+      "valid_range": "-1..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Rumination-change threshold used by the simplified estrus detector."
+    },
+    "estrus_single_sensor_reliability": {
+      "value": 0.85,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Blueprint single-sensor estrus reliability anchor."
+    },
+    "estrus_fused_sensor_reliability": {
+      "value": 0.95,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Blueprint fused-sensor estrus reliability anchor."
+    },
+    "nir_crude_protein_fraction": {
+      "value": 0.16,
+      "unit": "fraction of DM",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Fallback NIR crude-protein profile used when no external feed scan is supplied."
+    },
+    "thermal_mastitis_alert_confidence": {
+      "value": 0.87,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Minimum blueprint-supported confidence for optional thermal mastitis alerts."
+    },
+    "rumination_baseline_minutes_per_day": {
+      "value": 480.0,
+      "unit": "minutes/day",
+      "valid_range": "0..1440",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Baseline daily rumination time per cow."
+    },
+    "nir_seasonality_modifier_fraction": {
+      "value": 0.0,
+      "unit": "fraction",
+      "valid_range": "-1..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Seasonal adjustment to NIR feed CP fraction; zero denotes no seasonality."
     }
   },
   "water": {
@@ -512,6 +1216,46 @@
       "source": "implementation",
       "assumption": true,
       "description": "Fraction of wastewater recovered for reuse."
+    },
+    "treatment_active": {
+      "value": true,
+      "unit": "boolean",
+      "valid_range": "true,false",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Enable on-farm wastewater treatment and physical reuse reporting."
+    },
+    "wastewater_return_fraction": {
+      "value": 1.0,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Share of cleaning-water demand collected as treatable wastewater."
+    },
+    "amino_acid_policy_active_default": {
+      "value": true,
+      "unit": "boolean",
+      "valid_range": "true,false",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Preserves the existing baseline water-saving assumption unless a scenario overrides amino-acid policy activity."
+    },
+    "nutrient_recovery_enabled": {
+      "value": false,
+      "unit": "boolean",
+      "valid_range": "true,false",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Publish optional wastewater nutrient-recovery packets when an external recovery coefficient is configured."
+    },
+    "nutrient_recovery_kg_n_per_l": {
+      "value": 0.0,
+      "unit": "kg N/L treated water",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Optional nutrient-recovery coefficient; zero denotes unavailable external calibration."
     },
     "water_loop_fresh_water_offset_fraction": {
       "value": 0.7,
@@ -603,6 +1347,102 @@
       "assumption": true,
       "description": "Processor energy use when processor route is enabled."
     },
+    "milk_cooling_kwh_per_l_milk": {
+      "value": 0.01,
+      "unit": "kWh/L milk",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Bulk-tank cooling energy for all harvested milk."
+    },
+    "fraction_milk_to_processor": {
+      "value": 1.0,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Share of harvested milk entering the opted-in processor."
+    },
+    "whey_yield_cheese": {
+      "value": 0.88,
+      "unit": "L whey/L cheese-stream milk",
+      "valid_range": "0..",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Whey generated by the cheese milk stream."
+    },
+    "whey_yield_yogurt": {
+      "value": 0.05,
+      "unit": "L whey/L yogurt-stream milk",
+      "valid_range": "0..",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Whey generated by the yogurt milk stream."
+    },
+    "whey_yield_functional": {
+      "value": 0.1,
+      "unit": "L whey/L functional-stream milk",
+      "valid_range": "0..",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Whey generated by the functional milk stream."
+    },
+    "fraction_sludge_of_milk": {
+      "value": 0.02,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Processor sludge generated per litre of processed milk."
+    },
+    "fraction_waste_milk_of_milk": {
+      "value": 0.03,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Waste milk generated per litre of processed milk."
+    },
+    "price_per_l_milk_cheese": {
+      "value": 0.55,
+      "unit": "currency/L milk-equivalent",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Static cheese-stream value when a product price packet is absent."
+    },
+    "price_per_l_milk_butter": {
+      "value": 0.55,
+      "unit": "currency/L milk-equivalent",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Static butter-stream value when a product price packet is absent."
+    },
+    "price_per_l_milk_yogurt": {
+      "value": 0.5,
+      "unit": "currency/L milk-equivalent",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Static yogurt-stream value when a product price packet is absent."
+    },
+    "price_per_l_milk_fresh": {
+      "value": 0.42,
+      "unit": "currency/L milk-equivalent",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Static fresh-milk stream value when a product price packet is absent."
+    },
+    "price_per_l_milk_functional": {
+      "value": 0.65,
+      "unit": "currency/L milk-equivalent",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Static functional-product stream value when a product price packet is absent."
+    },
     "whey_l_per_l_processed_milk": {
       "value": 0.85,
       "unit": "L whey/L milk",
@@ -618,6 +1458,38 @@
       "source": "implementation",
       "assumption": true,
       "description": "Feed offset credited per kilogram of whey in the byproduct loop."
+    },
+    "whey_liquid_price_per_l": {
+      "value": 0.03,
+      "unit": "currency/L whey",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Value booked for safety-approved liquid whey feed return."
+    },
+    "fraction_whey_to_feed": {
+      "value": 0.5,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Share of whey routed to the animal-feed loop when enabled."
+    },
+    "fraction_sludge_to_energy": {
+      "value": 0.5,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Share of processor sludge routed to energy."
+    },
+    "fraction_waste_milk_to_feed": {
+      "value": 0.7,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Share of waste milk routed to feed when safety allows."
     }
   },
   "market": {

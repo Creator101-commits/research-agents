@@ -7,6 +7,74 @@ from dairy_abm.config import calibration_inventory, value
 from dairy_abm.core import SimulationContext, write_csv, write_json
 
 
+REPORT_CONTRACT = {
+    "daily": {
+        "period": "daily",
+        "confidence": "per-record packet quality and confidence",
+        "fields": {
+            "report_confidence": "source:quality/confidence, pipe-delimited",
+            "milk_l": "L",
+            "purchased_feed_kg_dm": "kg dry matter",
+            "irrigation_l": "L",
+            "net_kwh": "kWh",
+            "biogas_volume_m3": "m3/day",
+            "biogas_gross_kwh": "kWh/day",
+            "heat_generated_mj": "MJ/day",
+            "energy_self_sufficiency_pct": "%",
+            "net_water_l": "L",
+            "freshwater_withdrawal_l": "L",
+            "recycled_irrigation_l": "L",
+            "recycled_irrigation_fraction": "fraction",
+            "gross_kg_co2e": "kg CO2e",
+            "avoided_kg_co2e": "kg CO2e",
+            "net_kg_co2e": "kg CO2e",
+            "kg_co2e_per_l_milk": "kg CO2e/L milk",
+            "kg_co2e_per_kg_milk_protein": "kg CO2e/kg milk protein",
+            "input_circularity": "fraction",
+            "output_circularity": "fraction",
+            "environment_nue": "fraction",
+            "material_use_count": "count",
+            "material_cycle_count": "count",
+            "soil_carbon_delta_kg": "kg C/day",
+            "synthetic_fertilizer_saved_kg": "kg N/day",
+            "sustainability_score_0_100": "score",
+            "disease_economic_cost": "currency/day",
+            "policy_conflict_count": "count",
+            "profit": "currency",
+        },
+    },
+    "monthly": {
+        "period": "calendar month",
+        "confidence": "aggregated from daily packet confidence",
+        "fields": {
+            "milk_l": "L/month",
+            "gross_kg_co2e": "kg CO2e/month",
+            "avoided_kg_co2e": "kg CO2e/month",
+            "net_kg_co2e": "kg CO2e/month",
+            "profit": "currency/month",
+            "soil_carbon_delta_kg": "kg C/month",
+            "synthetic_fertilizer_saved_kg": "kg N/month",
+        },
+    },
+    "annual": {
+        "period": "calendar year",
+        "confidence": "agent reported",
+        "fields": {
+            "genetic_gain_per_generation": "trait score/year",
+            "herd_net_merit": "trait score",
+        },
+    },
+    "experiment": {
+        "period": "entire simulation",
+        "confidence": "aggregated from daily packet confidence",
+        "fields": {
+            "net_kg_co2e": "kg CO2e/run",
+            "kg_co2e_per_l_milk": "kg CO2e/L milk",
+            "kg_co2e_per_kg_milk_protein": "kg CO2e/kg milk protein",
+        },
+    },
+}
+
 def write_reports(output_dir: Path, ctx: SimulationContext) -> None:
     summary: dict[str, Any] = {
         "scenario_name": ctx.scenario.get("name", "unnamed"),
@@ -14,6 +82,7 @@ def write_reports(output_dir: Path, ctx: SimulationContext) -> None:
         "schedule_records": len(ctx.schedule_records),
         "monthly_records": len(ctx.monthly_records),
         "annual_records": len(ctx.annual_records),
+        "report_contract": REPORT_CONTRACT,
         "output_files": [
             "summary.json",
             "calibration_inventory.json",
@@ -51,6 +120,7 @@ def write_reports(output_dir: Path, ctx: SimulationContext) -> None:
                 )
             ),
         },
+        "policy": dict(ctx.state.get("policy", {})),
         "events": ctx.events.events,
         "latest_packets": {
             name: {

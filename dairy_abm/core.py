@@ -20,6 +20,9 @@ class Packet:
     day: date
     payload: dict[str, Any]
     quality: str = "ok"
+    period: str = "daily"
+    confidence: str = "estimated"
+    stream_id: str | None = None
 
 
 @dataclass
@@ -53,12 +56,34 @@ class SimulationContext:
 
     def __post_init__(self) -> None:
         self.state.setdefault("loop_credits", {"feed_offset_kg": 0.0, "water_offset_l": 0.0})
+        self.state.setdefault("nutrient_credits", {"recovered_water_n_kg": 0.0})
+        self.state.setdefault(
+            "policy",
+            {
+                "cofeed_safety_approved": False,
+                "coproduct_feed_allowed": True,
+                "dairy_processor_unit_enabled": False,
+                "whey_processor_unit_enabled": False,
+                "thermochemical_route_active": False,
+            },
+        )
+        self.state.setdefault("policy_history", [])
+        self.state.setdefault("agent_histories", {})
+        self.state.setdefault("environment_ledger", {})
 
     def publish(self, packet: Packet) -> None:
         self.packets[packet.name] = packet
 
     def get_packet(self, name: str, default: Any = None) -> Packet | Any:
         return self.packets.get(name, default)
+
+    def record_environment_stream(self, packet: Packet) -> None:
+        stream_name = packet.stream_id or packet.name
+        key = f"{packet.source}:{stream_name}:{packet.day.isoformat()}:{packet.period}"
+        ledger = self.state["environment_ledger"]
+        if key in ledger:
+            raise ConfigError(f"duplicate environmental stream: {key}")
+        ledger[key] = packet
 
 
 @dataclass(frozen=True)

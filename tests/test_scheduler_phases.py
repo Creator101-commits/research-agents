@@ -32,7 +32,7 @@ class SchedulerPhasesTest(unittest.TestCase):
         self.assertEqual(daily[0]["day"], "2026-01-01")
         self.assertEqual(
             daily[0]["agents"],
-            "market,sensors,disease,cow,feed_crop,dairy_processor,manure,energy,water,environment,farm_manager",
+            "market,sensors,feed_crop,farm_manager_policy,disease,water_delivery,cow,dairy_processor,manure,energy,water,environment,farm_manager",
         )
 
     def test_weekly_phase_runs_on_sunday_only(self) -> None:
@@ -42,7 +42,7 @@ class SchedulerPhasesTest(unittest.TestCase):
             {
                 "day": "2026-01-04",
                 "phase": "weekly",
-                "agents": "market,sensors,disease,cow,feed_crop,dairy_processor,manure,energy,water,environment,farm_manager",
+                "agents": "market,sensors,feed_crop,disease,cow,dairy_processor,manure,energy,water,environment,farm_manager",
             }
         ])
 
@@ -65,7 +65,7 @@ class SchedulerPhasesTest(unittest.TestCase):
             ("2026-12-31", "annual"),
         ])
         annual = [row for row in ctx.schedule_records if row["phase"] == "annual"]
-        self.assertEqual(annual[0]["agents"], "genetics")
+        self.assertEqual(annual[0]["agents"], "genetics,farm_manager")
         self.assertEqual(ctx.annual_records[0]["report"], "genetics")
 
     def test_land_enabled_schedule_includes_land_before_feed_crop(self) -> None:

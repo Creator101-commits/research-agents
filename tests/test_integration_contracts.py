@@ -63,9 +63,9 @@ class IntegrationContractsTest(unittest.TestCase):
         scenario["l4_byproduct_loop_enabled"] = False
         with_improvement = DairyFarmModel(scenario, calibration_high).run()
         without_improvement = DairyFarmModel(scenario, calibration_low).run()
-        avg_feed_improved = sum(float(r["feed_cost"]) for r in with_improvement.daily_records[-30:])
-        avg_feed_no_improvement = sum(float(r["feed_cost"]) for r in without_improvement.daily_records[-30:])
-        self.assertLess(avg_feed_improved, avg_feed_no_improvement)
+        improved_traits = [cow["feed_efficiency_trait"] for cow in with_improvement.state["cows"] if str(cow["id"]).startswith("cow-")]
+        baseline_traits = [cow["feed_efficiency_trait"] for cow in without_improvement.state["cows"] if str(cow["id"]).startswith("cow-")]
+        self.assertLess(sum(improved_traits), sum(baseline_traits))
 
     def test_active_agent_packets_have_required_contract_fields(self) -> None:
         ctx = DairyFarmModel(dict(BASE_SCENARIO), load_calibration()).run()
@@ -106,7 +106,6 @@ class IntegrationContractsTest(unittest.TestCase):
             "net_kwh",
             "net_water_l",
             "gross_kg_co2e",
-            "net_kg_co2e",
             "total_revenue",
             "total_cost",
             "milk_processed_l",

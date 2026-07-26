@@ -66,6 +66,8 @@ def validate_calibration(calibration: dict[str, Any]) -> None:
             raise ConfigError(f"calibration row {row.get('key', '<unknown>')} missing {sorted(missing)}")
         if not isinstance(row["assumption"], bool):
             raise ConfigError(f"calibration row {row['key']} assumption must be boolean")
+        if row["valid_range"] == "true,false" and not isinstance(row["default"], bool):
+            raise ConfigError(f"calibration row {row['key']} must have a boolean value")
 
     _require_sum(
         calibration,
@@ -108,9 +110,25 @@ def validate_calibration(calibration: dict[str, Any]) -> None:
         ],
         "processor product mix",
     )
+    _require_fractions(
+        calibration,
+        [
+            "dairy_processor.fraction_whey_to_feed",
+            "dairy_processor.fraction_sludge_to_energy",
+            "dairy_processor.fraction_waste_milk_to_feed",
+        ],
+        "processor residual route fractions",
+    )
 
 
 def _require_sum(calibration: dict[str, Any], keys: list[str], label: str) -> None:
     total = sum(float(value(calibration, key)) for key in keys)
     if abs(total - 1.0) > 0.000001:
         raise ConfigError(f"{label} must sum to 1.0, got {total}")
+
+
+def _require_fractions(calibration: dict[str, Any], keys: list[str], label: str) -> None:
+    for key in keys:
+        fraction = float(value(calibration, key))
+        if not 0.0 <= fraction <= 1.0:
+            raise ConfigError(f"{label}: {key} must be between 0.0 and 1.0, got {fraction}")

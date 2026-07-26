@@ -36,7 +36,12 @@ class ResourceReportingAgentsTest(unittest.TestCase):
         ctx = DairyFarmModel(scenario(herd_size=2), calibration).run()
         manure = ctx.packets["manure_packet"].payload
         energy = ctx.packets["energy_packet"].payload
-        gross_expected = manure["digester_kg"] / 1000.0 * 85.73
+        gross_expected = (
+            manure["biogas_volume_to_energy_m3"]
+            * energy["biogas_methane_fraction"]
+            * 9.97
+            * {"chp": 0.38, "electricity": 0.34, "boiler": 0.0}[energy["conversion_mode"]]
+        )
         net_expected = gross_expected * (1.0 - calibration["energy"]["parasitic_load_fraction"]["value"])
         self.assertAlmostEqual(energy["gross_kwh"], gross_expected)
         self.assertAlmostEqual(energy["net_kwh"], net_expected)

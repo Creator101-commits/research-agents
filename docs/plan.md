@@ -95,3 +95,145 @@ This plan tracks the implementation of the agents described in `abm_blueprint.ht
   - `python3 -m unittest discover -s tests -p 'test_*.py'` passed with 63 tests.
   - README scenario and CLI documentation cover L1-L4 controls and their default behavior.
   - Final repository-level `bun test` gate passed.
+
+## Blueprint Parity Roadmap
+
+### Governing Contract
+
+- The prior circular-loop decision is authoritative: retain daily `Cow -> FeedCrop` ordering and retain L1 as a lagged feed-offset credit.
+- Where that contract differs from `abm_blueprint.html`, record the difference as an intentional compatibility decision; do not silently reintroduce same-day feedback or reorder the daily agent list.
+- Implement every blueprint behavior that has a defined interface, state transition, equation, or supported control. Values the blueprint marks as not clearly specified remain calibration-backed assumptions rather than hardcoded science.
+- Each feature begins with focused tests, then receives the full Python suite after its implementation. Run `bun test` for every completed roadmap phase and before final delivery.
+
+### Shared Foundations
+
+- [x] Step 18: Add typed packet schemas, source/period metadata, confidence flags, and a shared policy state.
+  - Cover source-tagged physical, economic, and environmental packets; prevent duplicate environmental stream ingestion.
+  - Add Farm Manager-owned policy flags for circular-route safety, processor/whey equipment, feed policy, digester capacity, and scenario objectives.
+  - Test gate: `python3 -m unittest discover -s tests -p 'test_*.py'` passed with 66 tests covering packet metadata, policy precedence, and duplicate-stream rejection.
+
+- [x] Step 19: Extend report contracts and scenario/calibration validation.
+  - Add complete daily, monthly, annual, and experiment-end KPI fields with explicit units and confidence status.
+  - Require calibration metadata for every new coefficient and validate bounded fractions, capacities, product mixes, and policy dependencies.
+  - Test inventory completeness, invalid scenario rejection, and deterministic report serialization.
+  - Completion: effective policy reporting, boolean calibration validation, and agent-specific KPI fields (disease modifiers, grazing intake, feed autonomy/seasonal/ME/NDF/leaching, sensors BCS/BW/rumination/season/weather/NIR-seasonality, genetics cross-diet detection, farm-manager objective weights/operating-point arbitration) are all implemented and tested.
+
+### Economics And Processor Integrity
+
+- [x] Step 20: Make Dairy Processor and Farm Manager economically coherent.
+  - Gate product processing on processor equipment plus L4; retain farm-gate sales when inactive.
+  - Support milk-to-processor fraction, product streams, product-specific whey yields, price-based product valuation, whey/sludge/waste-milk ledgers, and safety-gated feed return.
+  - Pass processor revenue, processing energy, by-product value, and residual routes to Farm Manager; add bulk-tank cooling cost in both inactive and active processing paths.
+  - Test raw-milk versus product-mix revenue, processor and whey opt-in combinations, safety-gate blocking, product-mix conservation, and no double booking.
+  - Completion: processor equipment/L4 gating, safety-gated whey feed return, partial-processing product streams, product-specific whey yields, residual ledgers, processor revenue handoff, cooling/processing energy costs, residual routes, by-product valuation (Step 33), and ROI/cash policy are implemented. Farm Manager now includes objective-weight arbitration, operating-point scoring, and ranked recommendations.
+
+- [x] Step 21: Expand Farm Manager accounting and policy ownership.
+  - Add cash balance, by-product revenue, cooling/processing energy costs, net-energy savings, investment basis, ROI/payback, policy objectives, and ranked recommendations.
+  - Publish policy packets consumed by Feed/Crop, Manure, Energy, Water, Dairy Processor, and Genetics.
+  - Test daily/monthly cash roll-forward, policy propagation, processor ledger integration, and ROI behavior with unavailable inputs.
+  - Completion: daily cash roll-forward, cooling/processing-energy costs, annualized supported circular benefits, null-safe ROI/payback reporting, effective-policy packet, investment schedules, ranked recommendations, objective-weight arbitration, and operating-point scoring are all implemented.
+
+### Biological And Feed System
+
+- [x] Step 22: Add Cow physiological, production, and lifecycle state without changing the chosen scheduler order.
+  - Add immutable inherited traits; mutable lactation, health, reproduction, DMI, manure, CH4, NUE, heat-stress, rumen-pH, and sensor-observation state.
+  - Consume the prior available ration packet under the preserved lag contract; publish per-cow and herd-level records for downstream agents.
+  - Test feed, disease, water, heat-stress, and sensor effects; zero-herd behavior; state persistence; and deterministic stochastic variation.
+  - Completion: persistent cow identity, inherited trait records, age, lactation, body state, health, pregnancy, rumen-pH/SARA state, prior-day ration effects, heat/SARA sensor effects, per-cow records, feed-conversion ratio, methane intensity, and mortality are implemented. NUE and water/nitrogen-mediated feed effects consume Feed/Crop outputs, so they are completed with Step 23's crop and ration pathways.
+
+- [x] Step 23: Build Feed/Crop crop-soil, inventory, ration, and nitrogen pathways.
+  - Add soil fertility, compost/digestate reporting, fertilizer requirement, feed reserves, local/import sourcing, ration quality, CP/MP/N states, feed-cost signal, and environmental precursors.
+  - Preserve L1 feed credit while separately reporting blueprint soil/fertilizer effects to avoid conflating the two contracts.
+  - Publish lag-safe ration, water-modifier, Genetics signal, and Environment precursor packets.
+  - Test inventory conservation, sourcing hierarchy, credit interaction, fertilizer/nonnegative N behavior, ration output, and cross-day Cow effects.
+  - Completion: persistent opening/ending feed inventory, crop production, local-feed-first sourcing, imported-feed residual demand, a lagged manure-to-soil-N pool with nonnegative fertilizer residual demand, calibrated ration CP/MP/N states, Cow nitrogen-use-efficiency outputs, demand-capped recovered/fresh irrigation allocation, seasonal yield modifier, catch-crop N leaching, local-feed-autonomy reporting, ME/NDF nutrient profile, grazing intake integration, L1 feed credit, and same-day nitrogen-context and annual cost-signal packets are all implemented.
+
+- [x] Step 24: Complete Genetics integration.
+  - Add per-cow trait vectors, DMI record-quality tracking, 35-day confidence gate, scenario weight sets, signal reweighting, merit scoring, parent selection, offspring trait generation, and breeder-equation reporting.
+  - Keep direct methane selection, genomic markers, and unsupported mutation/recombination models out of scope.
+  - Test candidate eligibility, weight normalization, parent/offspring inheritance, annual trends, and signal-driven selection changes.
+  - Completion: persistent trait vectors and DMI/EBV-confidence records are maintained per cow; candidates are gated at 35 daily intake records; annual selection uses normalized merit weights adapted to feed cost, active disease cases, and cull value; selected parent vectors generate a seeded prospective offspring vector without overwriting parent vectors; and the annual packet reports breeder-equation gain, herd net-merit trend, and all equation inputs.
+  - Test gate: `python3 -m unittest discover -s tests -p 'test_*.py'` passed with 91 tests, including eligibility, normalized ranking, adaptive signal weights, immutable parent vectors, offspring inheritance, and breeder-equation outputs.
+
+- [x] Step 25: Complete Sensors and Disease integration.
+  - Add weather/THI, observed versus true DMI, rumen-pH/SARA, bolus degradation, estrus, mastitis-alert confidence, feed-quality/NIR, and filtered alert packets.
+  - Add disease compartments, outbreak, recovery, quarantine, biosecurity, and immunity reporting; consume sensor alerts without treating them as automatic disease truth.
+  - Test missing-data fallbacks, sensor confidence, SARA threshold, alert routing, outbreak one-shot behavior, and compartment conservation.
+  - Completion: Sensors now publish weather-derived THI, missingness-aware observed DMI and confidence, rumen pH/SARA, bolus status, estrus reliability, NIR feed protein, and confidence-tagged filtered alerts. Cow retains observed-versus-true DMI and estrus fields; Feed consumes valid NIR protein; Farm Manager receives only a filtered-alert count. Disease now maintains per-cow S/I/R state, recovery, immunity, quarantine, outbreak history, and biosecurity-modified transmission, while sensor mastitis alerts are reported but never create cases.
+  - Test gate: `python3 -m unittest discover -s tests -p 'test_*.py'` passed with 96 tests, including sensor observations, SARA and bolus thresholds, alert routing, non-diagnostic mastitis alerts, outbreak one-shot behavior, SIR conservation, recovery/immunity, and biosecurity pressure reduction.
+
+### Resource And Environmental System
+
+- [x] Step 26: Complete Manure mass, nitrogen, storage, and co-digestion pathways.
+  - Add collection/uncollected mass, persistent storage/capacity/overflow, urinary/fecal N context, nutrient-return packaging, digester capacity, safe co-feed assembly, and optional thermochemical packets.
+  - Test route and inventory conservation, overflow, capacity clamping, safety rejection, N-stream nonnegativity, and no double-counted emissions.
+  - Completion: Manure now distinguishes inflow, collected/uncollected mass, digester/compost/storage inputs, persistent inventory, overflow, and unmanaged methane. It emits urinary/fecal N and field-N2O precursor signals plus route-specific N/P/K packages, enforces configured digester capacity, safety-gates co-feed assembly against the 68/17/15 target, preserves L1 compost credits, and publishes a mass-separated low-confidence thermochemical packet only when enabled.
+  - Test gate: `python3 -m unittest discover -s tests -p 'test_*.py'` passed with 100 tests, covering route conservation, storage overflow, capacity clamping, safety rejection, nutrient-stream nonnegativity, thermochemical mass separation, and storage-CH4-only Environment handoff.
+
+- [x] Step 27: Complete Energy balances.
+  - Add farm-demand context, displaced-grid cap, surplus, self-sufficiency, heat output when calibrated, co-feed/thermochemical input handling, and low-confidence paths for missing conversion data.
+  - Preserve L3 as its self-contained generation bucket and keep its independence from L1/L2/L4.
+  - Test demand caps, surplus, self-sufficiency, heat-calibration absence, L3 toggles, and value/offset conservation.
+  - Completion: Energy now converts the complete safety-approved digester feedstock, receives optional thermochemical syngas as a separate input, reports demand-capped grid displacement, surplus, self-sufficiency, and heat only when a conversion coefficient exists. Value and GHG offsets are based only on displaced grid energy, while L3 still gates all generation and related accounting.
+  - Test gate: `python3 -m unittest discover -s tests -p 'test_*.py'` passed with 105 tests, covering demand caps, surplus, partial self-sufficiency, missing/calibrated heat, co-feed mass conversion, thermochemical handling, L3 disablement, and value/offset conservation.
+
+- [x] Step 28: Complete Water treatment and reuse accounting.
+  - Add wastewater treatment state, recovered-water allocation capped at irrigation demand, treated-water surplus reporting, water intensity, amino-acid policy adjustment, and optional nutrient-recovery packet.
+  - Preserve the existing L2 next-day credit contract while reporting same-day physical treatment separately.
+  - Test recovery caps, surplus handling, zero-milk intensity, inactive treatment, and L2 lag compatibility.
+  - Completion: Water now persists wastewater storage, models treatment activation and recovery, reports same-day treated-water allocation capped at irrigation demand plus surplus, computes freshwater use and L/litre milk intensity, applies an explicit amino-acid policy adjustment, and can publish a low-confidence optional nutrient-recovery packet. Feed/Crop does not receive synchronous reuse; L2 continues to write a next-day water credit from treatment output.
+  - Test gate: `python3 -m unittest discover -s tests -p 'test_*.py'` passed with 110 tests, covering recovery caps, treated-water surplus, zero-milk intensity, inactive treatment, amino-acid adjustment, nutrient recovery, and L2 lag compatibility.
+
+- [x] Step 29: Replace Environment score proxies with an auditable ledger and blueprint KPIs.
+  - Add source-tagged positive and avoided streams, avoided fertilizer emissions, per-litre/protein intensity, circularity indicators, result/outcome tags, monthly/experiment-end aggregation, and anomaly logging.
+  - Permit negative net carbon balance; do not coerce it to zero.
+  - Test duplicate rejection, fertilizer/grid offsets, zero denominators, negative net balance, source-period units, and KPI aggregation.
+  - Completion: Environment now records source-tagged, daily positive and avoided CO2e streams in the shared duplicate-protected ledger; reports fertilizer substitution and grid-displacement offsets independently; preserves signed net carbon; emits milk/protein intensities, circularity indicators, result/outcome tags, and zero-denominator/net-negative events; and publishes monthly plus cumulative experiment KPIs.
+  - Test gate: `python3 -m unittest discover -s tests -p 'test_*.py'` passed with 115 tests.
+
+### Market, Land, And Integration
+
+- [x] Step 30: Extend Market and optional Land behavior.
+  - Add observed CSV loading, period selection, missing-value carry-forward, source/quality metadata, volatility/overlay modes, product-price packets, and synchronized consumer prices.
+  - When Land is enabled, add seasonal availability plus grazing and soil-carbon packets; retain simple pass-through behavior when no supported seasonal rule is configured.
+  - Test static fallback, observed-price replay, missing-value quality flags, land ownership, grazing inactivity, and soil-carbon handoff.
+  - Completion: Market supports static, observed, and observed-plus-shock modes; selects daily, monthly, then annual CSV observations; carries valid values forward by field while flagging missing inputs; preserves source, period-selection, and packet-quality metadata; exposes observed product-price fields without an implicit unit conversion; and publishes one synchronized packet for all existing consumers. Optional Land publishes scenario-driven seasonal cropland/pasture availability, grazing-access, and soil-carbon-context packets. Feed/Crop consumes available cropland, while Environment retains the soil context without applying an unsupported sequestration factor.
+  - Test gate: `python3 -m unittest discover -s tests -p 'test_*.py'` passed with 121 tests.
+
+- [x] Step 31: Complete cross-agent integration, documentation, and verification.
+  - Verify all blueprint-supported packet edges are consumed or explicitly documented as intentionally deferred.
+  - Add end-to-end mass/energy/economic conservation tests, deterministic replay with observed/static market modes, scenario matrix tests, and report contract tests.
+  - Update README and calibration review documentation with intentional deviations: preserved scheduler order and L1 feed-offset semantics.
+  - Run `python3 -m unittest discover -s tests -p 'test_*.py'`, `bun test`, and `bun run skill:check` only if skill/template files change.
+  - Completion: observed per-litre product prices now flow from Market to Dairy Processor without silently converting wholesale series; daily reports include purchased-feed and irrigation values; `summary.json` publishes units, periods, and confidence semantics for daily, monthly, annual, and experiment KPIs; and the README/calibration review document all intentionally deferred packet edges and timing constraints.
+  - Test gate: `python3 -m unittest discover -s tests -p 'test_*.py'` passed with 124 tests. No skill or template file changed, so `bun run skill:check` is not required.
+
+## Blueprint Conformance Remediation
+
+- [x] Step 32: Close Feed/Crop, Water, Manure, and Environment nutrient/emission packet edges.
+  - Consume lagged water nutrient recovery in the soil-N balance; publish soil-carbon/fertilizer context; convert configured field-N2O precursor emissions; and preserve mass/period provenance.
+  - Test one-day nutrient lag, N conservation, field-N2O ledger inclusion, and no negative fertilizer demand.
+  - Test gate: `python3 -m unittest discover -s tests -p 'test_*.py'` passed with 126 tests.
+
+- [x] Step 33: Close Dairy Processor residual routing and economic ledgers.
+  - Route whey, sludge, and waste milk through safety-gated feed, fertilizer, energy, or disposal ledgers; preserve product/residual mass; and book active by-product value without double-counting milk revenue.
+  - Test equipment gates, route fractions, residual conservation, and Farm Manager handoff.
+  - Completion: residual route quantities are published to a dedicated packet; safety-gated feed returns and by-product revenue are explicit; Manure retains energy-route quantities as auditable context without adding them to L3 feedstock, preserving the required L3 independence contract.
+  - Test gate: `python3 -m unittest discover -s tests -p 'test_*.py'` passed with 127 tests.
+
+- [x] Step 34: Complete Farm Manager policy and Environment KPI/reporting ownership.
+  - Resolve scenario policy before daily consumers, publish effective policy context, add ranked recommendations and investment schedules, and publish Environment biodiversity/sustainability/carbon-credit/soil context with monthly manager handoff.
+  - Test policy propagation, cash/ROI roll-forward, monthly Environment-to-Manager reporting, signed carbon results, and null-safe unavailable inputs.
+  - Completion: Environment publishes soil biodiversity, sustainability, carbon-credit, and monthly KPI packets; Farm Manager consumes the monthly Environment report, derives credit value from the validated Environment ledger, supports scenario investment schedules, and publishes ranked recommendations plus effective policy context.
+  - Test gate: `python3 -m unittest discover -s tests -p 'test_*.py'` passed with 128 tests.
+
+- [x] Step 35: Complete Market, Land, Sensors, and Genetics conformance boundaries.
+  - Add Market volatility/regime metadata, Land-to-Cow grazing context when explicitly enabled, sensor replacement events, and Genetics market-scenario/priority/grazing reweighting.
+  - Test deterministic regime output, grazing effect gates, replacement events, and annual selection-context changes.
+  - Completion: Market publishes deterministic realized-volatility and regime metadata; Sensors emits one replacement-due event per bolus; and annual Genetics reporting and normalized weights incorporate market scenario, breeding priority, and explicit grazing context.
+  - Test gate: `python3 -m unittest discover -s tests -p 'test_*.py'` passed with 129 tests; `bun test` passed.
+
+- [x] Step 36: Strengthen validation, report confidence, and final conformance verification.
+  - Validate scenario dependencies and calibrated route fractions, emit per-record confidence metadata, update README/calibration review, and run full packet-edge, mass/energy/economic, replay, and performance checks.
+  - Completion: Model construction rejects whey processing without a processor and Land-only overrides without Land; it revalidates in-memory calibration and bounds all processor residual route fractions. Daily output includes deterministic source-level quality/confidence metadata. README and the calibration review now describe credit timing, validation, and report semantics.
+  - Test gate: `python3 -m unittest discover -s tests -p 'test_*.py'` passed with 131 tests. `bun test` and `git diff --check` passed.
