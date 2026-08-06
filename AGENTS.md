@@ -2,196 +2,87 @@
 
 - Owner: Sreeharsha Kannegundla
 - Default branch: main
-- GitHub: https://github.com/Creator101-commits
+- GitHub: https://github.com/Creator101-commits/research-agents
 
 ---
 
-# gstack — AI Engineering Workflow
+# research-agents — Dairy Farm Agent-Based Model
 
-gstack is a collection of SKILL.md files that give AI agents structured roles for
-software development. Each skill is a specialist: CEO reviewer, eng manager,
-designer, QA lead, release engineer, debugger, and more.
-
-## Available skills
-
-Skills live in `.agents/skills/` (or `~/.claude/skills/gstack/` on Claude Code).
-Invoke them by name (e.g., `/office-hours`).
-
-### Plan-mode reviews
-
-| Skill | What it does |
-|-------|-------------|
-| `/office-hours` | Reframe product idea. |
-| `/plan-ceo-review` | Find the 10-star product. |
-| `/plan-eng-review` | Lock architecture & tests. |
-| `/plan-design-review` | Rate design 0-10. |
-| `/plan-devex-review` | DX audit (TTHW, friction). |
-| `/plan-tune` | Tune question sensitivity. |
-| `/autoplan` | CEO → design → eng → DX. |
-| `/design-consultation` | Build design system. |
-| `/spec` | Vague intent → spec. Files issue, spawns agent. |
-
-### Implementation + review
-
-| Skill | What it does |
-|-------|-------------|
-| `/review` | Pre-landing PR review. |
-| `/codex` | OpenAI Codex second opinion. |
-| `/investigate` | Root-cause debugging. |
-| `/design-review` | Live-site visual audit. |
-| `/design-shotgun` | Generate design variants. |
-| `/design-html` | Production HTML/CSS. |
-| `/devex-review` | Developer experience audit. |
-| `/qa` | Browser QA + fix loop. |
-| `/qa-only` | QA report only. |
-| `/scrape` | Pull web page data. |
-| `/skillify` | Codify scrape flow. |
-
-### Release + deploy
-
-| Skill | What it does |
-|-------|-------------|
-| `/ship` | Test → review → PR. |
-| `/land-and-deploy` | Merge, deploy, verify. |
-| `/canary` | Post-deploy monitoring. |
-| `/landing-report` | Ship queue dashboard. |
-| `/document-release` | Update docs. |
-| `/document-generate` | Generate Diataxis docs. |
-| `/setup-deploy` | Detect deploy config. |
-| `/gstack-upgrade` | Update gstack. |
-
-### Operational + memory
-
-| Skill | What it does |
-|-------|-------------|
-| `/context-save` | Save context snapshot. |
-| `/context-restore` | Resume saved context. |
-| `/learn` | Manage learned data. |
-| `/retro` | Weekly retro + streaks. |
-| `/health` | Code quality dashboard. |
-| `/benchmark` | Performance regression detection. |
-| `/benchmark-models` | Cross-model benchmark. |
-| `/cso` | OWASP + STRIDE audit. |
-| `/setup-gbrain` | Set up gbrain sync. |
-| `/sync-gbrain` | Sync gbrain with repo. |
-
-### Browser + agent integration
-
-| Skill | What it does |
-|-------|-------------|
-| `/browse` | Headless browser. |
-| `/open-gstack-browser` | Visible browser + sidebar. |
-| `/setup-browser-cookies` | Import browser cookies. |
-| `/pair-agent` | Pair remote agent. |
-
-### iOS QA — drive real iPhones over USB or Tailscale (v1.43.0.0+)
-
-| Skill | What it does |
-|-------|-------------|
-| `/ios-qa` | Live-device QA via USB/Tailscale. |
-| `/ios-fix` | Autonomous iOS bug fixer. |
-| `/ios-design-review` | Apple HIG design audit. |
-| `/ios-clean` | Strip debug wiring. |
-| `/ios-sync` | Regenerate debug bridge. |
-
-Companion CLIs (run on the Mac that's plugged into the device):
-
-| Command | What it does |
-|---------|-------------|
-| `gstack-ios-qa-daemon` | Mac broker + Tailscale listener. |
-| `gstack-ios-qa-mint` | Manage tailnet allowlist. |
-
-End-to-end walkthrough: [docs/howto-ios-testing-with-gstack.md](docs/howto-ios-testing-with-gstack.md).
-
-### Safety + scoping
-
-| Skill | What it does |
-|-------|-------------|
-| `/careful` | Warn before destructive ops. |
-| `/freeze` | Lock directory edits. |
-| `/guard` | Careful + freeze. |
-| `/unfreeze` | Remove edit restrictions. |
-| `/make-pdf` | Markdown → PDF. |
-| `/diagram` | Text → diagram (mermaid/SVG). |
+A zero-dependency Python agent-based model of a dairy farm. It simulates cows,
+feed, disease, manure, energy, water, environment, markets, processing,
+genetics, farm management, and optional land management. Runtime is Python 3.10+
+using only the standard library; Bun wraps the test scripts via `package.json`.
 
 ## Build commands
 
 ```bash
-bun install              # install dependencies
-bun test                 # run free tests (no API spend)
-bun run test:windows     # curated Windows-safe subset (runs on windows-latest)
-bun run build            # generate docs + compile binaries
-bun run gen:skill-docs   # regenerate SKILL.md files from templates
-bun run skill:check      # health dashboard for all skills
+bun install                                                      # install test wrapper deps (Bun)
+bun test                                                         # run test suite (Bun wrapper)
+python3 -m unittest discover -s tests -p 'test_*.py'             # run full Python suite
+python3 -m dairy_abm run --scenario scenarios/baseline.json --output output/   # example simulation run
+python3 -m dairy_abm validate-config                             # validate calibration registry
 ```
 
 ## Platform support
 
-- **macOS** + **Linux**: full test suite supported.
-- **Windows**: curated Windows-safe subset runs on `windows-latest` via the
-  `windows-free-tests` CI job. Setup script (`./setup`) requires Git Bash or
-  MSYS today; native PowerShell support is a future expansion. The `bin/gstack-paths`
-  helper resolves state roots through `CLAUDE_PLUGIN_DATA` / `GSTACK_HOME` so plugin
-  installs work on every platform.
+- Python 3.10+ with the standard library only; macOS and Linux fully supported.
+- No Windows-specific build script exists — do not invent one without checking
+  `package.json` and CI configuration first.
 
 ## Key conventions
 
-- SKILL.md files are **generated** from `.tmpl` templates. Edit the template, not the output.
-- Run `bun run gen:skill-docs --host codex` to regenerate Codex-specific output.
-- The browse binary provides headless browser access. Use `$B <command>` in skills.
-- Safety skills (careful, freeze, guard) use inline advisory prose — always confirm before destructive operations.
-- State paths resolve via `bin/gstack-paths` (sourced via `eval "$(...)"`). Honors `GSTACK_HOME`, `CLAUDE_PLUGIN_DATA`, `CLAUDE_PLANS_DIR`.
-- The `claude` CLI binary resolves via `browse/src/claude-bin.ts` (`Bun.which()` + `GSTACK_CLAUDE_BIN` override). Set `GSTACK_CLAUDE_BIN=wsl` plus `GSTACK_CLAUDE_BIN_ARGS='["claude"]'` to run Claude through WSL on Windows.
+- `dairy_abm/model.py` owns the scheduler. Preserve the established daily order:
+  Market → Sensors → optional Land → Feed/Crop → policy dispatch → Disease →
+  water delivery → Cow → Processor → Manure → Energy → water accounting →
+  Environment → Farm Manager → Genetics intake.
+- Agents exchange data through `SimulationContext` and `Packet` objects; avoid
+  direct agent-to-agent calls when a packet or shared state is appropriate.
+- Preserve packet metadata (source, name, date, period, quality, confidence,
+  stream identity) and the weekly Sunday / month-end / December 31 hooks.
+- The same seed must produce deterministic replay — use the context's seeded
+  RNG, never global randomness.
+- `configs/calibration.json` is the authoritative parameter registry. New
+  coefficients must include `value`, `unit`, `valid_range`, `source`,
+  `assumption`, and `description`. Use `dairy_abm.config.value()` for dotted
+  lookups and `load_calibration()` for loading/validation.
+- Preserve mass, energy, nutrient, water, and financial conservation
+  relationships; the environment ledger's duplicate detection must not be
+  double-counted.
+- `dairy_abm/reports.py` defines the report contract — update implementation,
+  tests, and docs together when adding/renaming report fields.
+- `output/` is generated and Git-ignored; never use it as a source fixture.
+- Do not claim scientific or financial validity because tests pass — tests
+  establish software contracts; calibration and domain review establish
+  scientific validity.
 
 ---
 
 ## Additional instructions for AI coding agents
 
-Everything above this line is the project README, preserved as-is. The
-instructions below are agent-specific and apply on top of it — read both.
-
-### Definition of done
-
-Before considering any task complete:
-
-```bash
-bun test              # must pass, no exceptions — it's free
-bun run skill:check   # required if any SKILL.md, .tmpl, or skills/ file changed
-```
-
-Run `bun run test:windows` additionally when a change touches `bin/gstack-paths`,
-`GSTACK_HOME`, `CLAUDE_PLUGIN_DATA`, `CLAUDE_PLANS_DIR`, or anything else on a
-platform-path resolution route.
+Everything above this line is project-specific and should be filled in per repo.
+Everything below is the stable rule set — keep as-is unless you have a specific
+reason to change it for this project.
 
 ### Hard rules — do not violate these
 
-- **Never hand-edit a generated `SKILL.md`.** These are compiled from `.tmpl`
-  files via `bun run gen:skill-docs`. If a task needs different skill behavior
-  or wording, edit the `.tmpl` source and regenerate. A direct edit to the
-  output file will be silently overwritten on the next generation pass and the
-  change will look like it "disappeared."
-- **Don't bypass `bin/gstack-paths` for state/config paths.** Hardcoding a path
-  that skips this resolution will break on at least one of `GSTACK_HOME`,
-  `CLAUDE_PLUGIN_DATA`, or `CLAUDE_PLANS_DIR` setups.
-- **Don't weaken `careful` / `freeze` / `guard` semantics.** `careful` and
-  `guard` are advisory (confirm before destructive ops); `freeze` is a hard
-  block on directory edits. Keep that distinction — don't quietly turn a hard
-  block into advisory prose or vice versa while "simplifying" a skill.
-- **Don't fabricate data** for `/benchmark`, `/benchmark-models`, Hackatime-style
-  logs, or any other skill whose output is used for real measurement or
-  competition tracking.
-- **Don't install new dependencies without asking first**, and don't add a
-  package manager other than Bun (no npm/yarn/pnpm lockfiles).
+- **Don't install new dependencies without asking first**, and don't introduce
+  a different package manager than the one already in use in this repo.
+- **Don't fabricate data** for benchmarks, logs, or anything used for real
+  measurement, grading, or competition tracking.
+- **Do not weaken validation, conservation checks, deterministic behavior, or
+  policy safety gates** to make a test pass.
+- **Never fabricate measurements, calibration values, market data, or
+  scientific claims.**
 
 ### Workflow expectations
 
-- Prefer the existing skill over ad-hoc scripting: use `/ship` for
-  test → review → push → PR rather than reimplementing that flow inline, use
-  `/investigate` before proposing a fix for a reported bug, use `/review` as a
-  pre-landing pass.
-- If a change affects documented behavior, run `/document-release` or update
-  `README.md` / Diataxis docs manually so they don't drift from the code.
-- Keep commits atomic and scoped to one logical change.
+- Ask before any irreversible action (deleting files, dropping tables, force
+  push, rewriting shared history).
+- Keep commits atomic and scoped to one logical change. Use conventional
+  commits (`feat:`, `fix:`, `chore:`).
+- Explain *why* in commit messages and PR descriptions for non-trivial changes.
+- Don't merge PRs with failing CI — flag it instead.
+- Ask rather than guess when a task is ambiguous or underspecified.
 
 ## Rules
 
@@ -214,28 +105,80 @@ platform-path resolution route.
 - Check the project for existing templates and follow them exactly
 - Always write fast, clean, and efficient code — optimize for performance and reliability. No performance regressions, technical debt, or slop. Code must be well-tested and production-ready before merging.
 
-### Kilo Code CLI specifics
+### Pi agent notes
 
-This repo is being worked on with **Kilo Code CLI**. Kilo auto-discovers this
-file at the project root — no extra config needed for it to be loaded, and it
-applies to every session in this repo.
+If this session is running under a different agent (OpenCode, Codex, etc.),
+skip this section entirely — every tool and slash command below is Pi-specific
+and won't exist in your environment.
 
-A few Kilo-specific things worth knowing:
+This repo is worked on with the Pi coding agent.
 
-- Kilo also honors `.kilo/` for project-level config. If `kilo.jsonc` (or
-  `.kilo/kilo.jsonc`) exists, check its `permission` block before assuming an
-  action (bash, edit, webfetch) will run without a prompt — rules are
-  evaluated by pattern match with the **last matching rule winning**.
-- Subdirectory `AGENTS.md` files are supported and loaded dynamically when
-  Kilo's Read tool touches a file in that directory — they supplement, not
-  replace, this root file. If gstack's monorepo-style layout (e.g. per-package
-  dirs) needs different rules than the root, add a scoped `AGENTS.md` there
-  instead of overloading this one.
-- Kilo's memory bank feature is deprecated in favor of `AGENTS.md`. If you see
-  `.kilocode/rules/memory-bank/` content anywhere in this repo, treat this
-  file as the source of truth going forward and fold anything still relevant
-  from memory-bank into this file rather than maintaining both.
-- Reusable slash-command workflows for Kilo live in `.kilo/commands/*.md`,
-  separate from this repo's own `gstack` skills — don't confuse the two. A
-  gstack skill (`/ship`, `/review`, etc.) is invoked the same way but is
-  defined under `.agents/skills/` per the "Available skills" section above.
+Full installed extension set and what each one is for. This is the complete
+toolbox available in this repo — use the right tool for the job rather than
+falling back to raw bash/grep when a more precise extension covers it.
+
+**Core**
+- **`pi-web-access`** — web search/fetch. Use for anything requiring current
+  info, docs lookups, or external verification instead of relying on
+  training-data knowledge of libraries/APIs.
+
+**Search & navigation**
+- **`@ff-labs/pi-fff`** — fuzzy file and content search. Prefer this over
+  `find`/`ls` guessing when locating a file by partial name or recent usage.
+- **`pi-lsp`** — real LSP-backed navigation (go-to-def, references,
+  diagnostics). Prefer this over grep-based exploration whenever precision
+  matters — it gives exact answers instead of scanning files.
+- **`pi-repos`** — remote GitHub repo tools; use when a task involves reading
+  or referencing a repo other than this one without cloning it manually.
+- **`repo-baby`** — codebase orientation via the `scope` CLI + skill
+  (Tree-sitter symbol extraction, ranked read order and import in-degree). Use
+  at the start of a session in unfamiliar parts of this codebase, or if this
+  repo is inherited/large — not needed for areas you already know well.
+
+**Editing**
+- **`pi-hashline-edit-pro`** — the file-editing tool. Use this as the default
+  edit path rather than raw find/replace shell commands.
+
+**Context management**
+- **`pi-blackhole`** — unified compaction + observational memory. Replaces
+  Pi's default LLM-based compaction with deterministic, zero-cost algorithmic
+  summarization, plus a memory layer (observations + reflections) that
+  survives compaction. Configured for the high-context preset. If a session
+  has gone through compaction, use the `recall` tool to retrieve exact detail
+  — file paths, error messages, prior decisions — rather than assuming it's
+  gone or re-deriving it from scratch. `/blackhole-memory status` shows
+  pipeline state; `/blackhole-recall <query>` searches full session history
+  including compacted material.
+- **`pi-skill-optimizer`** — passively trims the skill catalog and tool
+  arrays on every request. Automatic, no action needed.
+
+**Workflow, planning, sessions**
+- **`@juicesharp/rpiv-ask-user-question`** — use this to ask a structured
+  clarifying question instead of guessing on genuinely ambiguous asks.
+- **`@juicesharp/rpiv-todo`** — track multi-step work as todos so state
+  isn't lost across a long session; use for any task with 3+ discrete steps.
+- **`@narumitw/pi-plan-mode`** — use plan mode for anything non-trivial
+  before writing code; don't skip straight to implementation on ambiguous
+  or architecturally significant asks.
+- **`@vanillagreen/pi-session-manager`** — session state persists across
+  restarts; don't assume a fresh session has no prior context — check for
+  a resumable session before starting from scratch.
+
+**Code quality**
+- **`pi-simplify`** — run `/simplify` on changed lines before considering a
+  non-trivial change done.
+- **`@dietrichgebert/ponytail`** — YAGNI-first: don't build it if you can
+  avoid it, reuse existing code, fix root causes at the shared function
+  rather than patching call sites. Deliberate shortcuts get a ponytail
+  comment with a named ceiling and upgrade path, not silent debt.
+  **This is scientific/research code** — implement contributions in full rather
+  than trimming to minimum code; the YAGNI default does not apply here.
+
+**Design (frontend/UI work only)**
+- **`pi-frontend-create`** — activates automatically when building web, app, desktop app UI
+  components, pages, or landing pages (or invoke directly with
+  `/skill:frontend-create`). Enforces a banned-pattern list against generic
+  AI-design tells (centered heroes, teal/cyan accents, fade-up scroll
+  reveals, overused typefaces) and a 13-point anti-pattern checklist before
+  delivery. Run `/simplify` afterward on any generated code, same as other
+  frontend work.

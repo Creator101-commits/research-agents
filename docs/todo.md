@@ -1,0 +1,1 @@
+- Write agent's data to a excel sheet, or a SQLite database every sindle day for 20 cows and for 30 days.

@@ -78,8 +78,31 @@ python3 -m dairy_abm run \
   --enable-land-agent \
   --disable-l1-loop
 ```
-
 Use `--enable-l1-loop` / `--disable-l1-loop`, `--enable-l2-loop` / `--disable-l2-loop`, `--enable-l3-loop` / `--disable-l3-loop`, or `--enable-l4-loop` / `--disable-l4-loop` to override a loop setting in a scenario file for a single run.
+
+### Run from the web (run desk)
+
+A zero-dependency local server drives the same model from a browser page. The run desk supports scenario selection, custom runs from 1 to 3650 days, Day / Month / Year presets, seed, herd size, four L1-L4 loop switches, Processor, Whey processing, and Land agent switches.
+
+The desktop workbench keeps simulation controls in a clean left-side panel and shows full-width results beside it. After a run, use the Ledger and Graphs views with Daily, Monthly, or Yearly roll-ups. Graphs are rendered with dependency-free SVG and include milk production, net CO2e, profit, energy self-sufficiency, freshwater, circularity, sustainability, and disease cases.
+
+```sh
+python3 webapp.py
+# open http://localhost:8765
+```
+
+The page runs the real `DairyFarmModel`; the same seed and scenario produce the same results as the CLI. Simulation results are held in memory, while exports are generated on demand without writing to the repository `output/` directory.
+
+Available web routes:
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| `GET` | `/` or `/index.html` | Serve the run desk |
+| `GET` | `/api/scenario` | Return scenario names and baseline defaults |
+| `POST` | `/api/run` | Run a simulation and return summary metrics plus daily ledger rows |
+| `GET` | `/api/export/<run_id>` | Download the six CLI report files as a ZIP |
+
+The output ZIP contains `daily.csv`, `monthly.csv`, `annual.csv`, `schedule.csv`, `summary.json`, and `calibration_inventory.json`. The server keeps the ten most recent completed runs available for export. The Download graphs (PNG) control creates a browser download from the currently selected graph view.
 
 ### Validate calibration config
 
@@ -286,13 +309,20 @@ cd research-agents
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
+
 Or via Bun (if installed):
 
 ```sh
 bun test
 ```
 
-Tests cover deterministic replay, agent contracts, calibration inventory, CLI integration, phase scheduling, loop timing, market replay, report contracts, energy balances, environment ledger, manure pathways, market-land integration, sensors-disease integration, water treatment, blueprint conformance, and mass/energy/economic conservation.
+Tests cover deterministic replay, agent contracts, calibration inventory, CLI integration, phase scheduling, loop timing, market replay, report contracts, energy balances, environment ledger, manure pathways, market-land integration, sensors-disease integration, water treatment, blueprint conformance, mass/energy/economic conservation, and the web run desk API, ZIP exports, validation, cache limits, client aggregation, SVG charts, controls, error handling, and downloads.
+
+The browser client harness can be run directly with Node:
+
+```sh
+node tests/webapp_client_harness.cjs webapp.py
+```
 
 ### Project conventions
 
