@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from math import cos, pi
 
 from dairy_abm.config import value
 from dairy_abm.core import BaseAgent, Packet, require_fraction, require_nonnegative
@@ -161,11 +162,22 @@ class FeedCropAgent(BaseAgent):
         baseline_protein = total_dmi * protein_target_fraction
         # Amino acid balancing permits a lower crude-protein ration while retaining the
         # metabolizable-protein target through lysine/methionine supplementation.
-        cp_reduction_fraction = min(0.15, max(0.0, float(self.ctx.scenario.get("amino_acid_cp_reduction_fraction", 0.06)))) if amino_acid_balancing_active else 0.0
-        ration_crude_protein *= 1.0 - cp_reduction_fraction
+        cp_reduction_points = min(
+            0.025,
+            max(
+                0.0,
+                float(
+                    self.ctx.scenario.get(
+                        "amino_acid_cp_reduction_points",
+                        value(self.ctx.calibration, "feed_crop.amino_acid_cp_reduction_points"),
+                    )
+                ),
+            ),
+        ) if amino_acid_balancing_active else 0.0
+        ration_crude_protein = max(0.0, ration_crude_protein - cp_reduction_points * total_dmi)
         ration_metabolizable_protein = max(
             ration_crude_protein * metabolizable_protein_fraction,
-            baseline_protein * metabolizable_protein_fraction * (1.0 - cp_reduction_fraction),
+            max(0.0, baseline_protein - cp_reduction_points * total_dmi) * metabolizable_protein_fraction,
         )
         ration_nitrogen = ration_crude_protein * nitrogen_fraction
         opening_soil_n = require_nonnegative("soil_n_kg", float(self.ctx.state["soil_n_kg"]))
@@ -207,9 +219,22 @@ class FeedCropAgent(BaseAgent):
         total_feed_from_farm = local_feed_used + grazing_intake_kg
         total_feed_all = total_feed_from_farm + local_import_used + purchased_feed + plant_coproduct_used + dairy_return_used
         local_feed_autonomy = total_feed_from_farm / total_feed_all if total_feed_all > 0.0 else 1.0
-        ration_me_mj_per_kg_dm = float(
-            value(self.ctx.calibration, "feed_crop.metabolizable_energy_mj_per_kg_dm")
+        production_system = str(
+            self.ctx.scenario.get(
+                "production_system",
+                self.ctx.scenario.get("feed_crop", {}).get("production_system", "high_intensity"),
+            )
         )
+        me_key = {
+            "arid_grazing": "feed_crop.metabolizable_energy_mj_per_kg_dm_arid_grazing",
+            "humid_temperate": "feed_crop.metabolizable_energy_mj_per_kg_dm_humid_temperate",
+            "high_intensity": "feed_crop.metabolizable_energy_mj_per_kg_dm_high_intensity",
+        }.get(production_system, "feed_crop.metabolizable_energy_mj_per_kg_dm_high_intensity")
+        base_me_mj_per_kg_dm = float(value(self.ctx.calibration, me_key))
+        day_of_year = day.timetuple().tm_yday
+        seasonal_me_amplitude = float(value(self.ctx.calibration, "feed_crop.seasonal_me_amplitude_fraction"))
+        seasonal_me_modifier = 1.0 + seasonal_me_amplitude * cos(2 * pi * (day_of_year - 200) / 365.0)
+        ration_me_mj_per_kg_dm = base_me_mj_per_kg_dm * seasonal_me_modifier
         ration_ndf_fraction = require_fraction(
             "feed_crop.neutral_detergent_fiber_fraction",
             float(value(self.ctx.calibration, "feed_crop.neutral_detergent_fiber_fraction")),
@@ -221,6 +246,9 @@ class FeedCropAgent(BaseAgent):
         irrigation_l = irrigation_demand_l - recovered_water_applied_l
         lysine_adequacy = min(1.0, ration_crude_protein / max(0.001, total_feed_supplied * protein_target_fraction)) if amino_acid_balancing_active else None
         methionine_adequacy = lysine_adequacy if amino_acid_balancing_active else None
+        nitrogen_excretion_reduced_flag = amino_acid_balancing_active and cp_reduction_points > 0.0
+        rp_lys_flag = bool(amino_acid_balancing_active)
+        rp_met_flag = bool(amino_acid_balancing_active)
         raw_ration_targets = {
             str(cow["id"]): max(
                 0.1,
@@ -301,7 +329,10 @@ class FeedCropAgent(BaseAgent):
                 "per_cow_rations": per_cow_rations,
                 "precision_feeding_active": True,
                 "amino_acid_balancing_active": amino_acid_balancing_active,
-                "amino_acid_cp_reduction_fraction": cp_reduction_fraction,
+                "amino_acid_cp_reduction_points": cp_reduction_points,
+                "nitrogen_excretion_reduced_flag": nitrogen_excretion_reduced_flag,
+                "rp_lys_flag": rp_lys_flag,
+                "rp_met_flag": rp_met_flag,
                 "lysine_adequacy": lysine_adequacy,
                 "methionine_adequacy": methionine_adequacy,
                 "energy_protein_synchrony": min(1.0, ration_metabolizable_protein / max(0.001, total_feed_supplied * protein_target_fraction)),

@@ -55,7 +55,7 @@ class WaterAgent(BaseAgent):
         amino_acid_policy_active = bool(
             feed_packet is not None
             and feed_packet.payload.get("amino_acid_balancing_active", False)
-            and float(feed_packet.payload.get("amino_acid_cp_reduction_fraction", 0.0)) > 0.0
+            and float(feed_packet.payload.get("amino_acid_cp_reduction_points", 0.0)) > 0.0
         )
         amino_acid_adjustment_l = (
             cow_count * float(value(self.ctx.calibration, "water.water_saving_l_per_cow_day"))
@@ -109,6 +109,10 @@ class WaterAgent(BaseAgent):
             if nutrient_recovery_enabled
             else 0.0
         )
+        phosphorus_to_nitrogen = float(value(self.ctx.calibration, "manure.phosphorus_to_nitrogen_fraction"))
+        potassium_to_nitrogen = float(value(self.ctx.calibration, "manure.potassium_to_nitrogen_fraction"))
+        recovered_p_kg = recovered_n_kg * phosphorus_to_nitrogen
+        recovered_k_kg = recovered_n_kg * potassium_to_nitrogen
         if nutrient_recovery_enabled:
             self.ctx.state["nutrient_credits"]["recovered_water_n_kg"] += recovered_n_kg
         payload = {
@@ -131,6 +135,9 @@ class WaterAgent(BaseAgent):
             "treatment_capacity_l_per_day": treatment_capacity_l,
             "treatment_input_l": treatment_input_l,
             "treated_water_l": require_nonnegative("treated_water_l", treated_water_l),
+            "recovered_n_kg": require_nonnegative("recovered_n_kg", recovered_n_kg),
+            "recovered_p_kg": require_nonnegative("recovered_p_kg", recovered_p_kg),
+            "recovered_k_kg": require_nonnegative("recovered_k_kg", recovered_k_kg),
             "recovered_water_l": require_nonnegative("recovered_water_l", treated_water_l),
             "recycled_irrigation_l": require_nonnegative("recycled_irrigation_l", recycled_irrigation_l),
             "treated_water_surplus_l": require_nonnegative("treated_water_surplus_l", treated_water_surplus_l),
@@ -167,7 +174,12 @@ class WaterAgent(BaseAgent):
                     source=self.name,
                     name="water_nutrient_recovery_packet",
                     day=day,
-                    payload={"recovered_n_kg": recovered_n_kg, "treated_water_l": treated_water_l},
+                    payload={
+                        "recovered_n_kg": recovered_n_kg,
+                        "recovered_p_kg": recovered_p_kg,
+                        "recovered_k_kg": recovered_k_kg,
+                        "treated_water_l": treated_water_l,
+                    },
                     confidence="low",
                 )
             )

@@ -17,6 +17,8 @@ REPORT_CONTRACT = {
             "purchased_feed_kg_dm": "kg dry matter",
             "irrigation_l": "L",
             "net_kwh": "kWh",
+            "feedstock_tons": "tonnes/day",
+            "electricity_generated_kwh": "kWh/day",
             "biogas_volume_m3": "m3/day",
             "biogas_gross_kwh": "kWh/day",
             "heat_generated_mj": "MJ/day",

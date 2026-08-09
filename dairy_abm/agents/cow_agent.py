@@ -167,6 +167,7 @@ class CowAgent(BaseAgent):
         base_dmi = float(value(self.ctx.calibration, "cow.base_dmi_kg_per_cow_day"))
         base_manure = float(value(self.ctx.calibration, "cow.base_manure_kg_per_cow_day"))
         base_enteric = float(value(self.ctx.calibration, "cow.enteric_ch4_kg_per_cow_day"))
+        ch4_me_reference = float(value(self.ctx.calibration, "cow.ch4_me_reference_constant"))
         sick_loss = (
             float(disease_packet.payload["milk_loss_sick_fraction"])
             if disease_packet is not None
@@ -303,7 +304,7 @@ class CowAgent(BaseAgent):
             dmi_kg += cow_dmi_kg
             cow["last_dmi_kg"] = cow_dmi_kg
             cow_manure_kg = base_manure * (cow_dmi_kg / max(base_dmi, 0.001))
-            cow_ch4_kg = base_enteric * (cow_dmi_kg / max(base_dmi, 0.001)) * (10.0 / max(1.0, ration_me))
+            cow_ch4_kg = base_enteric * (cow_dmi_kg / max(base_dmi, 0.001)) * (ch4_me_reference / max(1.0, ration_me))
             manure_kg += cow_manure_kg
             enteric_ch4_kg += cow_ch4_kg
             cow["last_milk_l"] = cow_milk_l

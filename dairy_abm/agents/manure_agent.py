@@ -198,6 +198,14 @@ class ManureAgent(BaseAgent):
             if processor_residual is not None
             else 0.0
         )
+        processor_fertilizer_residual_kg = (
+            require_nonnegative(
+                "processor_fertilizer_residual_kg",
+                float(processor_residual.payload.get("fertilizer_residual_kg", 0.0)),
+            )
+            if processor_residual is not None
+            else 0.0
+        )
         digester_feedstock_kg = digester_kg + grass_cofeed_kg + food_waste_cofeed_kg + processor_residual_energy_kg
         payload = {
             "manure_kg": manure_kg,
@@ -236,6 +244,7 @@ class ManureAgent(BaseAgent):
             "grass_cofeed_kg": grass_cofeed_kg,
             "food_waste_cofeed_kg": food_waste_cofeed_kg,
             "processor_residual_energy_kg": processor_residual_energy_kg,
+            "processor_fertilizer_residual_kg": processor_fertilizer_residual_kg,
             "digester_feedstock_kg": digester_feedstock_kg,
             "digester_feedstock_feasible": cofeed_feasible,
             "manure_route_alert": route_alert,

@@ -122,6 +122,14 @@ Export to JSON:
 python3 -m dairy_abm list-calibrations --output inventory.json
 ```
 
+### Compute NPV from completed outputs
+
+The post-processing utility uses a configurable discount rate (default 6%):
+
+```sh
+python3 -m dairy_abm.analysis.npv --daily output/daily.csv --annual output/annual.csv --summary output/summary.json --discount-rate 0.06
+```
+
 ### Scenario format
 
 Scenarios are JSON files with these supported keys:
@@ -154,7 +162,9 @@ Scenarios are JSON files with these supported keys:
 | `vaccination_target_coverage` | float | `1.0` | Target fraction of herd to vaccinate |
 | `catch_crop_active` | bool | `false` | Enable catch-crop N leaching reduction |
 | `amino_acid_policy_active` | bool | calibration default | Enable amino-acid balancing for CP reduction |
-| `amino_acid_cp_reduction_fraction` | float | `0.06` | Crude protein reduction via amino acid balancing (max 0.15) |
+| `amino_acid_cp_reduction_points` | float | `0.02` | Absolute dietary CP reduction in percentage points (bounded 0.015–0.025) |
+| `production_system` | string | `"high_intensity"` | ME initialization band: `arid_grazing`, `humid_temperate`, or `high_intensity` |
+| `solar_sized_per_cow` | bool | `false` | Opt into calibration-backed solar capacity sizing per cow |
 | `energy_conversion_mode` | string | `"chp"` | Conversion mode: `"chp"`, `"electricity"`, or `"boiler"` |
 | `solar_capacity_kw` | float | `0.0` | Installed solar PV capacity |
 | `herd` | array | none | Optional explicit cow definitions with trait overrides |
@@ -234,7 +244,7 @@ Processor residual route fractions (`fraction_whey_to_feed`, `fraction_sludge_to
 | 5 | Energy | `energy_agent.py` | Biogas (CHP/electricity/boiler), solar, thermochemical syngas, grid displacement, self-sufficiency, heat recovery, carbon credits |
 | 6 | Disease | `disease_agent.py` | SIR model, outbreak seeding, transmission, biosecurity, quarantine, vaccination, inherited resistance, stress susceptibility, herd immunity, economic costing |
 | 7 | Environment | `environment_agent.py` | Stream-level GHG ledger, soil carbon, fertilizer offset, circularity (Icirc/Ocirc), sustainability score, carbon credits, cumulative KPIs |
-| 8 | Farm Manager | `farm_manager_agent.py` | Policy dispatch (pre-production), multi-objective optimisation, automatic trigger responses, cash balance, circular investment ROI, equipment ROI, policy conflict detection |
+| 8 | Farm Manager | `farm_manager_agent.py` | Policy dispatch (pre-production), multi-objective optimisation, automatic trigger responses, cash balance, circular investment ROI, four-asset equipment ROI, policy conflict detection |
 | 9 | Sensors | `sensors_agent.py` | THI, DMI obs with bolus degradation, rumen pH/SARA, estrus detection (single/fused), thermal mastitis alerts, NIR profiling, fleet health |
 | 10 | Water | `water_agent.py` | Pre-production drinking-water delivery, wastewater treatment with storage, recycled irrigation, nutrient recovery, amino-acid savings |
 | 11 | Dairy Processor | `dairy_processor_agent.py` | Product stream routing (cheese/butter/yogurt/fresh/functional), whey/scotta/sludge valorisation, byproduct revenue, capacity limits, component balance |

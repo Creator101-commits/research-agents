@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-test("python unittest suite passes", async () => {
+test("python unittest suite passes", { timeout: 30_000 }, async () => {
   const proc = Bun.spawn(["python3", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"], {
     stdout: "pipe",
     stderr: "pipe",

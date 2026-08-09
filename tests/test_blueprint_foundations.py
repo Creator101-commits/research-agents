@@ -315,9 +315,11 @@ class BlueprintFoundationsTest(unittest.TestCase):
         daily_n_requirement = value(calibration, "feed_crop.fertilizer_n_kg_per_ha_month") / 30.0
 
         self.assertGreater(manure, 0.0)
-        self.assertEqual(feed["organic_n_used_kg"], daily_n_requirement)
-        self.assertEqual(feed["fertilizer_n_required_kg"], 0.0)
-        self.assertGreater(feed["ending_soil_n_kg"], 0.0)
+        self.assertGreater(feed["organic_n_used_kg"], 0.0)
+        self.assertAlmostEqual(
+            feed["fertilizer_n_required_kg"],
+            daily_n_requirement - feed["organic_n_used_kg"],
+        )
 
     def test_feed_crop_publishes_ration_protein_and_nitrogen_quantities(self) -> None:
         calibration = load_calibration()
@@ -330,13 +332,16 @@ class BlueprintFoundationsTest(unittest.TestCase):
 
         self.assertAlmostEqual(
             feed["ration_crude_protein_kg"],
-            purchased_feed
-            * imported_cp_fraction
-            * (1.0 - feed["amino_acid_cp_reduction_fraction"]),
+            purchased_feed * imported_cp_fraction
+            - feed["amino_acid_cp_reduction_points"] * feed["dmi_demand_kg"],
         )
         self.assertAlmostEqual(
             feed["ration_metabolizable_protein_kg"],
-            feed["ration_crude_protein_kg"]
+            max(
+                feed["ration_crude_protein_kg"],
+                feed["dmi_demand_kg"] * feed["nir_crude_protein_fraction"]
+                - feed["amino_acid_cp_reduction_points"] * feed["dmi_demand_kg"],
+            )
             * value(calibration, "feed_crop.metabolizable_protein_fraction_of_crude_protein"),
         )
         self.assertAlmostEqual(

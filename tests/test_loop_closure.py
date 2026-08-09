@@ -201,7 +201,7 @@ class LoopClosureTest(unittest.TestCase):
             disabled.packets["feed_crop_packet"].payload["irrigation_l"],
         )
 
-    def test_non_energy_loops_do_not_change_energy_generation(self) -> None:
+    def test_l4_byproduct_feedstock_changes_feedstock_based_energy_generation(self) -> None:
         disabled = DairyFarmModel(
             l1_scenario(
                 land_cropland_ha=1,
@@ -223,9 +223,13 @@ class LoopClosureTest(unittest.TestCase):
             load_calibration(),
         ).run()
 
-        self.assertEqual(
-            [row["net_kwh"] for row in enabled.daily_records],
-            [row["net_kwh"] for row in disabled.daily_records],
+        self.assertGreater(
+            enabled.daily_records[0]["net_kwh"],
+            disabled.daily_records[0]["net_kwh"],
+        )
+        self.assertGreater(
+            enabled.daily_records[1]["net_kwh"],
+            disabled.daily_records[1]["net_kwh"],
         )
 
     def test_cli_disable_l3_loop_overrides_the_scenario(self) -> None:

@@ -266,6 +266,8 @@ class DairyFarmModel:
                 "digester_kg": manure_packet.payload["digester_kg"] if manure_packet is not None else 0.0,
                 "compost_kg": manure_packet.payload["compost_kg"] if manure_packet is not None else 0.0,
                 "storage_kg": manure_packet.payload["storage_kg"] if manure_packet is not None else 0.0,
+                "feedstock_tons": energy_packet.payload.get("feedstock_tons", 0.0) if energy_packet is not None else 0.0,
+                "electricity_generated_kwh": energy_packet.payload.get("electricity_generated_kwh", 0.0) if energy_packet is not None else 0.0,
                 "net_kwh": energy_packet.payload["net_kwh"] if energy_packet is not None else 0.0,
                 "energy_value": energy_packet.payload["energy_value"] if energy_packet is not None else 0.0,
                 "biogas_volume_m3": energy_packet.payload.get("biogas_volume_m3", 0.0) if energy_packet is not None else 0.0,

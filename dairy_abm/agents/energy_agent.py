@@ -40,9 +40,14 @@ class EnergyAgent(BaseAgent):
         conversion_mode = str(self.ctx.state["policy"].get("energy_conversion_mode", "chp")).lower()
         mode_efficiency = {"chp": 0.38, "electricity": 0.34, "boiler": 0.0}.get(conversion_mode, 0.38)
         biogas_gross_kwh = biogas_m3 * methane_fraction * 9.97 * mode_efficiency
-        solar_capacity_kw = max(0.0, float(self.ctx.state["policy"].get("solar_capacity_kw", 0.0)))
+        if bool(self.ctx.scenario.get("solar_sized_per_cow", False)):
+            herd_size = int(self.ctx.state.get("herd_size", len(self.ctx.state.get("cows", []))))
+            solar_capacity_kw = max(0, herd_size) * float(value(self.ctx.calibration, "energy.solar_kw_per_cow"))
+        else:
+            solar_capacity_kw = max(0.0, float(self.ctx.state["policy"].get("solar_capacity_kw", 0.0)))
         solar_kwh = solar_capacity_kw * max(0.0, float(self.ctx.scenario.get("solar_capacity_factor", 0.2))) * 24.0
-        conversion_kwh = biogas_gross_kwh if biogas_m3 > 0.0 else feedstock_gross_kwh
+        conversion_kwh = feedstock_gross_kwh
+        biogas_derived_kwh_estimate = biogas_gross_kwh
         gross_kwh = conversion_kwh + thermochemical_input_kwh + solar_kwh if l3_enabled else 0.0
         parasitic = gross_kwh * require_fraction(
             "energy.parasitic_load_fraction", float(value(self.ctx.calibration, "energy.parasitic_load_fraction"))
@@ -89,6 +94,7 @@ class EnergyAgent(BaseAgent):
             "biogas_methane_fraction": methane_fraction,
             "conversion_mode": conversion_mode,
             "biogas_gross_kwh": biogas_gross_kwh,
+            "biogas_derived_kwh_estimate": biogas_derived_kwh_estimate,
             "solar_capacity_kw": solar_capacity_kw,
             "solar_generated_kwh": solar_kwh,
             "thermochemical_input_kwh": thermochemical_input_kwh,

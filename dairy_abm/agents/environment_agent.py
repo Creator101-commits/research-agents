@@ -154,6 +154,17 @@ class EnvironmentAgent(BaseAgent):
                 gross_kg_co2e=gross_co2e,
                 avoided_kg_co2e=avoided_co2e,
             )
+        kpi_leap_tags = {
+            "gross_kg_co2e": "result",
+            "net_kg_co2e": "result",
+            "kg_co2e_per_l_milk": "result",
+            "kg_co2e_per_kg_milk_protein": "result",
+            "carbon_credit_value": "outcome",
+            "ICirc": "practice",
+            "OCirc": "practice",
+            "use_count": "result",
+            "cycle_count": "outcome",
+        }
         payload = {
             "enteric_ch4_kg": require_nonnegative("enteric_ch4_kg", enteric_ch4),
             "manure_ch4_kg": require_nonnegative("manure_ch4_kg", manure_ch4),
@@ -185,6 +196,7 @@ class EnvironmentAgent(BaseAgent):
             "sustainability_score_0_100": sustainability_score,
             "carbon_credit_value": carbon_credit_value,
             "carbon_credit_price_per_tonne_co2e": carbon_credit_price,
+            "kpi_leap_tags": kpi_leap_tags,
             "result_tags": ["gross_emissions", "avoided_emissions", "intensity", "circularity"],
             "outcome_tags": outcome_tags,
             "environmental_streams": streams,

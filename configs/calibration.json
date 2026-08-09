@@ -193,6 +193,14 @@
       "assumption": true,
       "description": "Baseline enteric methane emission before feed-efficiency adjustment."
     },
+    "ch4_me_reference_constant": {
+      "value": 10.5,
+      "unit": "MJ/kg DM",
+      "valid_range": "0..",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Herrero-derived ME reference constant in the enteric CH4 intensity approximation (ch4_per_litre = base_ch4 x (10.5 / ME))."
+    },
     "heat_stress_milk_loss_fraction": {
       "value": 0.08,
       "unit": "fraction",
@@ -499,13 +507,45 @@
       "assumption": true,
       "description": "Fraction of plant-available soil nitrogen lost to leaching per day."
     },
-    "metabolizable_energy_mj_per_kg_dm": {
+    "amino_acid_cp_reduction_points": {
+      "value": 0.02,
+      "unit": "percentage points of dietary CP",
+      "valid_range": "0.015..0.025",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "Absolute reduction in dietary crude-protein percentage when amino-acid balancing is active (1.5-2.5pp band, 2.0pp midpoint)."
+    },
+    "metabolizable_energy_mj_per_kg_dm_arid_grazing": {
+      "value": 8.75,
+      "unit": "MJ/kg DM",
+      "valid_range": "8.0..9.5",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "ME initialization midpoint for arid grazing systems."
+    },
+    "metabolizable_energy_mj_per_kg_dm_humid_temperate": {
+      "value": 11.0,
+      "unit": "MJ/kg DM",
+      "valid_range": "9.5..12.5",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "ME initialization midpoint for humid/temperate mixed systems."
+    },
+    "metabolizable_energy_mj_per_kg_dm_high_intensity": {
       "value": 11.5,
       "unit": "MJ/kg DM",
-      "valid_range": "0..",
+      "valid_range": "10.5..",
+      "source": "abm_blueprint.html",
+      "assumption": false,
+      "description": "ME initialization floor for high-intensity developed systems (>10.5)."
+    },
+    "seasonal_me_amplitude_fraction": {
+      "value": 0.05,
+      "unit": "fraction",
+      "valid_range": "0..1",
       "source": "implementation",
       "assumption": true,
-      "description": "Metabolizable energy content of ration dry matter."
+      "description": "Peak-to-baseline seasonal ME swing; sinusoidal form is an implementation choice because the blueprint does not specify the exact function."
     },
     "neutral_detergent_fiber_fraction": {
       "value": 0.38,
@@ -766,6 +806,14 @@
       "source": "implementation",
       "assumption": true,
       "description": "Optional heat conversion coefficient; zero denotes unavailable external calibration."
+    },
+    "solar_kw_per_cow": {
+      "value": 0.1,
+      "unit": "kW/cow",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Optional solar capacity sizing per cow; the blueprint does not specify a per-cow value."
     }
   },
   "disease": {
