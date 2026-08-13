@@ -1,0 +1,17 @@
+export const state = {
+  activePage: "simulation",
+  config: null,
+  calibration: null,
+  currentRun: null,
+  currentRunId: null,
+  comparison: null,
+  selectedPeriod: "daily",
+  parameterDraft: {},
+  filters: {},
+  view: "ledger",
+  period: "daily",
+  data: null,
+  loading: false,
+  error: null,
+  warnings: [],
+};

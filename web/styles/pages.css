@@ -1,0 +1,116 @@
+.overview-content { min-width: 0; }
+.overview-head { display: flex; justify-content: space-between; align-items: end; gap: 24px; padding: 12px 0 24px; border-bottom: 1px solid var(--ink); }
+.overview-head h2 { margin: 5px 0 7px; font-size: clamp(28px, 4vw, 42px); letter-spacing: -.05em; }
+.overview-head p { margin: 0; color: var(--muted); font-size: 12px; }
+.overview-source { padding: 6px 8px; border: 1px solid #cde3d3; background: var(--sage-soft); color: var(--sage); font-size: 10px; font-weight: 700; white-space: nowrap; }
+.overview-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 22px 0 30px; }
+.overview-kpi { min-width: 0; padding: 13px 14px 14px; border-top: 3px solid var(--ink); background: var(--paper); box-shadow: 0 5px 18px rgba(17,24,39,.04); }
+.overview-kpi span { display: block; min-height: 28px; color: var(--muted); font-size: 10px; line-height: 1.35; }
+.overview-kpi strong { display: block; margin-top: 8px; overflow-wrap: anywhere; font-size: 19px; line-height: 1.1; letter-spacing: -.03em; }
+.overview-kpi.is-unavailable { border-top-color: var(--tin); }
+.overview-kpi.is-unavailable strong, .overview-unavailable { color: var(--muted); }
+.overview-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.overview-chart { min-width: 0; padding: 14px 16px 10px; border: 1px solid var(--line); background: var(--paper); }
+.overview-charthead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.overview-charthead b { font-size: 14px; }
+.overview-charthead span { color: var(--muted); font-size: 10px; text-align: right; }
+.overview-chart .gsv { width: 100%; height: auto; }
+.overview-unavailable { min-height: 178px; display: grid; place-content: center; text-align: center; font-size: 16px; font-weight: 700; }
+.overview-unavailable span { font-size: 11px; font-weight: 400; }
+.charts-content, .charts-workspace { min-width: 0; }
+.charts-toolbar { display: flex; justify-content: space-between; align-items: end; gap: 24px; padding: 12px 0 18px; border-bottom: 1px solid var(--ink); }
+.charts-toolbar h2 { margin: 5px 0 7px; font-size: clamp(28px, 4vw, 42px); letter-spacing: -.05em; }
+.charts-toolbar p { margin: 0; color: var(--muted); font-size: 12px; }
+.chart-periods { display: inline-flex; border: 1px solid var(--tin); border-radius: 3px; overflow: hidden; }
+.chart-periods button { border: 0; border-right: 1px solid var(--tin); background: var(--paper); color: var(--muted); padding: 8px 11px; font-size: 10px; font-weight: 700; }
+.chart-periods button:last-child { border-right: 0; }
+.chart-periods button:hover, .chart-periods button.on { background: var(--ink); color: var(--paper); }
+.chart-note { padding: 12px 0 20px; color: var(--muted); font-size: 11px; }
+.chart-registry { display: grid; gap: 28px; }
+.chart-grouphead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 10px; border-bottom: 1px dashed var(--tin); }
+.chart-grouphead > span:last-child { color: var(--muted); font-size: 10px; }
+.chart-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.chart-card { min-width: 0; padding: 13px 14px 9px; border: 1px solid var(--line); background: var(--paper); }
+.chart-cardhead { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.chart-cardhead > div { min-width: 0; }
+.chart-cardhead b { display: block; overflow-wrap: anywhere; font-size: 13px; }
+.chart-cardhead span { color: var(--muted); font-size: 10px; }
+.chart-cardhead > span { flex: none; }
+.chart-card .gsv { width: 100%; height: auto; }
+.chart-unavailable { min-height: 178px; display: grid; place-content: center; color: var(--muted); text-align: center; font-size: 16px; font-weight: 700; }
+.chart-unavailable span { font-size: 11px; font-weight: 400; }
+.report { display: none; max-width: 1080px; margin: 0 auto; padding: 64px 76px 72px; }
+  .report.open { display: block; }
+  .reporttop { display: flex; justify-content: space-between; align-items: baseline; gap: 24px; padding-bottom: 20px; border-bottom: 3px solid var(--ink); }
+  .reporttop h2 { margin: 0; font-size: 18px; }
+  .reporttop span { color: var(--muted); font-size: 11px; }
+  .reportintro { display: grid; grid-template-columns: 1.1fr .9fr; gap: 56px; padding: 52px 0 38px; }
+  .reportintro h3 { margin: 0; max-width: 560px; font-size: clamp(36px, 5vw, 62px); line-height: .94; letter-spacing: -.06em; }
+  .finding { align-self: end; border-left: 3px solid var(--sage); padding-left: 18px; }
+  .finding b { display: block; font-size: 36px; line-height: 1; }
+  .finding span { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
+  .reportchart { padding: 18px 0 10px; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line); }
+  .reportcharthead { display: flex; justify-content: space-between; font-size: 13px; }
+  .reportcharthead span { color: var(--muted); font-size: 11px; }
+  .reportchart .gsv { margin-top: 14px; }
+  .reportfoot { display: grid; grid-template-columns: 1.35fr .65fr; gap: 52px; margin-top: 28px; }
+  .reportrow { display: grid; grid-template-columns: 1.2fr repeat(3, 1fr); gap: 14px; padding: 11px 0; border-top: 1px solid var(--line); font-size: 12px; }
+  .reportrow span { color: var(--muted); }
+  .interpretation { color: var(--muted); font-size: 12px; line-height: 1.7; }
+  .interpretation b { color: var(--ink); }
+  .back { margin-top: 38px; }
+  .back button { padding: 9px 14px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font-size: 12px; }
+  .back button:hover { border-color: var(--accent); color: var(--accent); }
+  footer { padding: 0 44px 36px; color: var(--muted); font-size: 12px; }
+  .spinner { width: 15px; height: 15px; margin-right: 8px; border: 2px solid var(--paper); border-top-color: transparent; border-radius: 50%; display: inline-block; vertical-align: -2px; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .err { margin-top: 18px; padding: 14px; border: 1px solid var(--accent); border-left: 4px solid var(--accent); background: #fff4f2; color: var(--accent); }
+  @media (max-width: 1100px) {
+    .workbench { grid-template-columns: 230px minmax(0, 1fr); gap: 24px; }
+    form#run { padding: 16px; }
+    .field { padding-right: 0; padding-left: 0; }
+  }
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .rail { border-right: 0; border-bottom: 1px solid var(--line); }
+    .railnav { grid-template-columns: repeat(4, 1fr); margin-top: 28px; }
+    .railfoot { display: none; }
+    .overview-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .workspace { padding: 28px 24px 36px; }
+    .workbench { grid-template-columns: 1fr; gap: 24px; }
+    .config { position: static; max-height: none; overflow: visible; }
+    .confighead { padding: 14px 18px; }
+    form#run { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; padding: 14px 18px; }
+    .field, .field:first-child { padding: 10px 0; margin-bottom: 10px; border-left: 0; border-bottom: 1px solid var(--line); }
+    .field:first-child { padding-top: 0; }
+    .field:last-of-type { padding-bottom: 10px; margin-bottom: 0; border-bottom: 0; }
+    button#go { grid-column: 1 / -1; width: 100%; margin-top: 10px; }
+    .report { padding: 42px 30px 52px; }
+  }
+  @media (max-width: 600px) {
+    .charts-toolbar { display: block; }
+    .chart-periods { margin-top: 14px; }
+    .chart-grid { grid-template-columns: 1fr; }
+    .overview-head { display: block; }
+    .overview-source { display: inline-block; margin-top: 12px; }
+    .overview-kpis, .overview-charts { grid-template-columns: 1fr 1fr; }
+    .overview-chart { grid-column: 1 / -1; }
+    .workspace { padding: 24px 18px 36px; }
+    .topbar, .resulthead, .topactions { display: block; }
+    .topactions { margin-top: 15px; }
+    .config { max-height: none; }
+    form#run { grid-template-columns: 1fr; }
+    button#go { grid-column: auto; }
+    .metrics { grid-template-columns: repeat(2, 1fr); }
+    .ggrid { grid-template-columns: 1fr; }
+    .report { padding: 34px 22px 44px; }
+    .reportintro, .reportfoot { grid-template-columns: 1fr; gap: 28px; }
+    .reportrow { grid-template-columns: 1.5fr repeat(2, 1fr); }
+    .reportrow span:last-child { display: none; }
+  }
+  @media print {
+    .rail, .topbar, .config, footer, .back { display: none; }
+    .app { display: block; }
+    .report { display: block; max-width: none; }
+  }

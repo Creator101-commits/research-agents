@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from copy import deepcopy
+import math
+from numbers import Real
+
 from pathlib import Path
 from typing import Any
 
@@ -53,6 +57,69 @@ def value(calibration: dict[str, Any], dotted_key: str) -> Any:
     if isinstance(node, dict) and "value" in node:
         return node["value"]
     return node
+
+
+def _validate_override_value(row: dict[str, Any], candidate: Any) -> None:
+    key = row["key"]
+    default = row["default"]
+    if isinstance(default, bool):
+        if not isinstance(candidate, bool):
+            raise ConfigError(f"{key} must be a boolean")
+    elif isinstance(default, int) and not isinstance(default, bool):
+        if not isinstance(candidate, int) or isinstance(candidate, bool):
+            raise ConfigError(f"{key} must be an integer")
+    elif isinstance(default, float):
+        if not isinstance(candidate, Real) or isinstance(candidate, bool):
+            raise ConfigError(f"{key} must be numeric")
+    elif isinstance(default, str):
+        if not isinstance(candidate, str):
+            raise ConfigError(f"{key} must be a string")
+    elif type(candidate) is not type(default):
+        raise ConfigError(f"{key} has unsupported calibration type")
+
+    valid_range = str(row.get("valid_range", ""))
+    if isinstance(default, str):
+        if valid_range and valid_range not in {"true,false", candidate}:
+            raise ConfigError(f"{key} must equal {valid_range}")
+        return
+    if isinstance(default, bool) or not valid_range or valid_range == "true,false":
+        return
+
+    if ".." in valid_range:
+        lower_text, upper_text = valid_range.split("..", 1)
+        lower = float(lower_text) if lower_text else None
+        upper = float(upper_text) if upper_text else None
+    else:
+        lower = upper = float(valid_range)
+    numeric = float(candidate)
+    if not math.isfinite(numeric):
+        raise ConfigError(f"{key} must be finite")
+    if lower is not None and numeric < lower or upper is not None and numeric > upper:
+        raise ConfigError(f"{key} must be within valid range {valid_range}")
+
+
+def apply_calibration_overrides(
+    base: dict[str, Any], overrides: dict[str, Any]
+) -> dict[str, Any]:
+    """Return a validated private calibration copy with dotted-key overrides."""
+    if not isinstance(overrides, dict):
+        raise ConfigError("calibration_overrides must be an object")
+
+    rows = {row["key"]: row for row in calibration_inventory(base)}
+    calibration = deepcopy(base)
+    for key, candidate in overrides.items():
+        if not isinstance(key, str) or key not in rows:
+            raise ConfigError(f"unknown calibration key: {key}")
+        row = rows[key]
+        _validate_override_value(row, candidate)
+        node: Any = calibration
+        parts = key.split(".")
+        for part in parts[:-1]:
+            node = node[part]
+        node[parts[-1]]["value"] = deepcopy(candidate)
+
+    validate_calibration(calibration)
+    return calibration
 
 
 def validate_calibration(calibration: dict[str, Any]) -> None:

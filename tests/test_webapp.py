@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import threading
 import unittest
+from unittest.mock import patch
 import zipfile
 from http.client import RemoteDisconnected
 from pathlib import Path
@@ -16,7 +17,6 @@ from urllib.request import Request, urlopen
 
 from webapp import (
     DISPLAY_FIELDS,
-    PAGE,
     RUN_CACHE,
     Handler,
     _export_zip,
@@ -26,6 +26,12 @@ from http.server import ThreadingHTTPServer
 
 
 ROOT = Path(__file__).resolve().parents[1]
+WEB_ROOT = ROOT / "web"
+STATIC_HTML = (WEB_ROOT / "index.html").read_text(encoding="utf-8")
+STATIC_CSS = "\n".join(
+    path.read_text(encoding="utf-8")
+    for path in sorted((WEB_ROOT / "styles").glob("*.css"))
+)
 GRAPH_FIELDS = {
     "day",
     "milk_l",
@@ -78,6 +84,18 @@ class WebAppSimulationTests(unittest.TestCase):
         )
         self.assertIn(result["id"], RUN_CACHE)
 
+    def test_explicit_herd_reports_actual_initial_size(self):
+        scenario = {
+            "name": "explicit-herd",
+            "days": 1,
+            "seed": 12,
+            "herd_size": 99,
+            "herd": [{"id": "cow-a"}, {"id": "cow-b"}],
+        }
+        with patch("webapp.DEFAULT_SCENARIO", scenario):
+            result = _run_simulation({"days": 1, "herd_size": 5})
+        self.assertEqual(result["herd_size"], 2)
+        self.assertEqual(result["daily"][0]["cow_count"], 2)
     def test_same_seed_is_deterministic(self):
         params = {"scenario": "baseline.json", "days": 3, "seed": 42, "herd_size": 5}
         first = _run_simulation(params)
@@ -112,9 +130,10 @@ class WebAppSimulationTests(unittest.TestCase):
                     _run_simulation({"days": value})
 
     def test_scenario_path_must_stay_inside_scenario_directory(self):
-        with self.assertRaisesRegex(ValueError, "must live under"):
-            _run_simulation({"scenario": "../README.md", "days": 1})
-
+        for scenario in ("../README.md", "../scenarios-evil/evil.json"):
+            with self.subTest(scenario=scenario):
+                with self.assertRaisesRegex(ValueError, "must live under"):
+                    _run_simulation({"scenario": scenario, "days": 1})
     def test_run_cache_keeps_only_the_last_ten_runs(self):
         for index in range(10):
             RUN_CACHE[str(index)] = object()
@@ -183,13 +202,29 @@ class WebAppHTTPTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("text/html", headers["Content-Type"])
         self.assertIn(b"Dairy Farm ABM", body)
-        self.assertIn(b"Download graphs (PNG)", body)
+        self.assertIn(b"/assets/styles/tokens.css", body)
+        self.assertIn(b"/assets/js/app.js", body)
 
         status, _, body = self.request("GET", "/api/scenario")
         data = json.loads(body)
         self.assertEqual(status, 200)
         self.assertIn("baseline.json", data["scenarios"])
         self.assertEqual(data["defaults"]["name"], "baseline")
+
+    def test_static_assets_are_served_and_traversal_is_rejected(self):
+        status, headers, body = self.request("GET", "/assets/js/app.js")
+        self.assertEqual(status, 200)
+        self.assertIn("javascript", headers["Content-Type"])
+        self.assertIn(b"import { state }", body)
+
+        status, headers, body = self.request("GET", "/assets/styles/tokens.css")
+        self.assertEqual(status, 200)
+        self.assertIn("text/css", headers["Content-Type"])
+        self.assertIn(b"--accent: #b42318", body)
+
+        status, _, body = self.request("GET", "/assets/%2e%2e/webapp.py")
+        self.assertEqual(status, 404)
+        self.assertIn(b"static file not found", body)
 
     def test_unknown_get_and_missing_export_return_json_404(self):
         status, headers, body = self.request("GET", "/missing")
@@ -225,6 +260,16 @@ class WebAppHTTPTests(unittest.TestCase):
         with zipfile.ZipFile(io.BytesIO(body)) as archive:
             self.assertIn("daily.csv", archive.namelist())
 
+    def test_post_run_honors_start_date_control(self):
+        status, _, body = self.request(
+            "POST",
+            "/api/run",
+            {"days": 2, "start_date": "2026-01-15", "seed": 8, "herd_size": 2},
+        )
+        data = json.loads(body)
+        self.assertEqual(status, 200)
+        self.assertEqual([row["day"] for row in data["daily"]], ["2026-01-15", "2026-01-16"])
+
     def test_malformed_post_has_400_response(self):
         request = Request(
             self.base_url + "/api/run",
@@ -240,11 +285,24 @@ class WebAppHTTPTests(unittest.TestCase):
             self.assertIn("bad request", json.loads(error.read())["error"])
         finally:
             error.close()
-    def test_invalid_post_has_500_response_with_model_error(self):
+    def test_invalid_post_has_400_response_with_model_error(self):
         status, _, body = self.request("POST", "/api/run", {"days": 0})
-        self.assertEqual(status, 500)
+        self.assertEqual(status, 400)
         self.assertIn("days must be", json.loads(body)["error"])
 
+    def test_invalid_json_shapes_and_overrides_are_rejected(self):
+        cases = [
+            ([], "JSON object"),
+            ({"days": 1.5}, "days must be"),
+            ({"days": 1, "herd_size": -1}, "herd_size must be"),
+            ({"days": 1, "seed": "abc"}, "seed must be"),
+            ({"days": 1, "enable_processor": "false"}, "enable_processor must be"),
+        ]
+        for payload, message in cases:
+            with self.subTest(payload=payload):
+                status, _, body = self.request("POST", "/api/run", payload)
+                self.assertEqual(status, 400)
+                self.assertIn(message, json.loads(body)["error"])
 
 class WebAppClientTests(unittest.TestCase):
     """Run the dependency-free browser regression harness when Node is available."""
@@ -253,7 +311,7 @@ class WebAppClientTests(unittest.TestCase):
     def test_client_behaviors(self):
         harness = ROOT / "tests" / "webapp_client_harness.cjs"
         completed = subprocess.run(
-            ["node", str(harness), str(ROOT / "webapp.py")],
+            ["node", str(harness), str(WEB_ROOT)],
             cwd=ROOT,
             text=True,
             capture_output=True,
@@ -265,42 +323,47 @@ class WebAppClientTests(unittest.TestCase):
 
 
 class WebAppVisualContractTests(unittest.TestCase):
-    def test_chart_layout_palette_and_controls_are_present(self):
-        self.assertIn("const CH = { W:520, H:244, L:76, R:18, T:48, B:40 };", PAGE)
-        self.assertIn('<text x="10" y="21" class="ttl">', PAGE)
-        self.assertIn('class="axislabel"', PAGE)
-        self.assertIn("const barX = i => L + ((i + 0.5)/n)*plotW;", PAGE)
-        self.assertIn("Math.min(48, Math.max(2, plotW/n*0.62))", PAGE)
-        self.assertIn('data-d="30"', PAGE)
-        self.assertIn('data-d="365"', PAGE)
-        self.assertIn('const TABS = [["ledger","Ledger"],["graphs","Graphs"]];', PAGE)
-        self.assertIn('const PERIODS = [["daily","Daily"],["monthly","Monthly"],["yearly","Yearly"]];', PAGE)
-        self.assertIn('const dl = state.view==="graphs" && state.data', PAGE)
-        self.assertIn('id="dlgraphs"', PAGE)
-        self.assertIn('id="report-content"', PAGE)
-        self.assertIn('id="back-workspace"', PAGE)
-        self.assertIn('position: static; align-self: start', PAGE)
-        self.assertIn('grid-template-columns: 260px minmax(0, 1fr)', PAGE)
-        self.assertIn('class="confighead"', PAGE)
-        self.assertIn('class="empty-state"', PAGE)
-        self.assertIn('class="graph-lead"', PAGE)
-        self.assertIn('button#go { width: 100%', PAGE)
-        self.assertIn('grid-template-columns: repeat(2, minmax(0, 1fr))', PAGE)
-    def test_palette_has_no_cream_tones(self):
-        for color in ("#d7cdb4", "#c3b795", "#6f6756", "#fffef8", "#23201a"):
-            self.assertNotIn(color, PAGE)
-        self.assertIn("--paper:  #ffffff;", PAGE)
-        self.assertIn("--accent: #b42318", PAGE)
-        self.assertIn("--sage:   #3f6b4f", PAGE)
+    def test_static_frontend_contains_chart_layout_and_controls(self):
+        charts = (WEB_ROOT / "js" / "charts.js").read_text(encoding="utf-8")
+        app = (WEB_ROOT / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("const CH = { W:520, H:244, L:76, R:18, T:48, B:40 };", charts)
+        self.assertIn('<text x="10" y="21" class="ttl">', charts)
+        self.assertIn('class="axislabel"', charts)
+        self.assertIn("const barX = i => L + ((i + 0.5)/n)*plotW;", charts)
+        self.assertIn("Math.min(48, Math.max(2, plotW/n*0.62))", charts)
+        self.assertIn('data-d="30"', STATIC_HTML)
+        self.assertIn('data-d="365"', STATIC_HTML)
+        self.assertIn('const TABS = [["ledger","Ledger"],["graphs","Graphs"]];', app)
+        self.assertIn('const PERIODS = [["daily","Daily"],["monthly","Monthly"],["yearly","Yearly"]];', app)
+        self.assertIn('const dl = state.view==="graphs" && state.data', app)
+        self.assertIn('id="dlgraphs"', app)
+        self.assertIn('id="report-content"', STATIC_HTML)
+        self.assertIn('id="back-workspace"', STATIC_HTML)
+        self.assertIn('position: static; align-self: start', STATIC_CSS)
+        self.assertIn('grid-template-columns: 260px minmax(0, 1fr)', STATIC_CSS)
+        self.assertIn('class="confighead"', STATIC_HTML)
+        self.assertIn('class="empty-state"', STATIC_HTML)
+        self.assertIn('class="graph-lead"', app)
+        self.assertIn('button#go { width: 100%', STATIC_CSS)
+        self.assertIn('grid-template-columns: repeat(2, minmax(0, 1fr))', STATIC_CSS)
 
-    def test_page_javascript_has_valid_syntax(self):
+    def test_static_palette_has_no_cream_tones(self):
+        for color in ("#d7cdb4", "#c3b795", "#6f6756", "#fffef8", "#23201a"):
+            self.assertNotIn(color, STATIC_CSS)
+        self.assertIn("--paper:  #ffffff;", STATIC_CSS)
+        self.assertIn("--accent: #b42318", STATIC_CSS)
+        self.assertIn("--sage:   #3f6b4f", STATIC_CSS)
+
+    def test_static_javascript_files_have_valid_syntax(self):
         if not shutil.which("node"):
             self.skipTest("Node is required for JavaScript syntax validation")
-        script = PAGE.split("<script>", 1)[1].split("</script>", 1)[0]
-        completed = subprocess.run(
-            ["node", "--check"], input=script, text=True, capture_output=True
-        )
-        self.assertEqual(completed.returncode, 0, completed.stderr)
+        for script in sorted((WEB_ROOT / "js").glob("*.js")):
+            with self.subTest(script=script.name):
+                completed = subprocess.run(
+                    ["node", "--check", str(script)], text=True, capture_output=True
+                )
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+
 
 
 if __name__ == "__main__":

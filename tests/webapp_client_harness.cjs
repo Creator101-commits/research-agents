@@ -2,11 +2,22 @@
 
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const path = require("node:path");
 const vm = require("node:vm");
 
-const sourcePath = process.argv[2];
-const page = fs.readFileSync(sourcePath, "utf8");
-const script = page.split("<script>", 2)[1].split("</script>", 1)[0];
+const webRoot = process.argv[2];
+const loaded = new Set();
+function loadModule(filePath) {
+  const absolute = path.resolve(filePath);
+  if (loaded.has(absolute)) return "";
+  loaded.add(absolute);
+  let source = fs.readFileSync(absolute, "utf8");
+  source = source.replace(/^import\s+\{[^}]+\}\s+from\s+["'](\.\/[^"']+)["'];?\s*$/gm,
+    (_, dependency) => loadModule(path.resolve(path.dirname(absolute), dependency)));
+  source = source.replace(/^export\s+(?=(?:const|function|async function|class)\b)/gm, "");
+  return source;
+}
+const script = loadModule(path.join(webRoot, "js", "app.js"));
 
 const elements = new Map();
 const documentListeners = {};
@@ -20,6 +31,8 @@ function makeElement(id) {
     innerHTML: "",
     textContent: "",
     disabled: false,
+    hidden: false,
+    className: "",
     dataset: {},
     addEventListener(type, listener) {
       element["on" + type] = listener;
@@ -32,7 +45,7 @@ function makeElement(id) {
   return element;
 }
 
-["scenario", "days", "seed", "herd", "switches", "go", "stamp", "results", "run"]
+["scenario", "days", "start-date", "seed", "herd", "switches", "go", "stamp", "results", "run"]
   .forEach(makeElement);
 
 const document = {
@@ -89,6 +102,7 @@ globalThis.URL = {
 
 const defaults = {
   name: "baseline",
+  start_date: "2026-12-25",
   days: 10,
   seed: 1,
   herd_size: 100,
@@ -118,6 +132,11 @@ const runData = {
       freshwater_withdrawal_l: 5, cow_count: 4, active_disease_cases: 1, sustainability_score_0_100: 60},
   ],
 };
+runData.series = {
+  daily: runData.daily,
+  monthly: [{day: "2026-01", milk_l: 30, profit: 7, net_kg_co2e: 5, kg_co2e_per_l_milk: 5 / 30}],
+  annual: [{day: "2026", milk_l: 30, profit: 7, net_kg_co2e: 5, kg_co2e_per_l_milk: 5 / 30}],
+};
 
 let fetchMode = "normal";
 globalThis.fetch = async (url, options = {}) => {
@@ -132,6 +151,7 @@ globalThis.fetch = async (url, options = {}) => {
     const body = JSON.parse(options.body);
     assert.equal(body.scenario, "baseline.json");
     assert.equal(body.days, 2);
+    assert.equal(body.start_date, "2026-01-15");
     assert.equal(body.seed, 9);
     assert.equal(body.herd_size, 4);
     assert.equal(body.enable_processor, true);
@@ -164,8 +184,9 @@ const context = vm.createContext({
 });
 
 const exportCode = `
-  globalThis.webapp = {aggregate, periodLabel, svgChart, buildCharts, render, ledger,
-    onRun, download, downloadGraphsPNG, state};
+  globalThis.webapp = {aggregate, periodLabel, svgChart, buildCharts, CHART_REGISTRY, render, ledger, renderOverview,
+    renderCharts, onRun, download, downloadGraphsPNG, renderShell, setLoading, setError, setWarnings,
+    pageFromHash, navigate, state};
 `;
 vm.runInContext(script + exportCode, context);
 const api = context.webapp;
@@ -182,8 +203,31 @@ function tick() {
 
 (async () => {
   await tick();
+  assert.equal(api.pageFromHash("#/overview"), "overview");
+  assert.equal(api.pageFromHash("#/not-a-page"), "simulation");
+  api.renderShell("overview");
+  assert.equal(api.state.activePage, "overview");
+  assert.equal(elements.get("page-overview").hidden, false);
+  assert.equal(elements.get("page-simulation").hidden, true);
+  api.setLoading(true);
+  assert.equal(elements.get("loading-state").hidden, false);
+  assert.match(elements.get("app-shell").className, /is-loading/);
+  api.setError("bad <run>");
+  assert.equal(elements.get("error-banner").hidden, false);
+  assert.equal(elements.get("error-text").textContent, "bad <run>");
+  api.setWarnings([{message: "check packet"}]);
+  assert.equal(elements.get("warning-banner").hidden, false);
+  assert.equal(elements.get("warning-text").textContent, "check packet");
+  api.setError("");
+  api.setWarnings([]);
+  api.setLoading(false);
+  api.renderShell("simulation");
+  assert.equal(api.state.activePage, "simulation");
+  assert.equal(elements.get("page-simulation").hidden, false);
+  assert.equal(elements.get("page-overview").hidden, true);
   assert.match(elements.get("scenario").innerHTML, /baseline/);
   assert.equal(elements.get("days").value, 10);
+  assert.equal(elements.get("start-date").value, "2026-12-25");
   assert.match(elements.get("switches").innerHTML, /l1_nutrient_loop_enabled/);
   assert.match(elements.get("switches").innerHTML, /enable_land_agent/);
   assert.equal(switches.length, 0);
@@ -200,6 +244,11 @@ function tick() {
   assert.equal(monthly[0].profit, 1);
   assert.equal(monthly[0].energy_self_sufficiency_pct, 60);
   assert.equal(monthly[0].cow_count, 11);
+  const intensity = api.aggregate([
+    {day: "2026-03-01", milk_l: 10, net_kg_co2e: 1},
+    {day: "2026-03-02", milk_l: 30, net_kg_co2e: 9},
+  ], "monthly");
+  assert.equal(intensity[0].kg_co2e_per_l_milk, 0.25);
   const yearly = api.aggregate(rows, "yearly");
   assert.equal(yearly.length, 1);
   assert.equal(yearly[0].milk_l, 35);
@@ -207,6 +256,7 @@ function tick() {
   assert.equal(api.periodLabel("2026-02-01", "daily"), "02-01");
   assert.equal(api.periodLabel("2026-02", "monthly"), "26-02");
   assert.equal(api.periodLabel("2026", "yearly"), "2026");
+  assert.equal(api.periodLabel("2026", "annual"), "2026");
 
   const svg = api.svgChart({rows, period: "daily", title: "Test", kind: "bar", unit: "L",
     series: [{key: "milk_l", color: "#b42318", label: "Milk"}]});
@@ -214,6 +264,10 @@ function tick() {
   assert.match(svg, /class="ttl"/);
   assert.match(svg, /class="axislabel"/);
   assert.match(svg, /<rect/);
+  const missingSvg = api.svgChart({rows: [{day: "2026-01-01", milk_l: null}, {day: "2026-01-02", milk_l: 10}], period: "daily", title: "Missing", kind: "bar", unit: "L", series: [{key: "milk_l", color: "#b42318", label: "Milk"}]});
+  assert.doesNotMatch(missingSvg, /2026-01-01 - 0/);
+  assert.match(svg, /<style>/);
+  assert.match(svg, /\.gsv \.ttl/);
   assert.match(svg, /<title>2026-01-01/);
   assert.doesNotMatch(svg, /undefined|null/);
   assert.equal(api.buildCharts(runData.daily, "daily").length, 8);
@@ -243,6 +297,7 @@ function tick() {
   switches.push({checked: true, dataset: {k: "enable_processor"}});
   elements.get("scenario").value = "baseline.json";
   elements.get("days").value = "2";
+  elements.get("start-date").value = "2026-01-15";
   elements.get("seed").value = "9";
   elements.get("herd").value = "4";
   fetchMode = "normal";
@@ -251,15 +306,36 @@ function tick() {
   assert.equal(api.state.period, "daily");
   assert.equal(elements.get("stamp").textContent, "SIMULATED");
   assert.equal(api.state.data.id, "abc12345");
+  assert.match(elements.get("active-run-meta").textContent, /start 2026-01-01/);
+  api.renderShell("overview");
+  assert.match(elements.get("overview-content").innerHTML, /Total milk/);
+  assert.match(elements.get("overview-content").innerHTML, /Milk production/);
+  assert.match(elements.get("overview-content").innerHTML, /N\/A/);
+  api.renderShell("simulation");
   assert.match(elements.get("results").innerHTML, /Milk produced/);
+  api.renderShell("charts");
+  assert.equal(api.state.activePage, "charts");
+  assert.match(elements.get("charts-content").innerHTML, /Milk production/);
+  assert.match(elements.get("charts-content").innerHTML, /daily points/);
+  assert.match(elements.get("charts-content").innerHTML, /<svg /);
+  click(button({chartPeriod: "monthly"}));
+  assert.equal(api.state.selectedPeriod, "monthly");
+  assert.match(elements.get("charts-content").innerHTML, /monthly points/);
+  click(button({chartPeriod: "annual"}));
+  assert.equal(api.state.selectedPeriod, "annual");
+  assert.match(elements.get("charts-content").innerHTML, /annual points/);
+  api.renderShell("simulation");
 
   fetchMode = "error";
   await api.onRun({preventDefault() {}});
   assert.equal(elements.get("stamp").textContent, "ERROR");
   assert.match(elements.get("results").innerHTML, /bad &lt;run&gt;/);
+  assert.equal(api.state.data, null);
+  await api.download();
+  assert.equal(downloads.length, 0);
 
   fetchMode = "normal";
-  api.state.data = runData;
+  await api.onRun({preventDefault() {}});
   api.state.view = "graphs";
   api.state.period = "daily";
   await api.downloadGraphsPNG();
