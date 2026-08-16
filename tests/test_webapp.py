@@ -260,6 +260,28 @@ class WebAppHTTPTests(unittest.TestCase):
         with zipfile.ZipFile(io.BytesIO(body)) as archive:
             self.assertIn("daily.csv", archive.namelist())
 
+    def test_official_artifact_routes_use_report_writer_files(self):
+        status, _, body = self.request("POST", "/api/run", {"days": 2, "seed": 8, "herd_size": 2})
+        run_id = json.loads(body)["id"]
+        expected = {
+            "summary.json": "application/json",
+            "daily.csv": "text/csv",
+            "schedule.csv": "text/csv",
+            "monthly.csv": "text/csv",
+            "annual.csv": "text/csv",
+            "calibration_inventory.json": "application/json",
+        }
+        self.assertEqual(status, 200)
+        for filename, content_type in expected.items():
+            status, headers, artifact = self.request("GET", f"/api/export/{run_id}/{filename}")
+            self.assertEqual(status, 200)
+            self.assertIn(content_type, headers["Content-Type"])
+            self.assertIn(filename, headers["Content-Disposition"])
+            self.assertIsInstance(artifact, bytes)
+        status, _, body = self.request("GET", f"/api/export/{run_id}/not-a-report.txt")
+        self.assertEqual(status, 404)
+        self.assertIn("unknown export artifact", json.loads(body)["error"])
+
     def test_post_run_honors_start_date_control(self):
         status, _, body = self.request(
             "POST",

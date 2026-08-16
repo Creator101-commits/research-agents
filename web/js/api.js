@@ -2,9 +2,28 @@ export async function loadDefaults() {
   const response = await fetch("/api/scenario");
   return response.json();
 }
+export async function loadCalibration() {
+  const response = await fetch("/api/calibration");
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || ("HTTP " + response.status));
+  return data;
+}
+
+
 
 export async function runSimulation(body) {
   const response = await fetch("/api/run", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || ("HTTP " + response.status));
+  return data;
+}
+
+export async function compareScenarios(body) {
+  const response = await fetch("/api/compare", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify(body),

@@ -112,12 +112,12 @@ export function svgChart(o) {
   const legend = o.series.map((s,i) =>
     `<rect x="${W-R-14-ns*86+i*86}" y="11" width="8" height="8" fill="${s.color}"/>` +
     `<text x="${W-R-14-ns*86+i*86+12}" class="lg" y="19">${s.label}</text>`).join("");
-  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" class="gsv">
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" class="gsv" role="img" aria-label="${esc(`${o.title}; unit ${o.unit || "reported value"}; ${rows.length} ${o.period || "daily"} points`)}">
       <style>
         .gsv .ax { stroke: #e5e7eb; stroke-width: 1; }
         .gsv .baseline { stroke: #9ca3af; stroke-width: 1.2; }
         .gsv text { fill: #667085; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 11px; }
-        .gsv .axislabel { fill: #667085; font-size: 10px; }
+        .gsv .axislabel { fill: #667085; font-size: 11px; }
         .gsv .ttl { fill: #111827; font-size: 13px; font-weight: 700; }
         .gsv .lg { fill: #667085; font-size: 10.5px; }
       </style>

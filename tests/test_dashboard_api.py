@@ -124,6 +124,92 @@ class DashboardAPITests(unittest.TestCase):
         self.assertIn("valid range", json.loads(body)["error"])
 
 
+    def test_compare_reruns_model_configs_with_shared_default_seed(self) -> None:
+        status, _, body = self.request(
+            "POST",
+            "/api/compare",
+            {
+                "runs": [
+                    {
+                        "label": "Baseline",
+                        "scenario": "baseline.json",
+                        "scenario_overrides": {"days": 1, "herd_size": 2},
+                        "calibration_overrides": {},
+                    },
+                    {
+                        "label": "Processor",
+                        "scenario": "baseline.json",
+                        "scenario_overrides": {
+                            "days": 1,
+                            "herd_size": 2,
+                            "enable_processor": True,
+                        },
+                        "calibration_overrides": {},
+                    },
+                ]
+            },
+        )
+        comparison = json.loads(body)
+
+        self.assertEqual(status, 200)
+        self.assertTrue(comparison["ok"])
+        self.assertEqual([run["label"] for run in comparison["runs"]], ["Baseline", "Processor"])
+        self.assertEqual({run["meta"]["seed"] for run in comparison["runs"]}, {1})
+        self.assertNotEqual(comparison["runs"][0]["run_id"], comparison["runs"][1]["run_id"])
+        self.assertEqual(len(comparison["deltas"]), 1)
+        self.assertIn("milk", comparison["deltas"][0]["metrics"])
+
+    def test_compare_honors_explicit_seed_and_validates_each_config(self) -> None:
+        status, _, body = self.request(
+            "POST",
+            "/api/compare",
+            {
+                "runs": [
+                    {
+                        "label": "Default seed",
+                        "scenario": "baseline.json",
+                        "scenario_overrides": {"days": 1, "herd_size": 2},
+                        "calibration_overrides": {},
+                    },
+                    {
+                        "label": "Explicit seed",
+                        "scenario": "baseline.json",
+                        "scenario_overrides": {"days": 1, "herd_size": 2, "seed": 17},
+                        "calibration_overrides": {},
+                    },
+                ]
+            },
+        )
+        comparison = json.loads(body)
+        self.assertEqual(status, 200)
+        self.assertEqual([run["meta"]["seed"] for run in comparison["runs"]], [1, 17])
+
+        status, _, body = self.request(
+            "POST",
+            "/api/compare",
+            {
+                "runs": [
+                    {"scenario": "baseline.json", "scenario_overrides": {"days": 0}},
+                    {"scenario": "baseline.json", "scenario_overrides": {}},
+                ]
+            },
+        )
+        self.assertEqual(status, 400)
+        self.assertIn("days must be", json.loads(body)["error"])
+
+        status, _, body = self.request(
+            "POST",
+            "/api/compare",
+            {
+                "runs": [
+                    {"scenario": "baseline.json", "calibration_overrides": []},
+                    {"scenario": "baseline.json"},
+                ]
+            },
+        )
+        self.assertEqual(status, 400)
+        self.assertIn("calibration_overrides", json.loads(body)["error"])
+
     def test_compare_returns_cached_runs_and_python_deltas(self) -> None:
         first = self.post_run(31)
         second = self.post_run(32)

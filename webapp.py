@@ -137,6 +137,8 @@ def _run_simulation(params: dict) -> dict:
         if key in scenario and not isinstance(scenario[key], bool):
             raise ValueError(f"{key} must be a boolean")
     calibration_overrides = params.get("calibration_overrides", {})
+    if not isinstance(calibration_overrides, dict):
+        raise ValueError("calibration_overrides must be an object")
     run_calibration = apply_calibration_overrides(CALIBRATION, calibration_overrides)
 
     t0 = time.perf_counter()
@@ -181,6 +183,95 @@ def _export_zip(entry: object) -> bytes:
         return buffer.getvalue()
 
 
+_EXPORT_FILES = {
+    "summary.json": "application/json",
+    "daily.csv": "text/csv; charset=utf-8",
+    "schedule.csv": "text/csv; charset=utf-8",
+    "monthly.csv": "text/csv; charset=utf-8",
+    "annual.csv": "text/csv; charset=utf-8",
+    "calibration_inventory.json": "application/json",
+}
+_EXPORT_ALIASES = {
+    "summary": "summary.json",
+    "daily": "daily.csv",
+    "schedule": "schedule.csv",
+    "monthly": "monthly.csv",
+    "annual": "annual.csv",
+    "calibration": "calibration_inventory.json",
+    "calibration_inventory": "calibration_inventory.json",
+    "zip": "export.zip",
+}
+
+
+def _export_file(entry: object, filename: str) -> bytes:
+    filename = _EXPORT_ALIASES.get(filename, filename)
+    if filename == "export.zip":
+        return _export_zip(entry)
+    if filename not in _EXPORT_FILES:
+        raise ValueError(f"unknown export artifact: {filename}")
+    with tempfile.TemporaryDirectory() as tmp:
+        output_dir = Path(tmp)
+        write_reports(output_dir, _cached_context(entry))
+        return (output_dir / filename).read_bytes()
+
+
+def _comparison_model_config(item: object, index: int) -> tuple[dict, str | None]:
+    if not isinstance(item, dict):
+        raise ValueError(f"runs[{index}] must be an object")
+    allowed = {"label", "scenario", "scenario_overrides", "calibration_overrides"}
+    unknown = set(item) - allowed
+    if unknown:
+        raise ValueError(f"runs[{index}] has unsupported field: {sorted(unknown)[0]}")
+    label = item.get("label")
+    if label is not None and (not isinstance(label, str) or not label.strip()):
+        raise ValueError(f"runs[{index}].label must be a non-empty string")
+    scenario = item.get("scenario")
+    if not isinstance(scenario, str) or not scenario:
+        raise ValueError(f"runs[{index}].scenario must be a file name")
+    scenario_overrides = item.get("scenario_overrides", {})
+    if not isinstance(scenario_overrides, dict):
+        raise ValueError(f"runs[{index}].scenario_overrides must be an object")
+    calibration_overrides = item.get("calibration_overrides", {})
+    if not isinstance(calibration_overrides, dict):
+        raise ValueError(f"runs[{index}].calibration_overrides must be an object")
+    scenario_overrides = dict(scenario_overrides)
+    if "seed" not in scenario_overrides:
+        scenario_overrides["seed"] = DEFAULT_SCENARIO.get("seed", 1)
+    return (
+        {
+            "scenario": scenario,
+            "scenario_overrides": scenario_overrides,
+            "calibration_overrides": dict(calibration_overrides),
+        },
+        label,
+    )
+
+
+def _compare_model_runs(params: dict) -> dict:
+    if not isinstance(params, dict):
+        raise ValueError("request body must be a JSON object")
+    requested = params.get("runs")
+    if not isinstance(requested, list) or len(requested) < 2:
+        raise ValueError("comparison requires at least two run configurations")
+    configs = [_comparison_model_config(item, index) for index, item in enumerate(requested)]
+    runs = []
+    for config, label in configs:
+        result = _run_simulation(config)
+        runs.append({"result": result, "label": label})
+    return serialize_comparison(runs)
+
+
+def _is_cached_comparison(params: dict) -> bool:
+    if "run_ids" in params:
+        return True
+    requested = params.get("runs")
+    return isinstance(requested, list) and all(
+        isinstance(item, str)
+        or (isinstance(item, dict) and ("run_id" in item or "id" in item))
+        for item in requested
+    )
+
+
 def _compare_cached_runs(params: dict) -> dict:
     if not isinstance(params, dict):
         raise ValueError("request body must be a JSON object")
@@ -222,6 +313,11 @@ def _compare_cached_runs(params: dict) -> dict:
         runs.append(item)
     return serialize_comparison(runs)
 
+
+def _compare_runs(params: dict) -> dict:
+    if not isinstance(params, dict):
+        raise ValueError("request body must be a JSON object")
+    return _compare_cached_runs(params) if _is_cached_comparison(params) else _compare_model_runs(params)
 
 def _static_file(path: str) -> Path | None:
     """Resolve an allowed web path without permitting traversal or symlink escapes."""
@@ -296,20 +392,33 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self._send(200, _cached_payload(run_id, entry))
         elif path.startswith("/api/export/"):
-            run_id = path.removeprefix("/api/export/")
+            relative = path.removeprefix("/api/export/")
+            parts = relative.split("/")
+            run_id = parts[0] if parts else ""
+            artifact = parts[1] if len(parts) > 1 else "export.zip"
             entry = RUN_CACHE.get(run_id)
             if entry is None:
                 self._send(404, {"error": "run not found or too old to export"})
                 return
+            canonical = _EXPORT_ALIASES.get(artifact, artifact)
+            if len(parts) > 2 or (canonical != "export.zip" and canonical not in _EXPORT_FILES):
+                self._send(404, {"error": "unknown export artifact"})
+                return
+            try:
+                body = _export_file(entry, canonical)
+            except ValueError as exc:
+                self._send(404, {"error": str(exc)})
+                return
             ctx = _cached_context(entry)
-            zip_bytes = _export_zip(entry)
             name = ctx.scenario.get("name", "run")
+            content_type = "application/zip" if canonical == "export.zip" else _EXPORT_FILES[canonical]
+            download_name = f"{name}-output.zip" if canonical == "export.zip" else canonical
             self.send_response(200)
-            self.send_header("Content-Type", "application/zip")
-            self.send_header("Content-Disposition", f'attachment; filename="{name}-output.zip"')
-            self.send_header("Content-Length", str(len(zip_bytes)))
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Disposition", f'attachment; filename="{download_name}"')
+            self.send_header("Content-Length", str(len(body)))
             self.end_headers()
-            self.wfile.write(zip_bytes)
+            self.wfile.write(body)
         else:
             self._send(404, {"error": "not found"})
 
@@ -325,7 +434,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(400, {"error": f"bad request: {exc}"})
             return
         try:
-            result = _run_simulation(body) if path == "/api/run" else _compare_cached_runs(body)
+            result = _run_simulation(body) if path == "/api/run" else _compare_runs(body)
             self._send(200, {"ok": True, **result})
         except (TypeError, ValueError) as exc:
             self._send(400, {"error": str(exc)})

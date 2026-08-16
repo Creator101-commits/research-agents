@@ -11,8 +11,8 @@
 <link rel="stylesheet" href="/assets/styles/pages.css">
 </head>
 <body>
-<div class="app" id="app-shell">
-  <aside class="rail">
+<div class="app" id="app-shell" aria-busy="false">
+  <aside class="rail" id="sidebar">
     <div class="brand"><i class="mark"></i>Dairy Farm ABM</div>
     <nav class="railnav" id="main-nav" aria-label="Main navigation">
       <button id="nav-overview" data-page="overview" type="button">Overview</button>
@@ -41,6 +41,7 @@
       <div class="topactions">
         <span class="status" id="run-status" aria-live="polite"><span id="stamp">READY</span></span>
         <span class="scenario-chip" id="header-scenario">baseline</span>
+        <button class="ghost" id="rail-toggle" type="button" aria-controls="sidebar" aria-expanded="true">Hide navigation</button>
         <button class="ghost" id="open-report" type="button">Export research report</button>
       </div>
     </header>
@@ -65,7 +66,7 @@
               <div class="field"><label for="start-date"><span>Start date</span><span>ISO date</span></label><input id="start-date" type="date" required><div class="hint">The model clock starts on this date.</div></div>
               <div class="field"><label for="seed"><span>Seed</span><span>Reproducible</span></label><input id="seed" type="number" step="1" required><div class="hint">Same seed gives identical output.</div></div>
               <div class="field"><label for="herd"><span>Herd size</span><span>Animals</span></label><input id="herd" type="number" min="0" step="1" required></div>
-              <div class="field"><label><span>Active systems</span><span>7 available</span></label><div class="switches" id="switches"></div></div>
+              <div class="field" role="group" aria-labelledby="systems-label"><div id="systems-label" class="label"><span>Active systems</span><span>7 available</span></div><div class="switches" id="switches"></div></div>
               <button id="go" type="submit">Run simulation</button>
             </form>
           </aside>
@@ -76,15 +77,15 @@
       </section>
 
       <section id="page-charts" class="page-panel" data-page-panel="charts" hidden><div id="charts-content" class="charts-content"><div class="page-placeholder"><span class="eyebrow">CHARTS</span><h2>Backend-produced trends.</h2><p>This page will present the model series without recreating scientific calculations in the browser.</p></div></div></section>
-      <section id="page-loops" class="page-panel" data-page-panel="loops" hidden><div class="page-placeholder"><span class="eyebrow">CIRCULAR LOOPS</span><h2>Trace the farm's loops.</h2><p>Nutrient, water, energy, and byproduct pathways will use serialized packet and ledger outputs.</p></div></section>
-      <section id="page-comparison" class="page-panel" data-page-panel="comparison" hidden><div class="page-placeholder"><span class="eyebrow">SCENARIO COMPARISON</span><h2>Compare independent runs.</h2><p>Comparison controls will call the Python comparison endpoint and preserve run provenance.</p></div></section>
-      <section id="page-cows" class="page-panel" data-page-panel="cows" hidden><div class="page-placeholder"><span class="eyebrow">COW PERFORMANCE</span><h2>Explore herd performance.</h2><p>Per-cow views will use actual model records and retain unavailable fields as unavailable.</p></div></section>
-      <section id="page-environment" class="page-panel" data-page-panel="environment" hidden><div class="page-placeholder"><span class="eyebrow">ENVIRONMENT</span><h2>Audit environmental outcomes.</h2><p>Emissions, water, soil, and sustainability views will be backed by authoritative environment outputs.</p></div></section>
-      <section id="page-economics" class="page-panel" data-page-panel="economics" hidden><div class="page-placeholder"><span class="eyebrow">ECONOMICS</span><h2>Review farm economics.</h2><p>Revenue, cost, cash, and profit views will use reported accounting fields.</p></div></section>
-      <section id="page-roi" class="page-panel" data-page-panel="roi" hidden><div class="page-placeholder"><span class="eyebrow">EQUIPMENT ROI</span><h2>Inspect equipment returns.</h2><p>ROI and payback values will come from backend manager and NPV outputs.</p></div></section>
-      <section id="page-parameters" class="page-panel" data-page-panel="parameters" hidden><div class="page-placeholder"><span class="eyebrow">PARAMETERS</span><h2>Review calibration.</h2><p>Parameter editing will use the validated calibration inventory and isolated per-run overrides.</p></div></section>
-      <section id="page-model-details" class="page-panel" data-page-panel="model-details" hidden><div class="page-placeholder"><span class="eyebrow">MODEL DETAILS</span><h2>Inspect provenance.</h2><p>Run metadata, report contracts, feature flags, and confidence will be shown here.</p></div></section>
-      <section id="page-exports" class="page-panel" data-page-panel="exports" hidden><div class="page-placeholder"><span class="eyebrow">EXPORT</span><h2>Research outputs.</h2><p>Download official JSON, CSV, calibration inventory, and ZIP outputs from a completed run.</p></div></section>
+      <section id="page-loops" class="page-panel" data-page-panel="loops" hidden><div id="loops-content" class="loops-content"><div class="page-placeholder"><span class="eyebrow">CIRCULAR LOOPS</span><h2>Trace the farm's loops.</h2><p>Nutrient, water, energy, and byproduct pathways will use serialized packet and ledger outputs.</p></div></div></section>
+      <section id="page-comparison" class="page-panel" data-page-panel="comparison" hidden><div id="comparison-content" class="comparison-content"><div class="page-placeholder"><span class="eyebrow">SCENARIO COMPARISON</span><h2>Compare independent runs.</h2><p>Choose a comparison mode to send validated configurations to the Python comparison endpoint.</p></div></div></section>
+      <section id="page-cows" class="page-panel" data-page-panel="cows" hidden><div id="cows-content" class="cows-content"><div class="page-placeholder"><span class="eyebrow">COW PERFORMANCE</span><h2>Explore herd performance.</h2><p>Run a simulation to inspect the latest-day per-cow records from the authoritative model.</p></div></div></section>
+      <section id="page-environment" class="page-panel" data-page-panel="environment" hidden><div id="environment-content" class="environment-content"><div class="page-placeholder"><span class="eyebrow">ENVIRONMENT</span><h2>Audit environmental outcomes.</h2><p>Run a simulation to inspect authoritative emissions, soil, sustainability, and source-stream ledger values.</p></div></div></section>
+      <section id="page-economics" class="page-panel" data-page-panel="economics" hidden><div id="economics-content" class="economics-content"><div class="page-placeholder"><span class="eyebrow">ECONOMICS</span><h2>Review farm economics.</h2><p>Run a simulation to inspect authoritative revenue, cost, profit, cash, market, and NPV outputs.</p></div></div></section>
+      <section id="page-roi" class="page-panel" data-page-panel="roi" hidden><div id="equipment-content" class="equipment-content"><div class="page-placeholder"><span class="eyebrow">EQUIPMENT ROI</span><h2>Inspect equipment returns.</h2><p>Run a simulation to inspect manager-produced CapEx, benefit, ROI, payback, and NPV values.</p></div></div></section>
+      <section id="page-parameters" class="page-panel" data-page-panel="parameters" hidden><div id="parameters-content" class="parameters-content"><div class="page-placeholder"><span class="eyebrow">PARAMETERS</span><h2>Review calibration.</h2><p>Load the validated calibration inventory to search, filter, edit, and submit isolated per-run overrides.</p></div></div></section>
+      <section id="page-model-details" class="page-panel" data-page-panel="model-details" hidden><div id="model-details-content" class="model-details-content"><div class="page-placeholder"><span class="eyebrow">MODEL DETAILS</span><h2>Inspect provenance.</h2><p>Run a simulation to inspect actual configuration, scheduler records, policy outputs, warnings, and report-contract metadata.</p></div></div></section>
+      <section id="page-exports" class="page-panel" data-page-panel="exports" hidden><div id="exports-content" class="exports-content"><div class="page-placeholder"><span class="eyebrow">EXPORT</span><h2>Research outputs.</h2><p>Run a simulation to download official JSON, CSV, calibration inventory, and ZIP outputs.</p></div></div></section>
     </div>
   </main>
 </div>

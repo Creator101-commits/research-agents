@@ -1,12 +1,17 @@
 export const state = {
   activePage: "simulation",
+  railCollapsed: false,
   config: null,
   calibration: null,
   currentRun: null,
   currentRunId: null,
   comparison: null,
+  comparisonMode: "baseline",
+  comparisonMetric: "milk",
   selectedPeriod: "daily",
   parameterDraft: {},
+  parameterErrors: {},
+  parameterLoading: false,
   filters: {},
   view: "ledger",
   period: "daily",
@@ -14,4 +19,5 @@ export const state = {
   loading: false,
   error: null,
   warnings: [],
+  cowSort: "milk_l",
 };

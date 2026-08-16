@@ -48,6 +48,10 @@ The Python dashboard adapter (`dairy_abm.dashboard`) exposes run metadata, the s
 `series.monthly` and `series.annual` are backend-produced period rows. They use Python-owned sums, means, latest values, and ratios, then overlay authoritative monthly/annual report fields where those records exist. The compatibility workbench may still roll daily rows for its legacy Ledger / Graphs tabs; the full Charts page consumes these backend period series directly.
 The compatibility workbench still rolls daily rows into monthly/yearly rows and derives intensity for its legacy tables. The full Charts route does not perform those roll-ups; it consumes the Python-produced `series` records.
 
+`cows` is a latest-day explorer contract. `dairy_abm.dashboard` merges `cow_daily_packet.payload.cow_records` with matching final `ctx.state["cows"]` fields, computes only traceable ratios such as per-cow FCR and methane intensity, preserves packet provenance, and explicitly marks historical per-cow records as unavailable.
+`POST /api/compare` validates and independently reruns each requested scenario configuration, applies isolated calibration overrides, serializes every run, and computes deltas only for the comparison-safe summary definitions. Runs receive the baseline seed unless a per-run scenario override supplies a different seed.
+
+
 # Metric map
 
 ## 1. Run metadata and model details
@@ -71,6 +75,7 @@ The compatibility workbench still rolls daily rows into monthly/yearly rows and 
 | Report-contract metadata | `REPORT_CONTRACT` | full contract | run | structured JSON | none | `EXISTING` | Expose contract metadata through the backend config/details response. |
 | Calibration assumption count | `calibration_inventory(ctx.calibration)` | `assumption` | run | count | count true values | `BACKEND_AGGREGATE` | Count metadata only; do not infer scientific confidence. |
 | Calibration override count | cached-run request metadata | override keys | run | count | count | `BACKEND_EXPOSE` | Store request metadata in the cached-run wrapper when overrides are added; no scientific model change is needed. |
+| Model details payload | `serialize_dashboard_run()` | `model_details` | run | structured JSON | serialization only | `BACKEND_EXPOSE` | Read-only contract combines actual scenario/features, loop states, schedule, policy, warnings, calibration counts, events, and `REPORT_CONTRACT`; the browser does not infer values. |
 
 ## 2. Overview and core KPIs
 
@@ -246,6 +251,7 @@ The current authoritative per-cow record is `ctx.packets["cow_daily_packet"].pay
 | Carbon credit value | environment packet/history | `carbon_credit_value` | daily/run | currency | sum | `BACKEND_EXPOSE` | Present in environment history but not current daily flattening. |
 | Environmental stream ledger | `ctx.state["environment_history"]` and `ctx.state["environment_ledger"]` | `environmental_streams`; packet source, stream id, quality, confidence | daily/run | kg CO2e | preserve rows | `BACKEND_EXPOSE` | Use recorded streams. Never reverse-engineer source emissions from totals. |
 | Ledger source metadata | environment ledger packets | `source`, `stream_id`, `period`, `quality`, `confidence` | daily | text | none | `BACKEND_EXPOSE` | Packet metadata is authoritative. |
+| Environment audit payload | `dairy_abm.dashboard._build_environment_audit()` | metrics, daily history, monthly environment reports, ledger rows, provenance, warnings | run | structured JSON | serialization only | `BACKEND_EXPOSE` | The Environment route consumes this contract directly; source streams are never reconstructed from totals. |
 
 ## 7. Economics
 
@@ -260,6 +266,12 @@ The current authoritative per-cow record is `ctx.packets["cow_daily_packet"].pay
 | Disease economic cost | `ctx.daily_records` | `disease_economic_cost` | daily/run | currency | sum | `EXISTING` | Use this available category. |
 | Cooling cost | `ctx.daily_records` | `cooling_cost` | daily/run | currency | sum | `EXISTING` | Direct manager output. |
 | Processing energy cost | `ctx.daily_records` | `processing_energy_cost` | daily/run | currency | sum | `EXISTING` | Direct manager output. |
+| Carbon-credit revenue/value | `ctx.state["environment_history"]` | `carbon_credit_value` | daily/run | currency | sum | `BACKEND_EXPOSE` | Joined by date from the retained environment history; never inferred from GHG totals. |
+| Treatment cost | `ctx.state["disease_history"]` | `treatment_cost` | daily/run | currency | sum | `BACKEND_EXPOSE` | Kept distinct from outbreak/disease economic cost. |
+| Cumulative profit | dashboard adapter | daily `profit` | run | currency | cumulative sum | `BACKEND_AGGREGATE` | Python retains the cumulative series and final value. |
+| Cash balance | `ctx.daily_records` | `cash_balance` | daily/run | currency | latest/series | `EXISTING` | Direct manager output. |
+| Farm NPV | `dairy_abm.analysis.npv` | annual profit cash flows, `farm_npv` | run | currency | discounted cash flow | `BACKEND_EXPOSE` | Uses the existing analysis function and surfaces its discount rate. |
+| Economics audit payload | `dairy_abm.dashboard._build_economics()` | metrics, daily/monthly rows, latest manager fields, market snapshot, provenance | run | structured JSON | serialization | `BACKEND_EXPOSE` | The Economics route consumes Python-produced values; unretained categories remain `N/A`. |
 | Byproduct revenue history | processor/manager packet | `byproduct_revenue` | daily/run | currency | sum | `MODEL_CHANGE` | Computed by the model but not retained in historical flattened records. |
 | Labor and fixed cost history | manager packet/calibration | `labor_cost`, `fixed_cost` | daily/run | currency | sum | `MODEL_CHANGE` | Only the latest manager packet has these categories. Do not reconstruct them in the dashboard. |
 | Treatment-cost history | `ctx.state["disease_history"]` | `treatment_cost` | daily/run | currency | sum | `BACKEND_EXPOSE` | Disease history retains this category; keep it distinct from total disease economic cost. |
@@ -285,7 +297,8 @@ The current manager output represents four equipment assets. The dashboard may s
 | Dairy processor CapEx, benefit, ROI, payback | `manager_packet` | `equipment_roi.dairy_processor.*` | latest/run | mixed | none | `BACKEND_EXPOSE` | Show only when processor capability/configuration supports it. |
 | Whey processor CapEx, benefit, ROI, payback | `manager_packet` | `equipment_roi.whey_processor.*` | latest/run | mixed | none | `BACKEND_EXPOSE` | Show only when whey processing is represented. |
 | Manure system CapEx, benefit, ROI, payback | `manager_packet` | `equipment_roi.manure_system.*` | latest/run | mixed | none | `BACKEND_EXPOSE` | Uses energy/carbon benefits defined by the manager agent. |
-| Equipment NPV | `dairy_abm.analysis.npv` | equipment cash flows / `equipment_npvs` | run | currency | discounted cash flow | `BACKEND_AGGREGATE` | Reuse `npv.py`; no JavaScript ROI engine. |
+| Equipment ROI payload | `dairy_abm.dashboard._build_equipment_roi()` | `assets`, `status`, provenance | run | structured JSON | serialization | `BACKEND_EXPOSE` | Assets are copied from the manager packet; only represented assets are rendered. |
+| Equipment NPV | `dairy_abm.analysis.npv` | equipment cash flows / `equipment_npvs` | run | currency | discounted cash flow | `BACKEND_AGGREGATE` | Reuse `npv.py`; no JavaScript ROI engine. The discount rate is surfaced in the payload. |
 | Anaerobic digester card | current equipment map | no separate asset key | run | — | — | `UNSUPPORTED` | Do not silently substitute `manure_system` without a documented mapping. |
 | CHP card | current equipment map | no separate asset key | run | — | — | `UNSUPPORTED` | Energy conversion is modeled, but separate CHP ROI is not. |
 | Separator card | current equipment map | no separate asset key | run | — | — | `UNSUPPORTED` | No authoritative ROI output. |
@@ -307,7 +320,9 @@ The current manager output represents four equipment assets. The dashboard may s
 | Valid range | calibration inventory | `valid_range` | run | text | none | `EXISTING` | Backend validation remains authoritative. |
 | Runtime feature flags | scenario/calibration | verified top-level flags | run | boolean | none | `BACKEND_EXPOSE` | Target `/api/config` must expose only supported flags. |
 | Scenario list/defaults | scenario directory/default scenario | scenario JSON | run | JSON | none | `EXISTING` | Current `/api/scenario` is a compatibility route; target `/api/config` should be UI-safe. |
-| Per-run parameter value | isolated calibration copy | dotted override key/value | run | calibration unit | none | `BACKEND_EXPOSE` | Phase 4 backend requirement; never mutate global `CALIBRATION`. |
+| Calibration endpoint | `GET /api/calibration` | `parameters` inventory | run | JSON | serialization only | `EXISTING` | The editor generates controls from this response rather than hard-coding parameter fields. |
+| Per-run parameter value | isolated calibration copy | dotted override key/value | run | calibration unit | none | `BACKEND_EXPOSE` | Submitted as `calibration_overrides`; backend type/range/full-calibration validation remains authoritative and global defaults are not mutated. |
+| Parameter editor filters and reset controls | calibration inventory metadata | key, agent, assumption, default, source | run | UI state | filter/reset | `EXISTING` | Search, group, assumption, changed-only, field/group/all reset, and validation messages operate on the inventory. |
 
 ## 10. Exports and comparisons
 
@@ -321,9 +336,16 @@ The current manager output represents four equipment assets. The dashboard may s
 | Annual CSV | `write_reports()` | `ctx.annual_records` | annual | CSV | none | `EXISTING` | Preserve genetics/review rows. |
 | Calibration inventory export | `write_reports()` | `calibration_inventory.json` | run | JSON | none | `EXISTING` | Same calibration copy used for the run. |
 | Full ZIP | web export layer | official report files | run | ZIP | packaging only | `EXISTING` | Dashboard JSON and ZIP must reference the same cached context. |
+| Export manifest | `serialize_dashboard_run()` | `exports.artifacts` | run | structured JSON | serialization only | `BACKEND_EXPOSE` | Lists only `write_reports()` files and the existing full-ZIP route; artifact downloads regenerate official files from the cached context. |
 | Comparison metrics | comparison backend | selected serialized metrics | multiple runs | metric-specific | absolute/percentage deltas | `BACKEND_AGGREGATE` | Directional coloring is presentation logic; metric values come from Python. |
-| Comparison warnings | comparison backend | run metadata and warnings | multiple runs | structured text | compare settings | `BACKEND_EXPOSE` | Warn when seeds, durations, herd sizes, or features differ. |
+| Comparison warnings | comparison UI + backend run metadata | seeds, duration, herd, start date, feature flags, warnings | multiple runs | structured text | compare settings | `BACKEND_EXPOSE` | The UI warns when controlled-comparison settings differ. |
+| Comparison modes | frontend request builder | baseline/current, loop toggle, selected scenarios, L1-L4 matrix | multiple runs | run configurations | request construction only | `EXISTING` | The matrix submits 16 actual model configurations; it never infers model values. |
+| Comparison metric chart | frontend presentation | backend absolute deltas | presentation | metric unit | coordinate conversion | `EXISTING` | Selectable chart; no scientific aggregation is performed in JavaScript. |
 | Chart SVG/PNG | frontend chart layer | serialized chart values | presentation | image | coordinate conversion | `EXISTING` | Presentation export only; never an official scientific report replacement. |
+## 11. Responsive and accessibility polish
+
+The final shell keeps a laptop-first workspace while allowing the sidebar to collapse without losing keyboard access. Navigation exposes the current page through `aria-current`; the collapse control exposes `aria-expanded`; the app reports model activity with `aria-busy` and the existing loading status. Large ledgers, comparison tables, and chart surfaces use horizontal scrolling rather than clipping. Chart SVGs carry accessible labels and retain units in headings and axes. Empty, unavailable, and loading states remain explicit, and reduced-motion users receive no rotating or transitional animation.
+
 
 # Phase 1 decisions and backlog
 
