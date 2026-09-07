@@ -1,0 +1,463 @@
+===== SLIDE 1 =====
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+       Strategic                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+       Analytics                     for                                                           
+                                                                                                   
+                                                                                                   
+                                                                                                   
+       Circular                   Dair          y                                                  
+                                                                                                   
+                                                                                                   
+                                                                                                   
+       Bioeconomy                                                                                  
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+        An  Agent-Based Virtual Farm to for                                                        
+                                                                                                   
+        Sustainable Milk Production                                                                
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+
+===== SLIDE 2 =====
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+         The(cid:2) Probl(cid:2)m: Why Dairy Farms N(cid:2)(cid:2)d Smart(cid:2)r D(cid:2)cisions  
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+          01.     Dairy farms must improv(cid:2) profitability and meet sustainability targets     
+                  simultaneously, with growing pr(cid:2)ssur(cid:2) from mark(cid:2)ts and r(cid:2)gulators
+                                                                                                   
+                                                                                                   
+                  Circular t(cid:2)chnologi(cid:2)s lik(cid:2) dig(cid:2)st(cid:2)rs, composting, and wat(cid:2)r r(cid:2)cycling r(cid:2)quir(cid:2) heavy
+          02.                                                                                      
+                  capital, but r(cid:2)turns d(cid:2)p(cid:2)nd on how they interact together on (cid:2)ach farm
+                                                                                                   
+                                                                                                   
+                  Curr(cid:2)nt tools lik(cid:2) spr(cid:2)adsh(cid:2)(cid:2)ts and singl(cid:2)-purpos(cid:2) calculators cannot capture how
+          03.                                                                                      
+                  nutri(cid:2)nt, wat(cid:2)r, (cid:2)n(cid:2)rgy, and by-product strat(cid:2)gi(cid:2)s interact across a whole farm
+                                                                                                   
+          04.     Without b(cid:2)tte(cid:2)r tools, coop(cid:2)rativ(cid:2)s cannot id(cid:2)ntify highest-ROI investments, (cid:2)stimat(cid:2)
+                  payback periods, or r(cid:2)port sustainability outcomes to ESG stak(cid:2)hold(cid:2)rs
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+
+===== SLIDE 3 =====
+                                                                                                   
+                                                                                                   
+                        The(cid:2) Solution:  ViCBio      DM     Mod(cid:2)l                       
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+
+===== SLIDE 4 =====
+                                                                                                   
+                                                                                                   
+                                                                                                   
+       Circular Bio(cid:2)conomy Loops                                                             
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+           Loop           Business Value                                                           
+                                                                                                   
+                     Manure returns as fertilizer                                                  
+          Nutrient   cuts input costs, builds soil                                                 
+                                                                                                   
+                     health                                                                        
+                     Wastewater treated and reused                                                 
+                                                                                                   
+           Water     on-farm - reduces freshwater                                                  
+                     demand                                                                        
+                                                                                                   
+                     Manure converts to biogas                                                     
+           Energy    powers the farm and generates                                                 
+                     new revenue                                                                   
+                                                                                                   
+                     Whey and waste milk                                                           
+         By-product  redirected to feed or biogas                                                  
+                     nothing disposed                                                              
+                                                                                                   
+
+===== SLIDE 5 =====
+                                                                                                   
+                              Nutri(cid:2)nt R(cid:2)cycling Loop                                  
+                                                                                                   
+                                                                                                   
+                                              Feed Cow                                             
+                                                                                                   
+                                           Cow consumes the grown                                  
+                                                 feed                                              
+                                                                                                   
+                     Produce Manure                                                                
+                                                                   Grow Feed                       
+                      Cow produces waste                                                           
+                                                                   Crops thrive in enriched        
+                            product                                                                
+                                                                   soil                            
+                                                                                                   
+                                                                                                   
+                   Compost Waste                                                                   
+                                                                      Apply Fertilizer             
+                 Manure becomes organic                                                            
+                                                                      Enrich soil with nutrients   
+                         fertilizer                                                                
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                    Linear Nutrient Flow                        Circular Nutrient Flow             
+                                                                  Sustainable, renewable           
+                     Wasteful, non-renewable                                                       
+                                                                     resource use                  
+                        resource use                                                               
+
+===== SLIDE 6 =====
+                                                                                                   
+                                                                                                   
+                                 Wat(cid:2)r R(cid:2)cycl(cid:2) Loop                              
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                            Water Use on Farm                      
+                                                            Water is used for cows and             
+                                                            cleaning                               
+                       Feeds Soil                                                                  
+                    Water nourishes the soil                                                       
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                    Wastewater                     
+                                                                    Generation                     
+                                                                    Used water becomes wastewater  
+                                                                                                   
+                                                                                                   
+               Recycled for Irrigation                                                             
+                     Water is reused for                                                           
+                           irrigation                                                              
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                               Nutrient Recovery                                   
+                                                                                                   
+                                              Nutrients are extracted from                         
+                                                   wastewater                                      
+
+===== SLIDE 7 =====
+                                                                                                   
+                                                                                                   
+                                  Biogas     En(cid:2)rgy Loop                                     
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                 Enrich                       Collect                              
+                                   Soil                       Manure                               
+                             Digestate is used as                                                  
+                                                              Gather cow manure                    
+                                 fertilizer                   daily                                
+                                                                                                   
+                                                                                                   
+                                             6       1                                             
+                       Generate                                                                    
+                     Electricity &                                                                 
+                                                                       Feed into                   
+                          Heat                                                                     
+                                         5               2             Digester                    
+                   Energy is produced for                                                          
+                                                                       Introduce manure into       
+                         the farm                                                                  
+                                                                       the digester                
+                                             4       3                                             
+                                                                                                   
+                                                            Release                                
+                                    Burn                                                           
+                                                            Biogas                                 
+                                   Biogas                                                          
+                                                            Biogas is produced                     
+                               Biogas is burned to                                                 
+                                                            and released                           
+                                 generate energy                                                   
+
+===== SLIDE 8 =====
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                Dairy     By-product        Cycl(cid:2)                            
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                      Useful whey is                               
+                                                                                                   
+                                                      turned into                                  
+             Dairy Cow                                                                             
+                                 Processing creates   Whey-based                                   
+                                                                          Animal feed              
+             produces milk                                                                         
+                                 leftover             Animal Feed +                                
+                                                                          returns to the           
+             every day                                                                             
+                                 Byproducts           Functional                                   
+                                                                          Dairy Cow                
+                                                      Foods                                        
+             Milk production     Byproducts generated                                              
+             begins                                                       Cycle completes          
+                                                      Byproducts repurposed                        
+                                           Byproducts go        Sludge goes to                     
+                       Milk goes to                                                                
+                                           to Whey              Biogas                             
+                       Dairy                                                                       
+                                                                Digester (Loop 3)                  
+                                           Processing Unit                                         
+                       Processing Unit                                                             
+                                           Useful parts separated                                  
+                                                                Biogas generation                  
+                       Dairy products made                                                         
+
+===== SLIDE 9 =====
+                                                                                                   
+                                                                                                   
+               Track     Ev(cid:2)ry K PI Theat   Matte(cid:2)rs - In On(cid:2) Vi(cid:2)w         
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+
+===== SLIDE 10 =====
+
+
+===== SLIDE 11 =====
+
+
+===== SLIDE 12 =====
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+      Simulat(cid:2)d Daily P(cid:2)rformanc(cid:2)                                                
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+      Every critical farm metric, from                                                             
+      milk production and  feed                                                                    
+      efficciency to energy generation,                                                            
+                                                                                                   
+      water  recycling, nutrient                                                                   
+      recovery, and GHG emissions,                                                                 
+      tracked daily across the entire                                                              
+      simulation period.                                                                           
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+
+===== SLIDE 13 =====
+                                                                                                   
+              Each     Circular      Loop    Has     a M(cid:2)asurabl(cid:2) R(cid:2)turn         
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+
+===== SLIDE 14 =====
+                                                                                                   
+                                                                                                   
+        Equipment            Capital      Investment           and    ROI     Analysis             
+                                                                                                   
+                                                                                                   
+         Equipment       Circular   Total    Annual Net Payback  Annual   Lifetime ROI NPV @ 15yr  
+                                                                                                   
+    (Herd size of 2000 cows) Loop   CapEx      Benefit            ROI       (15yr)                 
+                                                                                                   
+    Anaerobic Biodigester Energy Loop $1,610,000 $247,200/yr 6.5 yrs +15.3% +130%    +$641,100     
+                                                                                                   
+    Biogas CHP Engine  Energy Loop $689,500 $291,600/yr 2.4 yrs +42.3%    +534%      +$1,970,000   
+                                                                                                   
+                                                                                                   
+    Manure Separator   Nutrient   $414,000  $855,800/yr 0.5 yrs +204.4%   +3,000%    +$7,380,000   
+                       Loop                                                                        
+                                                                                                   
+    Water Recycling System Water Loop $506,000 $146,600/yr 3.5 yrs +29.0% +335%      +$829,200     
+                                                                                                   
+                                                                                                   
+    Solar PV Array     Energy Loop $805,000 $49,600/yr  16.2 yrs +6.2%    -8%        -$353,200     
+                                                                                                   
+    Whey Processing Unit Dairy Loop $644,000 $1,170,000/yr 0.6 yrs +181.2% +2,618%   +$9,990,000   
+                                                                                                   
+    Smart Feed & Health Precision $276,000  $914,500/yr 0.3 yrs +331.3%   +4,870%    +$8,050,000   
+    Sensors            Tech                                                                        
+                                                                                                   
+                                                                                                   
+    Portfolio Total     All 4 Loops $4,940,000 $3,670,000/yr 1.3 yrs                 +$28,500,000  
+                                                                                                   
+
+===== SLIDE 15 =====
+                                                                                                   
+                                       Strat(cid:2)gic Budg(cid:2)t Allocation                     
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                  Total funding distributed across six activity areas              
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                               8% Project management                                               
+                                                       12% Personnels                              
+                      7% Publications and web                                                      
+                                                                                                   
+                                                               8% Database building,               
+                                                               Virtual Farm and ABM design         
+                                                                                                   
+                12% Business communication                                                         
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                    10% Field testing support                                                      
+                                                              28% Softwware development            
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                        15% Validation and fieeld review                                           
+                                                                                                   
+                                                                                                   
+
+===== SLIDE 16 =====
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+         What      Thi(cid:7)s Investment    Del(cid:7)vers                                        
+                                                                                                   
+                                                                                                   
+                                                                                                   
+         Capital Planning                             Risk R(cid:2)duction                         
+                                                                                                   
+         Compar(cid:2) dig(cid:2)st(cid:2)r, compost, wat(cid:2)r, and Identify low-performing strategies early and
+         proc(cid:2)ssing options with quantifie(cid:2)d ROI - focus investment on combinations with the
+                                                      strongest returns                            
+         b(cid:2)for(cid:2) produc(cid:2)r rollout                                                 
+                                                                                                   
+                                                                                                   
+         Sustainability R(cid:2)porting               Mark(cid:2)t Diffe(cid:2)r(cid:2)ntiation    
+                                                                                                   
+         G(cid:2)n(cid:2)rat(cid:2) d(cid:2)f(cid:2)nsibl(cid:2) GHG and r(cid:2)sourc(cid:2)- Position the cooperative as a leader in data-
+                                                                                                   
+         (cid:2)fficci(cid:2)ncy m(cid:2)trics link(cid:2)d dir(cid:2)ctly to driven circular dairy innovation ahead of the
+         op(cid:2)rational choic(cid:2)s r(cid:2)ady for ESG industry curve                        
+         stak(cid:2)hold(cid:2)rs and custom(cid:2)rs                                              
+                                                                                                   
+                                                                                                   
+                                                                                                   
+        The(cid:2) dairy industry is r(cid:2)ady. The(cid:2) t(cid:2)chnology (cid:2)xists. What's b(cid:2)(cid:2)n missing is th(cid:2) d(cid:2)cision-support to conn(cid:2)ct
+        th(cid:2)m until now.                                                                      
+                                                                                                   
+                                                                                                   

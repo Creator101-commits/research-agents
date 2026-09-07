@@ -1,0 +1,36 @@
+{
+  "experiment": "Full 2^4 factorial at seed 42 plus five selected configurations over seeds 1-12",
+  "scenario": {
+    "name": "poster_loop_factorial",
+    "start_date": "2026-01-01",
+    "days": 365,
+    "seed": 42,
+    "herd_size": 100,
+    "land_cropland_ha": 80,
+    "land_pasture_ha": 40,
+    "production_system": "high_intensity",
+    "amino_acid_policy_active": false,
+    "auto_biosecurity_response": false,
+    "auto_environment_response": false,
+    "auto_feed_response": false,
+    "auto_energy_response": false,
+    "enable_processor": true,
+    "enable_whey_processing": true,
+    "enable_land_agent": true,
+    "l1_nutrient_loop_enabled": true,
+    "l2_water_loop_enabled": true,
+    "l3_energy_loop_enabled": true,
+    "l4_byproduct_loop_enabled": true
+  },
+  "loop_order": [
+    "l1_nutrient_loop_enabled",
+    "l2_water_loop_enabled",
+    "l3_energy_loop_enabled",
+    "l4_byproduct_loop_enabled"
+  ],
+  "limitations": [
+    "Computational outputs are model-derived, not field measurements.",
+    "No capital investment cost is supplied, so ROI and payback are intentionally not reported.",
+    "The abstract's five proposed farm systems are not implemented as five directly comparable scenarios in this repository revision."
+  ]
+}

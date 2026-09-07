@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ViCBio DM Circular Dairy Symposium Poster</title>
+  <style>
+    :root {
+      --maroon: #500000;
+      --ink: #202020;
+      --muted: #5f5f5f;
+      --paper: #fbf7f0;
+      --green: #3b6e5a;
+      --blue: #2f6f8f;
+      --gold: #b58b36;
+      --rule: #d8d0c7;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ddd; }
+    body { font-family: Arial, Helvetica, sans-serif; color: var(--ink); }
+    .poster {
+      width: 5184px;
+      height: 4032px;
+      background: var(--paper);
+      overflow: hidden;
+      position: relative;
+    }
+    .header {
+      height: 675px;
+      background: var(--maroon);
+      color: white;
+      padding: 108px 150px 82px;
+      display: grid;
+      grid-template-columns: 1fr;
+      align-content: center;
+    }
+    h1 {
+      font-size: 116px;
+      line-height: 1.03;
+      letter-spacing: -2.2px;
+      margin: 0 0 38px;
+      font-weight: 700;
+      max-width: 4700px;
+    }
+    .authors {
+      font-size: 42px;
+      line-height: 1.32;
+      margin: 0;
+      font-weight: 700;
+    }
+    .affiliations {
+      font-size: 32px;
+      line-height: 1.32;
+      margin: 8px 0 0;
+      color: #f1ded7;
+    }
+    .takeaway {
+      height: 180px;
+      background: #efe2dc;
+      border-bottom: 5px solid var(--maroon);
+      display: flex;
+      align-items: center;
+      padding: 0 150px;
+      font-size: 43px;
+      line-height: 1.22;
+      font-weight: 700;
+      color: var(--maroon);
+    }
+    .grid {
+      height: 3177px;
+      display: grid;
+      grid-template-columns: 1160px 2500px 1050px;
+      column-gap: 70px;
+      padding: 92px 150px 80px;
+    }
+    .col {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 54px;
+    }
+    .section {
+      border-top: 8px solid var(--maroon);
+      padding-top: 24px;
+    }
+    .section.green { border-color: var(--green); }
+    .section.blue { border-color: var(--blue); }
+    .section.gold { border-color: var(--gold); }
+    h2 {
+      font-size: 48px;
+      line-height: 1.05;
+      margin: 0 0 24px;
+      color: var(--maroon);
+      letter-spacing: 0.2px;
+    }
+    .green h2 { color: var(--green); }
+    .blue h2 { color: var(--blue); }
+    .gold h2 { color: #8c681d; }
+    p, li {
+      font-size: 33px;
+      line-height: 1.32;
+      margin: 0;
+    }
+    p + p { margin-top: 22px; }
+    ul {
+      margin: 8px 0 0 34px;
+      padding: 0;
+    }
+    li { margin: 0 0 15px; padding-left: 8px; }
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+    }
+    .stat {
+      padding: 22px 0 20px;
+      border-bottom: 3px solid var(--rule);
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      align-items: center;
+      column-gap: 24px;
+    }
+    .stat strong {
+      font-size: 61px;
+      line-height: 1;
+      color: var(--maroon);
+      letter-spacing: -1px;
+    }
+    .stat span {
+      font-size: 30px;
+      line-height: 1.2;
+      color: var(--muted);
+    }
+    .question {
+      font-size: 36px;
+      line-height: 1.28;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .hypothesis {
+      margin-top: 22px;
+      padding-left: 24px;
+      border-left: 9px solid var(--gold);
+    }
+    .method-steps {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      counter-reset: step;
+    }
+    .method-steps li {
+      position: relative;
+      padding: 0 0 17px 62px;
+      margin: 0;
+      counter-increment: step;
+    }
+    .method-steps li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 1px;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: var(--maroon);
+      color: white;
+      font-size: 25px;
+      line-height: 42px;
+      text-align: center;
+      font-weight: 700;
+    }
+    .figure {
+      background: white;
+      border: 3px solid var(--rule);
+      overflow: hidden;
+    }
+    .figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .caption {
+      font-size: 25px;
+      line-height: 1.28;
+      color: var(--muted);
+      margin-top: 13px;
+    }
+    .results-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 30px;
+    }
+    .results-title span {
+      font-size: 26px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .limit {
+      border-left: 10px solid var(--maroon);
+      padding-left: 28px;
+      color: var(--maroon);
+      font-weight: 700;
+    }
+    .refs p {
+      font-size: 25px;
+      line-height: 1.28;
+      margin: 0 0 16px;
+    }
+    .ack p, .availability p {
+      font-size: 27px;
+      line-height: 1.28;
+    }
+    .smallcaps {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <main class="poster" data-document-role="page" data-label="ViCBio DM Circular Dairy Symposium Poster">
+    <header class="header">
+      <h1>An Agent-Based Virtual Farm Model Evaluating Operating Returns and Resource Recovery in Circular Dairy Bioeconomy Systems</h1>
+      <p class="authors">Megha Poyyara Saiju<sup>1</sup>, Manogna Rayala<sup>2</sup>, Karun Kaniyamattam<sup>1</sup></p>
+      <p class="affiliations"><sup>1</sup>Department of Animal Science &nbsp;&nbsp; <sup>2</sup>Department of Statistics &nbsp;&nbsp; Texas A&amp;M University</p>
+    </header>
+
+    <div class="takeaway">
+      ViCBio DM links cow-level biology to four circular pathways so farm-specific technology packages can be compared before investment.
+    </div>
+
+    <section class="grid">
+      <div class="col">
+        <section class="section">
+          <h2>Why this matters</h2>
+          <div class="stats">
+            <div class="stat"><strong>$52.8B</strong><span>U.S. milk sales in 2022</span></div>
+            <div class="stat"><strong>-39%</strong><span>farms selling milk from 2017 to 2022</span></div>
+            <div class="stat"><strong>$43.9B</strong><span>specialized dairy production expenses; feed was 46%</span></div>
+          </div>
+          <p class="caption">Source: USDA NASS, 2022 Census of Agriculture Dairy Cattle and Milk Production.</p>
+        </section>
+
+        <section class="section gold">
+          <h2>Research question</h2>
+          <p class="question">Which combinations of nutrient, water, energy, and by-product pathways improve farm operating performance and reduce resource losses under the same herd and market assumptions?</p>
+          <p class="hypothesis"><strong>Hypothesis.</strong> Coupled pathways will change profit, emissions, and resource use differently from isolated technology evaluations.</p>
+        </section>
+
+        <section class="section green">
+          <h2>Model and experiment</h2>
+          <ol class="method-steps">
+            <li>Simulate cow-resolved milk, feed, water, manure, methane, health, and reproduction every day.</li>
+            <li>Coordinate 12 core agents plus an optional land agent through dated data packets.</li>
+            <li>Switch four circular loops on or off, creating 16 technology configurations.</li>
+            <li>Hold herd, market, calibration, duration, and seed constant in paired comparisons.</li>
+            <li>Report operating benefit, CapEx, payback, ROI, emissions, water, and nutrient recovery when inputs are available.</li>
+          </ol>
+        </section>
+
+        <section class="section blue">
+          <h2>Daily execution</h2>
+          <p>Market and sensors update first. Feed and management policies prepare the day. Disease, water delivery, cow production, processing, manure, energy, water accounting, environment, and farm management then update in sequence.</p>
+          <p class="caption">A fixed seed uses one seeded random-number generator for deterministic replay.</p>
+        </section>
+      </div>
+
+      <div class="col">
+        <section>
+          <div class="figure"><img src="vicbio_loop_framework.png" alt="Four coupled circular resource loops around a virtual dairy farm"></div>
+          <p class="caption"><strong>Figure 1.</strong> Each loop exchanges resources with the same virtual farm rather than operating as a stand-alone calculator.</p>
+        </section>
+
+        <section>
+          <div class="results-title">
+            <h2>Illustrative results</h2>
+            <span>Model output, not field validation</span>
+          </div>
+          <div class="figure"><img src="vicbio_illustrative_results.png" alt="Operating profit, greenhouse gas, and circularity results for selected loop configurations"></div>
+          <p class="caption"><strong>Figure 2.</strong> Deterministic 365-day comparison: 100 cows, seed 42, processor and optional land enabled, identical default market and calibration assumptions. Values are annual model totals or means.</p>
+        </section>
+      </div>
+
+      <div class="col">
+        <section class="section">
+          <h2>What the run shows</h2>
+          <ul>
+            <li><strong>L3 energy</strong> reduced modeled net greenhouse gas by 10.4% and generated 68.2 MWh of electricity.</li>
+            <li><strong>L4 by-products</strong> produced most of the operating-profit change through modeled dairy processing.</li>
+            <li><strong>L1 and L2</strong> produced no additional top-line change under these default demand conditions.</li>
+            <li>The combined result equaled L3 + L4, exposing inactive or unconstrained pathways instead of hiding them.</li>
+          </ul>
+        </section>
+
+        <section class="section gold">
+          <h2>Interpretation and limits</h2>
+          <p class="limit">Operating profit is not investment return. Equipment CapEx was not supplied, so ROI and payback are unavailable for this demonstration.</p>
+          <p>Default calibration includes assumption-marked values. The current run is a software demonstration, not empirical validation or a farm investment recommendation.</p>
+        </section>
+
+        <section class="section green">
+          <h2>Conclusion</h2>
+          <p>Coupled modeling makes cross-loop effects, timing, and unused recovery pathways visible. The framework can compare technology packages without treating manure, water, energy, and processing as isolated decisions.</p>
+        </section>
+
+        <section class="section blue">
+          <h2>Future work</h2>
+          <ul>
+            <li>Calibrate against farm observations.</li>
+            <li>Add real installed-cost ranges.</li>
+            <li>Repeat scenarios across seeds.</li>
+            <li>Validate conventional, robotic, certified organic, raw-milk, and beef-on-dairy systems.</li>
+          </ul>
+        </section>
+
+        <section class="section refs">
+          <h2>References</h2>
+          <p>1. USDA NASS. <em>2022 Census of Agriculture: Dairy Cattle and Milk Production.</em> 2024.</p>
+          <p>2. Wood, P.D.P. Algebraic model of the lactation curve in cattle. <em>Nature</em> 216, 164-165 (1967). doi:10.1038/216164a0.</p>
+          <p>3. Muell, J.D. et al. Farm-scale water-energy-food-waste nexus analysis for a closed-loop dairy system. <em>Front. Environ. Sci.</em> 10:880839 (2022).</p>
+        </section>
+
+        <section class="section ack">
+          <h2>Acknowledgments</h2>
+          <p>Texas A&amp;M University Departments of Animal Science and Statistics.</p>
+        </section>
+
+        <section class="availability">
+          <p class="smallcaps">Model availability</p>
+          <p>github.com/Creator101-commits/research-agents</p>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
