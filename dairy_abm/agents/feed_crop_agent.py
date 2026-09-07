@@ -38,6 +38,18 @@ class FeedCropAgent(BaseAgent):
         feed_offset = float(credits["feed_offset_kg"])
         water_offset = float(credits["water_offset_l"])
         self.ctx.state["loop_credits"] = {"feed_offset_kg": 0.0, "water_offset_l": 0.0}
+        source_credits = self.ctx.state.get(
+            "loop_credit_sources",
+            {"l1_feed_offset_kg": 0.0, "l2_water_offset_l": 0.0, "l4_feed_offset_kg": 0.0},
+        )
+        l1_feed_offset = float(source_credits.get("l1_feed_offset_kg", 0.0))
+        l2_water_offset = float(source_credits.get("l2_water_offset_l", 0.0))
+        l4_feed_offset = float(source_credits.get("l4_feed_offset_kg", 0.0))
+        self.ctx.state["loop_credit_sources"] = {
+            "l1_feed_offset_kg": 0.0,
+            "l2_water_offset_l": 0.0,
+            "l4_feed_offset_kg": 0.0,
+        }
         nutrient_credits = self.ctx.state["nutrient_credits"]
         recovered_water_n_credit = require_nonnegative(
             "recovered_water_n_kg", float(nutrient_credits["recovered_water_n_kg"])
@@ -325,6 +337,9 @@ class FeedCropAgent(BaseAgent):
                 "recovered_water_applied_l": recovered_water_applied_l,
                 "feed_offset_kg": feed_offset,
                 "water_offset_l": water_offset,
+                "l1_feed_offset_kg": l1_feed_offset,
+                "l2_water_offset_l": l2_water_offset,
+                "l4_feed_offset_kg": l4_feed_offset,
                 "land_owner": land_owner,
                 "per_cow_rations": per_cow_rations,
                 "precision_feeding_active": True,

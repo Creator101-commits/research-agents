@@ -82,15 +82,15 @@ class DashboardEconomicsTests(unittest.TestCase):
         self.assertIn("recommendation", economics["latest"])
         self.assertIn("policy_conflicts", economics["latest"])
 
-    def test_economics_contract_keeps_unretained_historical_categories_unavailable(self) -> None:
+    def test_economics_contract_retains_byproduct_history_and_marks_other_unretained_categories(self) -> None:
         ctx = self._run(enable_processor=True)
         economics = serialize_dashboard_run(ctx, "econ02", 0.0)["economics"]
 
-        self.assertTrue(all(row["byproduct_revenue"] is None for row in economics["daily"]))
+        self.assertTrue(all(row["byproduct_revenue"] is not None for row in economics["daily"]))
         self.assertTrue(all(row["labor_cost"] is None for row in economics["daily"]))
         self.assertTrue(all(row["fixed_cost"] is None for row in economics["daily"]))
         self.assertTrue(all(row["treatment_cost"] is not None for row in economics["daily"]))
-        self.assertFalse(economics["metrics"]["byproduct_revenue"]["available"])
+        self.assertTrue(economics["metrics"]["byproduct_revenue"]["available"])
 
         missing = SimulationContext(
             scenario={"name": "missing-economics", "days": 1},

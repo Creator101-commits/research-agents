@@ -800,12 +800,12 @@
       "description": "Fallback farm electricity demand used for demand-capped displacement reporting."
     },
     "heat_mj_per_kwh": {
-      "value": 0.0,
+      "value": 4.74,
       "unit": "MJ/kWh",
       "valid_range": "0..",
-      "source": "implementation",
+      "source": "https://www.epa.gov/sites/static/files/2020-11/documents/agstar-operator-guidebook.pdf",
       "assumption": true,
-      "description": "Optional heat conversion coefficient; zero denotes unavailable external calibration."
+      "description": "Screening CHP heat-recovery coefficient derived as 3.6 MJ/kWh times 50 percent thermal efficiency divided by 38 percent electrical efficiency. Replace it with project-specific CHP performance before investment use."
     },
     "solar_kw_per_cow": {
       "value": 0.1,
@@ -1084,6 +1084,64 @@
       "source": "implementation",
       "assumption": true,
       "description": "Farm-manager objective weight for circular-economy performance."
+    },
+    "investment": {
+      "analysis_horizon_years": {
+        "value": 15,
+        "unit": "years",
+        "valid_range": "1..50",
+        "source": "Post Doc_Symposium_Abstract_Circular_Dairy_Bioeconomy.docx",
+        "assumption": false,
+        "description": "Investment horizon required by the symposium abstract."
+      },
+      "l1_nutrient_base_capex": {
+        "value": 2712.96,
+        "unit": "currency/project",
+        "valid_range": "0..",
+        "source": "https://www.nrcs.usda.gov/sites/default/files/2026-03/FY26_EQIP_PaymentSchedule_0.pdf",
+        "assumption": true,
+        "description": "Screening capital basis using the FY2026 NRCS nutrient-management design base cost; not a vendor quote."
+      },
+      "l1_nutrient_capex_per_acre": {
+        "value": 14.99,
+        "unit": "currency/acre",
+        "valid_range": "0..",
+        "source": "https://www.nrcs.usda.gov/sites/default/files/2026-03/FY26_EQIP_PaymentSchedule_0.pdf",
+        "assumption": true,
+        "description": "Screening capital basis using the FY2026 NRCS nutrient-management implementation cost per acre."
+      },
+      "l2_water_base_capex": {
+        "value": 1502.34,
+        "unit": "currency/project",
+        "valid_range": "0..",
+        "source": "https://www.nrcs.usda.gov/sites/default/files/2026-03/FY26_EQIP_PaymentSchedule_0.pdf",
+        "assumption": true,
+        "description": "Lower-bound screening basis using the FY2026 NRCS wastewater screw-pump base cost; treatment and storage must be supplied through an override when required."
+      },
+      "l3_energy_base_capex": {
+        "value": 12602.22,
+        "unit": "currency/project",
+        "valid_range": "0..",
+        "source": "https://www.nrcs.usda.gov/sites/default/files/2026-03/FY26_EQIP_PaymentSchedule_0.pdf",
+        "assumption": true,
+        "description": "Screening capital basis using the FY2026 NRCS modular biodigester cost."
+      },
+      "l3_energy_capex_per_animal_unit": {
+        "value": 372.58,
+        "unit": "currency/animal unit",
+        "valid_range": "0..",
+        "source": "https://www.nrcs.usda.gov/sites/default/files/2026-03/FY26_EQIP_PaymentSchedule_0.pdf",
+        "assumption": true,
+        "description": "Screening capital basis using the FY2026 NRCS covered-lagoon or holding-pond cost per animal unit."
+      },
+      "l4_processing_capex_per_cow": {
+        "value": 944.095238,
+        "unit": "currency/cow",
+        "valid_range": "0..",
+        "source": "https://projects.sare.org/project-reports/sw14-015/",
+        "assumption": true,
+        "description": "Screening equipment-only basis derived from a documented 198260 currency artisan-cheese equipment cost for a 210-cow farm; excludes land and building."
+      }
     }
   },
   "sensors": {
@@ -1279,7 +1337,7 @@
       "valid_range": "0..1",
       "source": "implementation",
       "assumption": true,
-      "description": "Share of cleaning-water demand collected as treatable wastewater."
+      "description": "Share of parlor cleaning-water demand collected as treatable wastewater; kept separate from the amino-acid whole-farm water adjustment."
     },
     "amino_acid_policy_active_default": {
       "value": true,

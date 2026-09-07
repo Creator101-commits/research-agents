@@ -935,13 +935,15 @@ def _economics_daily_rows(ctx: SimulationContext) -> list[dict[str, Any]]:
     }
     result: list[dict[str, Any]] = []
     cumulative_profit: float | None = 0.0
+    running_profits: list[float] = []
     for source in source_rows:
         day = source.get("day")
         environment = environment_by_day.get(str(day), {})
         disease = disease_by_day.get(str(day), {})
         profit = source.get("profit")
         if cumulative_profit is not None and _is_number(profit):
-            cumulative_profit += float(profit)
+            running_profits.append(float(profit))
+            cumulative_profit = sum(running_profits)
         else:
             cumulative_profit = None
         result.append(
@@ -949,8 +951,7 @@ def _economics_daily_rows(ctx: SimulationContext) -> list[dict[str, Any]]:
                 "day": deepcopy(day),
                 "milk_revenue": deepcopy(source.get("milk_revenue")),
                 "processor_revenue": deepcopy(source.get("processor_revenue")),
-                # The model does not retain a dated byproduct revenue series.
-                "byproduct_revenue": None,
+                "byproduct_revenue": deepcopy(source.get("byproduct_revenue")),
                 "energy_value": deepcopy(source.get("energy_value")),
                 "carbon_credit_value": deepcopy(environment.get("carbon_credit_value")),
                 "total_revenue": deepcopy(source.get("total_revenue")),
@@ -1512,6 +1513,8 @@ def serialize_dashboard_run(
     overrides = deepcopy(calibration_overrides or {})
     meta = {
         "scenario_name": ctx.scenario.get("name", "unnamed"),
+        "farm_system": ctx.scenario.get("farm_system", "conventional"),
+        "farm_system_label": ctx.scenario.get("farm_system_label", "Conventional"),
         "start_date": ctx.scenario.get("start_date"),
         "seed": ctx.scenario.get("seed"),
         "days": days,
@@ -1535,6 +1538,8 @@ def serialize_dashboard_run(
         "environment": _build_environment_audit(ctx),
         "economics": _build_economics(ctx),
         "equipment": _build_equipment_roi(ctx),
+        "investment": deepcopy(ctx.state.get("investment_analysis", {})),
+        "dmc": deepcopy(ctx.state.get("dmc_analysis", {})),
         "model_details": _build_model_details(ctx, duration_s, overrides),
         "exports": _build_export_manifest(run_id, bool(ctx.daily_records or ctx.schedule_records)),
         "warnings": warnings,

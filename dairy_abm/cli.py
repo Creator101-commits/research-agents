@@ -5,6 +5,7 @@ from pathlib import Path
 
 from dairy_abm.config import calibration_inventory, load_calibration
 from dairy_abm.core import read_json, write_json
+from dairy_abm.analysis.farm_system_comparison import assess_farm_systems, write_farm_system_assessment
 from dairy_abm.model import DairyFarmModel
 from dairy_abm.reports import write_reports
 
@@ -40,6 +41,13 @@ def build_parser() -> argparse.ArgumentParser:
     list_parser = subparsers.add_parser("list-calibrations")
     list_parser.add_argument("--calibration")
     list_parser.add_argument("--output")
+
+    assess_parser = subparsers.add_parser("assess-farm-systems")
+    assess_parser.add_argument("--scenario", required=True)
+    assess_parser.add_argument("--calibration")
+    assess_parser.add_argument("--output", required=True)
+    assess_parser.add_argument("--days", type=int)
+    assess_parser.add_argument("--seeds", default="1")
 
     return parser
 
@@ -83,6 +91,22 @@ def main(argv: list[str] | None = None) -> int:
         model = DairyFarmModel(scenario, load_calibration(args.calibration))
         ctx = model.run()
         write_reports(Path(args.output), ctx)
+        return 0
+
+    if args.command == "assess-farm-systems":
+        scenario = read_json(Path(args.scenario))
+        if args.days is not None:
+            scenario["days"] = args.days
+        try:
+            seeds = tuple(int(item.strip()) for item in args.seeds.split(",") if item.strip())
+        except ValueError as exc:
+            raise SystemExit("--seeds must be a comma-separated list of integers") from exc
+        assessment = assess_farm_systems(
+            scenario,
+            load_calibration(args.calibration),
+            seeds=seeds,
+        )
+        write_farm_system_assessment(Path(args.output), assessment)
         return 0
 
     raise AssertionError(f"unhandled command {args.command}")

@@ -178,16 +178,23 @@ class ManureAgent(BaseAgent):
             value(self.ctx.calibration, "manure.uncollected_ch4_kg_per_kg_manure")
         )
         compost_n2o_kg = compost_kg * float(value(self.ctx.calibration, "manure.compost_n2o_kg_per_kg_manure"))
-        nutrient_return_kg = digestate_n_kg + compost_n_kg
-        soil_organic_carbon_delta_kg = compost_kg * float(self.ctx.scenario.get("compost_soil_carbon_fraction", 0.12)) + digestate_n_kg * float(self.ctx.scenario.get("digestate_soil_carbon_kg_per_kg_n", 0.25))
-        self.ctx.state["soil_organic_carbon"] = float(self.ctx.state.get("soil_organic_carbon", 0.0)) + soil_organic_carbon_delta_kg
         l1_enabled = bool(
             self.ctx.scenario.get("l1_nutrient_loop_enabled", value(self.ctx.calibration, "manure.l1_nutrient_loop_enabled"))
         )
+        nutrient_return_kg = digestate_n_kg + compost_n_kg if l1_enabled else 0.0
+        soil_organic_carbon_delta_kg = (
+            compost_kg * float(self.ctx.scenario.get("compost_soil_carbon_fraction", 0.12))
+            + digestate_n_kg * float(self.ctx.scenario.get("digestate_soil_carbon_kg_per_kg_n", 0.25))
+            if l1_enabled
+            else 0.0
+        )
+        self.ctx.state["soil_organic_carbon"] = float(self.ctx.state.get("soil_organic_carbon", 0.0)) + soil_organic_carbon_delta_kg
         if l1_enabled:
-            self.ctx.state["loop_credits"]["feed_offset_kg"] += compost_kg * float(
+            credit = compost_kg * float(
                 value(self.ctx.calibration, "feed_crop.nutrient_loop_feed_substitution_fraction")
             )
+            self.ctx.state["loop_credits"]["feed_offset_kg"] += credit
+            self.ctx.state["loop_credit_sources"]["l1_feed_offset_kg"] += credit
 
         grass_cofeed_kg, food_waste_cofeed_kg, cofeed_feasible, route_alert = self._cofeed_assembly(digester_kg)
         processor_residual_energy_kg = (
@@ -257,8 +264,8 @@ class ManureAgent(BaseAgent):
                 name="manure_resource_packet",
                 day=day,
                 payload={
-                    "digestate": {"n_kg": digestate_n_kg, "p_kg": digestate_p_kg, "k_kg": digestate_k_kg},
-                    "compost": {"n_kg": compost_n_kg, "p_kg": compost_p_kg, "k_kg": compost_k_kg},
+                    "digestate": {"n_kg": digestate_n_kg if l1_enabled else 0.0, "p_kg": digestate_p_kg if l1_enabled else 0.0, "k_kg": digestate_k_kg if l1_enabled else 0.0},
+                    "compost": {"n_kg": compost_n_kg if l1_enabled else 0.0, "p_kg": compost_p_kg if l1_enabled else 0.0, "k_kg": compost_k_kg if l1_enabled else 0.0},
                     "soil_organic_carbon_delta_kg": soil_organic_carbon_delta_kg,
                     "biogas_volume_to_energy_m3": biogas_ch4_m3,
                     "field_n2o_precursor_kg_n": field_n2o_precursor,

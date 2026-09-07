@@ -45,14 +45,16 @@ class EnergyBalancesTest(unittest.TestCase):
         self.assertGreater(energy["energy_self_sufficiency_pct"], 0.0)
         self.assertLess(energy["energy_self_sufficiency_pct"], 100.0)
 
-    def test_heat_is_unavailable_without_a_calibrated_conversion_and_available_when_set(self) -> None:
-        missing_heat = DairyFarmModel(scenario(), load_calibration()).run()
+    def test_heat_uses_the_screening_conversion_and_accepts_a_project_override(self) -> None:
+        screening = DairyFarmModel(scenario(), load_calibration()).run()
         calibrated = load_calibration()
         calibrated["energy"]["heat_mj_per_kwh"]["value"] = 3.6
         with_heat = DairyFarmModel(scenario(), calibrated).run()
 
-        self.assertIsNone(missing_heat.packets["energy_packet"].payload["heat_generated_mj"])
-        self.assertEqual(missing_heat.packets["energy_packet"].confidence, "low")
+        self.assertAlmostEqual(
+            screening.packets["energy_packet"].payload["heat_generated_mj"],
+            screening.packets["energy_packet"].payload["net_kwh"] * 4.74,
+        )
         self.assertAlmostEqual(
             with_heat.packets["energy_packet"].payload["heat_generated_mj"],
             with_heat.packets["energy_packet"].payload["net_kwh"] * 3.6,

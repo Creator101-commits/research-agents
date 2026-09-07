@@ -30,7 +30,7 @@ This produces six output files:
 
 | File | Contents |
 |------|----------|
-| `summary.json` | Simulation metadata, scenario flags, policy state, report contract, events, latest packets |
+| `summary.json` | Simulation metadata, farm-system profile, scenario flags, policy state, report contract, loop investment analysis, DMC screening, events, latest packets |
 | `calibration_inventory.json` | All 200+ calibration parameters with metadata (source, range, assumption flag) |
 | `daily.csv` | Per-day agent outputs (milk, DMI, manure, enteric CH4, biogas, kWh, heat, water, GHG streams, circularity, profit, disease economics, processor metrics, NUE, sustainability score, policy conflicts) |
 | `schedule.csv` | Phase execution log (daily, weekly, monthly, annual) |
@@ -84,7 +84,7 @@ Use `--enable-l1-loop` / `--disable-l1-loop`, `--enable-l2-loop` / `--disable-l2
 
 A zero-dependency local server drives the same model from a browser page. The run desk supports scenario selection, duration from 1 to 3650 days, start date, Day / Month / Year presets, seed, herd size, four L1-L4 loop switches, Processor, Whey processing, and Land agent switches.
 The desktop workbench keeps simulation controls in a clean left-side panel and shows full-width results beside it. The client-side shell provides routes for Overview, Simulation, Charts, Circular Loops, Scenario Comparison, Cow Performance, Environment, Economics, Equipment ROI, Parameters, Model Details, and Export. The Overview route presents the Python-produced run KPIs and four daily summary charts. The Charts route presents the registry of daily, monthly, and annual model series; period roll-ups are produced by Python, not the browser. The Circular Loops route presents L1 nutrient, L2 water, L3 energy, and L4 byproduct histories plus a backend-driven flow topology with active, inactive, and unavailable states. The Scenario Comparison route supports Baseline vs Current, individual loop toggles, user-selected scenarios, and an optional 16-run L1-L4 matrix. It displays Python-provided absolute and percentage deltas, run metadata, setting-difference warnings, and metric-aware directional coloring without rebuilding model calculations in JavaScript. The Cow Performance route presents the latest-day packet records merged with final lifecycle and genetic state, direct-metric rankings, health states, scatter views, and trait distributions; historical per-cow records remain unavailable because the model does not retain dated cow histories. The Environment route presents Python-produced GHG, soil, NUE, circularity, sustainability, monthly report, and source-stream ledger data with packet quality and confidence metadata; it never reverse-engineers source emissions from totals. The Economics route presents Python-produced revenue, cost, profit, cash, market, monthly manager, and farm-NPV outputs, retains unavailable historical categories as N/A, and shows latest manager fields without treating snapshots as time series. The workbench also provides Ledger and Graphs views with Daily, Monthly, or Yearly compatibility roll-ups.
-The Equipment ROI route renders only manager-represented assets, uses the existing Python NPV analysis, surfaces the discount rate, and keeps zero-CapEx ROI/payback values unavailable.
+The Equipment ROI route retains the legacy user-supplied asset view. The run summary additionally exposes a four-loop investment analysis with sourced screening CapEx, annual net benefit, simple payback, 15-year ROI, NPV, discounted ROI, and discounted payback. These meanings are not merged because the legacy asset fields and the new loop-level fields have different cost bases.
 The Parameters route is generated from `GET /api/calibration`: it provides searchable, grouped, assumption-aware metadata, typed controls, valid-range messages, field/group/all reset actions, and isolated `calibration_overrides` for the next run. Backend validation remains authoritative.
 The Model Details route is read-only and uses the serialized `model_details` payload for actual scenario metadata, enabled systems, loop states, scheduler records, policy summary, warnings, calibration counts, event count, and official report-contract metadata; it does not hard-code an agent count or recalculate model values.
 The Export route uses the backend `dairy_abm.reports.write_reports` contract to download Summary JSON, Daily/Schedule/Monthly/Annual CSV, Calibration Inventory, and the complete ZIP from the cached run. Chart PNG remains an optional presentation download; unsupported comparison exports stay N/A rather than being fabricated in the browser.
@@ -142,6 +142,39 @@ The post-processing utility uses a configurable discount rate (default 6%):
 python3 -m dairy_abm.analysis.npv --daily output/daily.csv --annual output/annual.csv --summary output/summary.json --discount-rate 0.06
 ```
 
+### Assess all five farm systems
+
+The assessment runner executes conventional, robotic, certified-organic, raw-milk, and beef-on-dairy profiles under no loops, each loop separately, and all loops. A single seed produces 30 runs. Use multiple seeds for stochastic robustness:
+
+```sh
+python3 -m dairy_abm assess-farm-systems \
+  --scenario scenarios/baseline.json \
+  --output output/farm-system-assessment \
+  --days 365 \
+  --seeds 1,2,3
+```
+
+It writes `farm_system_assessment.json` and `farm_system_assessment.csv`. Each technology row includes a counterfactual annual net benefit equal to the annualized operating-profit difference from the same system and seed with all loops off, followed by counterfactual payback, 15-year ROI, and NPV. The result is a comparative simulation screening experiment, not empirical model validation. The profiles encode structural differences without inventing unobserved price premiums, labor savings, or beef-calf revenue.
+
+### Investment and DMC outputs
+
+Every completed run publishes `investment_analysis_packet` and `dmc_analysis_packet` and copies both structures into `summary.json`.
+
+The investment analysis treats L1 nutrient recovery, L2 water recycling, L3 energy recovery, and L4 processing/byproduct recovery as separate technologies. It annualizes the benefit streams represented by the simulation, estimates initial capital from source-linked screening coefficients, and reports the following for each technology and the enabled portfolio:
+
+- capital expenditure
+- annual gross benefit, configured annual operating cost, and annual net benefit
+- simple annual ROI and simple payback
+- 15-year cumulative ROI
+- NPV, discounted ROI, and discounted payback at the configured annual discount rate
+- the complete year-zero through year-15 cash-flow vector
+
+The L3 energy balance reports both net renewable electricity and recoverable CHP heat. The default heat coefficient is a source-linked screening ratio derived from EPA AgSTAR efficiency guidance. A project-specific CHP coefficient and usable daily heat demand should replace the default before assigning heat savings.
+
+Use `investment_capex_overrides` and `investment_annual_om_overrides` to replace screening assumptions with farm-specific vendor quotes and operating budgets. The capital estimates do not include financing, taxes, depreciation, grants, buildings, or unconfigured maintenance.
+
+DMC reporting intentionally separates two concepts. `simulated_iofc_margin_usd_cwt` is the farm simulation's milk-revenue-minus-feed-cost margin. It is not the official Dairy Margin Coverage margin. Official DMC margin and estimated monthly indemnity are computed only when `dmc_market_inputs` supplies USDA-compatible all-milk, corn, soybean-meal, and alfalfa prices. The 2026 premium calculation uses the USDA FSA coverage levels, Tier 1 limit, premium rates, administrative fee, and optional six-year lock-in discount. Assessment output fixes loop-attributable DMC premium change at zero because the statutory premium depends on elected coverage and production history, not farm-simulated IOFC.
+
 ### Scenario format
 
 Scenarios are JSON files with these supported keys:
@@ -149,6 +182,7 @@ Scenarios are JSON files with these supported keys:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `name` | string | `"unnamed"` | Scenario label |
+| `farm_system` | string | `"conventional"` | `conventional`, `robotic`, `certified_organic`, `raw_milk`, or `beef_on_dairy` profile |
 | `start_date` | string | `"2026-01-01"` | First simulation day (ISO format) |
 | `days` | int | `1` | Number of simulation days |
 | `seed` | int | `1` | RNG seed for deterministic replay |
@@ -190,6 +224,16 @@ Scenarios are JSON files with these supported keys:
 | `initial_cash_balance` | float | `0.0` | Opening farm cash balance |
 | `circular_investment_schedule` | array | none | List of dated investment costs |
 | `equipment_capex` | object | none | Equipment capex map for ROI calculations |
+| `investment_capex_overrides` | object | none | Farm-specific CapEx replacements keyed by `l1_nutrient`, `l2_water`, `l3_energy`, or `l4_byproduct` |
+| `investment_annual_om_overrides` | object | none | Annual incremental O&M keyed by loop identifier |
+| `investment_horizon_years` | int | `15` | Investment cash-flow horizon; the field `fifteen_year_roi` is populated only at 15 years |
+| `investment_discount_rate` | float | calibration default (`0.08`) | Annual rate for NPV, discounted ROI, and discounted payback |
+| `dmc_coverage_level` | float | `8.0` | USDA DMC coverage level from 4.0 through 9.5 in 0.5 increments |
+| `dmc_tier2_coverage_level` | float | same as Tier 1 when at or below `8.0`; otherwise not enrolled | Optional separate Tier 2 election from 4.0 through 8.0 for production history above 6 million lb |
+| `dmc_coverage_fraction` | float | `0.95` | Covered production fraction from 0.05 through 0.95 in 0.05 increments |
+| `dmc_production_history_lb` | float | annualized simulated milk proxy | FSA-established production history; supply the official value when available |
+| `dmc_lock_in_discount` | bool | `false` | Apply the 2026-2031 25% premium discount for a qualifying lock-in election |
+| `dmc_market_inputs` | object | none | Monthly `all_milk_usd_cwt`, `corn_usd_bu`, `soybean_meal_usd_ton`, and `alfalfa_usd_ton` inputs for the official formula |
 
 `enable_whey_processing` requires `enable_processor`. Land-specific overrides (`land_seasonal_availability`, `land_grazing_enabled`) require `enable_land_agent`. Invalid combinations fail during model construction rather than being ignored.
 
@@ -207,6 +251,9 @@ Observed market CSVs can provide a `date` column for daily selection, `year` plu
 - **Energy** supports biogas (CHP/electricity/boiler conversion modes), solar PV, thermochemical syngas, parasitic load, farm demand capping, self-sufficiency reporting, heat recovery, and carbon credit valuation.
 - **Market** supports three pricing modes: `static` (calibration defaults), `observed` (CSV-sourced daily/monthly/annual prices with forward-fill on missing values), and `observed_plus_shock` (CSV plus stochastic shocks). USDA class pricing and component pricing formulas are available.
 - **Circular loops** (L1-L4) remain explicit, carrying feed, water, nutrient, and byproduct credits between days where the source packet is finalized after production.
+- **Investment analysis** sizes loop-level screening capital, annualizes represented benefit and cost streams, and emits simple and discounted 15-year metrics. Source metadata and limitations travel with the output; farm quotes should replace defaults before investment decisions.
+- **DMC screening** implements the USDA feed-cost coefficients, 2026 premiums, and payment equation but never labels simulated farm IOFC as the official national DMC margin.
+- **Farm-system assessment** runs the same loop experiment across five named structural profiles. It is scenario analysis, not measured-farm validation.
 
 ### Calibration system
 
@@ -233,7 +280,7 @@ Parameters are organised per agent:
 | `energy` | Feedstock kWh conversion, parasitic load, grid offset factor, farm demand, heat conversion, electricity price |
 | `disease` | Mastitis/lameness probabilities, recovery, mortality, treatment cost, quarantine/vaccination/biosecurity effectiveness, transmission, stress multiplier, herd density modifier |
 | `environment` | GWP100 factors, field N2O conversion, fertiliser offset, circularity weights |
-| `farm_manager` | Labor/fixed cost, carbon credit price, objective weights (profit/environment/welfare/circularity), policy flags |
+| `farm_manager` | Labor/fixed cost, carbon credit price, objective weights, policy flags, 15-year horizon, and source-linked loop CapEx screening bases |
 | `sensors` | Missing reading probability, DMI/milk noise fractions, THI calculation, estrus reliability (single/fused), rumen pH baseline, bolus replacement interval, NIR seasonality |
 | `water` | Drinking/parlor rates, treatment recovery, water savings, wastewater return, nutrient recovery coefficient |
 | `dairy_processor` | Product mix, whey yields by stream, sludge/waste fractions, product prices, residual route fractions (whey/sludge/waste milk to feed/energy) |
@@ -270,11 +317,13 @@ Processor residual route fractions (`fraction_whey_to_feed`, `fraction_sludge_to
 dairy_abm/
 ├── __init__.py          # Package entry, exports DairyFarmModel
 ├── __main__.py          # python3 -m dairy_abm entry
-├── cli.py               # argparse CLI (run, validate-config, list-calibrations)
+├── cli.py               # argparse CLI (run, assess-farm-systems, validation, inventory)
 ├── config.py            # Calibration loading, validation, inventory
 ├── core.py              # Packet, EventLog, SimulationContext, SimulationClock, BaseAgent
 ├── model.py             # DairyFarmModel - daily loop, phase scheduling
 ├── reports.py           # Output writer (summary, CSV, inventory)
+├── farm_systems.py      # Five named structural farm-system profiles
+├── analysis/            # Investment, DMC, NPV, and farm-system comparison analysis
 └── agents/              # 13 agent implementations
     ├── cow_agent.py
     ├── dairy_processor_agent.py

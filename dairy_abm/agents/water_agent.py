@@ -64,12 +64,18 @@ class WaterAgent(BaseAgent):
         )
         gross_l = drinking_l + parlor_l + irrigation_l
         total_water_use_l = max(0.0, gross_l - amino_acid_adjustment_l)
-        wastewater_l = max(0.0, parlor_l - amino_acid_adjustment_l) * require_fraction(
+        wastewater_l = parlor_l * require_fraction(
             "water.wastewater_return_fraction",
             float(value(self.ctx.calibration, "water.wastewater_return_fraction")),
         )
-        treatment_active = bool(
+        l2_enabled = bool(
+            self.ctx.scenario.get("l2_water_loop_enabled", value(self.ctx.calibration, "water.l2_water_loop_enabled"))
+        )
+        treatment_configured = bool(
             self.ctx.scenario.get("water_treatment_active", value(self.ctx.calibration, "water.treatment_active"))
+        )
+        treatment_active = treatment_configured and (
+            l2_enabled or bool(self.ctx.scenario.get("water_treatment_independent_of_l2", False))
         )
         opening_wastewater_storage_l = require_nonnegative(
             "wastewater_storage_l", float(self.ctx.state["wastewater_storage_l"])
@@ -92,14 +98,13 @@ class WaterAgent(BaseAgent):
         net_freshwater_use_l = max(0.0, total_water_use_l - recycled_irrigation_l)
         water_intensity = total_water_use_l / milk_l if milk_l > 0.0 else None
 
-        l2_enabled = bool(
-            self.ctx.scenario.get("l2_water_loop_enabled", value(self.ctx.calibration, "water.l2_water_loop_enabled"))
-        )
         if l2_enabled:
-            self.ctx.state["loop_credits"]["water_offset_l"] += treated_water_l * require_nonnegative(
+            credit = treated_water_l * require_nonnegative(
                 "water.water_loop_fresh_water_offset_fraction",
                 float(value(self.ctx.calibration, "water.water_loop_fresh_water_offset_fraction")),
             )
+            self.ctx.state["loop_credits"]["water_offset_l"] += credit
+            self.ctx.state["loop_credit_sources"]["l2_water_offset_l"] += credit
         nutrient_recovery_enabled = bool(value(self.ctx.calibration, "water.nutrient_recovery_enabled"))
         recovered_n_kg = (
             treated_water_l * require_nonnegative(

@@ -125,7 +125,9 @@ class DairyProcessorAgent(BaseAgent):
             substitution_kg = float(
                 value(self.ctx.calibration, "dairy_processor.byproduct_loop_feed_substitution_kg_per_kg")
             )
-            self.ctx.state["loop_credits"]["feed_offset_kg"] += whey_feed_l * substitution_kg
+            credit = whey_feed_l * substitution_kg
+            self.ctx.state["loop_credits"]["feed_offset_kg"] += credit
+            self.ctx.state["loop_credit_sources"]["l4_feed_offset_kg"] += credit
         processor_revenue = product_revenue + farm_gate_milk_l * milk_price
         feed_return_total_l = whey_feed_l + waste_milk_feed_l + scotta_feed_l
         byproduct_revenue = feed_return_total_l * require_nonnegative(

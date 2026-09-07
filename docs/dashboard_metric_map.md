@@ -272,7 +272,7 @@ The current authoritative per-cow record is `ctx.packets["cow_daily_packet"].pay
 | Cash balance | `ctx.daily_records` | `cash_balance` | daily/run | currency | latest/series | `EXISTING` | Direct manager output. |
 | Farm NPV | `dairy_abm.analysis.npv` | annual profit cash flows, `farm_npv` | run | currency | discounted cash flow | `BACKEND_EXPOSE` | Uses the existing analysis function and surfaces its discount rate. |
 | Economics audit payload | `dairy_abm.dashboard._build_economics()` | metrics, daily/monthly rows, latest manager fields, market snapshot, provenance | run | structured JSON | serialization | `BACKEND_EXPOSE` | The Economics route consumes Python-produced values; unretained categories remain `N/A`. |
-| Byproduct revenue history | processor/manager packet | `byproduct_revenue` | daily/run | currency | sum | `MODEL_CHANGE` | Computed by the model but not retained in historical flattened records. |
+| Byproduct revenue history | `ctx.daily_records` | `byproduct_revenue` | daily/run | currency | sum | `EXISTING` | Retained directly from the manager packet. |
 | Labor and fixed cost history | manager packet/calibration | `labor_cost`, `fixed_cost` | daily/run | currency | sum | `MODEL_CHANGE` | Only the latest manager packet has these categories. Do not reconstruct them in the dashboard. |
 | Treatment-cost history | `ctx.state["disease_history"]` | `treatment_cost` | daily/run | currency | sum | `BACKEND_EXPOSE` | Disease history retains this category; keep it distinct from total disease economic cost. |
 | Total cost | `ctx.daily_records` | `total_cost` | daily/monthly/run | currency | sum | `EXISTING` | Direct manager output. |
@@ -305,6 +305,22 @@ The current manager output represents four equipment assets. The dashboard may s
 | Water recycling card | current equipment map | no separate asset key | run | — | — | `UNSUPPORTED` | Water recycling metrics exist, but separate CapEx/ROI does not. |
 | Solar card | current equipment map | no separate asset key | run | — | — | `UNSUPPORTED` | Solar generation exists when configured; solar ROI does not. |
 | Sensors card | current equipment map | no separate asset key | run | — | — | `UNSUPPORTED` | Sensor maintenance exists; sensor ROI does not. |
+
+### Loop investment analysis
+
+The model now publishes a separate `investment_analysis_packet`. It must not be collapsed into the legacy equipment cards because its technology boundaries and capital methods differ.
+
+| UI Metric | Python Source | Field / Packet | Period | Unit | Aggregation | Status | Notes |
+|---|---|---|---|---|---|---|---|
+| L1-L4 CapEx | `investment_analysis_packet` | `technologies.<loop>.capex` | run | currency | none | `BACKEND_EXPOSE` | Includes `capex_method` and source. Screening estimates must be labeled. |
+| Annual net benefit | `investment_analysis_packet` | `technologies.<loop>.annual_net_benefit` | annualized run | currency/year | none | `BACKEND_EXPOSE` | Gross represented benefit minus explicit incremental annual O&M. |
+| Simple payback | `investment_analysis_packet` | `technologies.<loop>.simple_payback_years` | run | years | none | `BACKEND_EXPOSE` | `None` for nonpositive net benefit or zero CapEx. |
+| 15-year ROI | `investment_analysis_packet` | `technologies.<loop>.fifteen_year_roi` | 15 years | fraction | none | `BACKEND_EXPOSE` | Cumulative undiscounted net return divided by initial capital. |
+| NPV and discounted ROI | `investment_analysis_packet` | `technologies.<loop>.npv`, `discounted_roi` | horizon | currency/fraction | discounted cash flow | `BACKEND_EXPOSE` | Show the packet discount rate beside these values. |
+| Portfolio metrics | `investment_analysis_packet` | `portfolio.*` | run/horizon | mixed | sum before ratio | `BACKEND_EXPOSE` | Uses enabled technologies only. |
+| Simulated IOFC | `dmc_analysis_packet` | `simulated_iofc_margin_usd_cwt` | observed run | currency/cwt | ratio of totals | `BACKEND_EXPOSE` | Must be labeled as a farm simulation margin, not official DMC. |
+| Official DMC margin | `dmc_analysis_packet` | `official_dmc_margin_usd_cwt` | supplied month | currency/cwt | USDA formula | `BACKEND_EXPOSE` | Available only with all four USDA-compatible price inputs. |
+| DMC premium and indemnity | `dmc_analysis_packet` | `premium.*`, `estimated_monthly_indemnity` | annual/monthly | currency | USDA formula | `BACKEND_EXPOSE` | Preserve program year, source links, and limitations. |
 
 ## 9. Parameters and configuration
 

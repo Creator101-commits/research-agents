@@ -43,6 +43,10 @@ REPORT_CONTRACT = {
             "disease_economic_cost": "currency/day",
             "policy_conflict_count": "count",
             "profit": "currency",
+            "farm_system": "profile identifier",
+            "raw_milk_revenue": "currency/day",
+            "byproduct_revenue": "currency/day",
+            "carbon_credit_value": "currency/day",
         },
     },
     "monthly": {
@@ -73,6 +77,8 @@ REPORT_CONTRACT = {
             "net_kg_co2e": "kg CO2e/run",
             "kg_co2e_per_l_milk": "kg CO2e/L milk",
             "kg_co2e_per_kg_milk_protein": "kg CO2e/kg milk protein",
+            "investment_analysis": "loop-level CapEx, annual net benefit, payback, 15-year ROI, and NPV",
+            "dmc_analysis": "simulated IOFC screening separated from official USDA DMC margin",
         },
     },
 }
@@ -80,6 +86,9 @@ REPORT_CONTRACT = {
 def write_reports(output_dir: Path, ctx: SimulationContext) -> None:
     summary: dict[str, Any] = {
         "scenario_name": ctx.scenario.get("name", "unnamed"),
+        "farm_system": ctx.scenario.get("farm_system", "conventional"),
+        "farm_system_label": ctx.scenario.get("farm_system_label", "Conventional"),
+        "farm_system_profile": ctx.state.get("farm_system_profile", {}),
         "daily_records": len(ctx.daily_records),
         "schedule_records": len(ctx.schedule_records),
         "monthly_records": len(ctx.monthly_records),
@@ -123,6 +132,8 @@ def write_reports(output_dir: Path, ctx: SimulationContext) -> None:
             ),
         },
         "policy": dict(ctx.state.get("policy", {})),
+        "investment_analysis": ctx.state.get("investment_analysis", {}),
+        "dmc_analysis": ctx.state.get("dmc_analysis", {}),
         "events": ctx.events.events,
         "latest_packets": {
             name: {

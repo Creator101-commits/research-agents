@@ -53,6 +53,15 @@ def _annual_profit(daily_rows: list[dict[str, str]], annual_rows: list[dict[str,
 
 
 def _equipment_cash_flows(summary: dict[str, Any]) -> dict[str, list[float]]:
+    investments = summary.get("investment_analysis", {}).get("technologies", {})
+    if isinstance(investments, dict):
+        cash_flows = {
+            name: [float(amount) for amount in details.get("cash_flows", [])]
+            for name, details in investments.items()
+            if isinstance(details, dict) and isinstance(details.get("cash_flows"), list)
+        }
+        if cash_flows:
+            return cash_flows
     manager = summary.get("latest_packets", {}).get("manager_packet", {})
     equipment = manager.get("payload", {}).get("equipment_roi", {})
     if not isinstance(equipment, dict):

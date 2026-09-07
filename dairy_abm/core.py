@@ -56,6 +56,10 @@ class SimulationContext:
 
     def __post_init__(self) -> None:
         self.state.setdefault("loop_credits", {"feed_offset_kg": 0.0, "water_offset_l": 0.0})
+        self.state.setdefault(
+            "loop_credit_sources",
+            {"l1_feed_offset_kg": 0.0, "l2_water_offset_l": 0.0, "l4_feed_offset_kg": 0.0},
+        )
         self.state.setdefault("nutrient_credits", {"recovered_water_n_kg": 0.0})
         self.state.setdefault(
             "policy",

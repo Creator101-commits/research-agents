@@ -17,14 +17,18 @@ from dairy_abm.agents.manure_agent import ManureAgent
 from dairy_abm.agents.market_agent import MarketAgent
 from dairy_abm.agents.sensors_agent import SensorsAgent
 from dairy_abm.agents.water_agent import WaterAgent
+from dairy_abm.analysis.dmc import analyze_dmc
+from dairy_abm.analysis.investment import analyze_investments
 from dairy_abm.config import validate_calibration, value
-from dairy_abm.core import ConfigError, EventLog, SimulationClock, SimulationContext
+from dairy_abm.core import ConfigError, EventLog, Packet, SimulationClock, SimulationContext
+from dairy_abm.farm_systems import resolve_farm_system
 
 
 class DairyFarmModel:
     """Top-level simulation shell."""
 
     def __init__(self, scenario: dict[str, Any], calibration: dict[str, Any]) -> None:
+        scenario, calibration, farm_system_profile = resolve_farm_system(scenario, calibration)
         validate_calibration(calibration)
         seed = int(scenario.get("seed", 1))
         self.ctx = SimulationContext(
@@ -33,6 +37,7 @@ class DairyFarmModel:
             rng=Random(seed),
             events=EventLog(),
         )
+        self.ctx.state["farm_system_profile"] = farm_system_profile
         self._validate_scenario_dependencies()
         self._initialize_policy_state()
         self.genetics_agent = GeneticsAgent(self.ctx)
@@ -67,7 +72,8 @@ class DairyFarmModel:
         start = date.fromisoformat(self.ctx.scenario.get("start_date", "2026-01-01"))
         days = int(self.ctx.scenario.get("days", 1))
         clock = SimulationClock(start=start, days=days)
-        for day in clock.dates():
+        dates = clock.dates()
+        for day in dates:
             self._run_daily(day)
             self._record_daily(day)
             if SimulationClock.is_week_end(day):
@@ -76,7 +82,61 @@ class DairyFarmModel:
                 self._run_monthly(day)
             if SimulationClock.is_year_end(day):
                 self._run_annual(day)
+        final_day = dates[-1] if dates else start
+        self._finalize_economic_analysis(final_day)
         return self.ctx
+
+    def _finalize_economic_analysis(self, day: date) -> None:
+        investment = analyze_investments(
+            self.ctx.scenario, self.ctx.calibration, self.ctx.daily_records
+        )
+        dmc = analyze_dmc(self.ctx.scenario, self.ctx.daily_records)
+        self.ctx.state["investment_analysis"] = investment
+        self.ctx.state["dmc_analysis"] = dmc
+        self.ctx.publish(
+            Packet(
+                source="farm_manager",
+                name="investment_analysis_packet",
+                day=day,
+                period="run",
+                confidence="screening",
+                quality="estimated",
+                payload=investment,
+            )
+        )
+        self.ctx.publish(
+            Packet(
+                source="farm_manager",
+                name="dmc_analysis_packet",
+                day=day,
+                period="run",
+                confidence="scenario",
+                quality="screening",
+                payload=dmc,
+            )
+        )
+        manager = self.ctx.get_packet("manager_packet")
+        if manager is not None:
+            portfolio = investment["portfolio"]
+            manager_payload = {
+                **manager.payload,
+                "investment_analysis": investment,
+                "dmc_analysis": dmc,
+                "fifteen_year_roi": portfolio["fifteen_year_roi"],
+                "investment_npv": portfolio["npv"],
+            }
+            self.ctx.publish(
+                Packet(
+                    source=manager.source,
+                    name=manager.name,
+                    day=manager.day,
+                    payload=manager_payload,
+                    quality=manager.quality,
+                    period=manager.period,
+                    confidence=manager.confidence,
+                    stream_id=manager.stream_id,
+                )
+            )
 
     def _land_enabled(self) -> bool:
         calibration_land = self.ctx.calibration.get("land", {}).get("enabled", {}).get("value", False)
@@ -238,6 +298,7 @@ class DairyFarmModel:
         self.ctx.daily_records.append(
             {
                 "day": day.isoformat(),
+                "farm_system": self.ctx.scenario["farm_system"],
                 "report_confidence": report_confidence,
                 "agent_count": len(self.agents),
                 "execution_order": ",".join(self.ctx.state["execution_order"]),
@@ -251,6 +312,7 @@ class DairyFarmModel:
                 "nitrogen_use_efficiency": cow_packet.payload["nitrogen_use_efficiency"] if cow_packet is not None else None,
                 "milk_revenue": cow_packet.payload["milk_revenue"] if cow_packet is not None else 0.0,
                 "feed_cost": feed_packet.payload["feed_cost"] if feed_packet is not None else 0.0,
+                "feed_cost_per_kg_dm": feed_packet.payload["feed_cost_per_kg_dm"] if feed_packet is not None else 0.0,
                 "purchased_feed_kg_dm": feed_packet.payload["purchased_feed_kg_dm"] if feed_packet is not None else 0.0,
                 "irrigation_l": feed_packet.payload["irrigation_l"] if feed_packet is not None else 0.0,
                 "ration_crude_protein_kg": feed_packet.payload["ration_crude_protein_kg"] if feed_packet is not None else 0.0,
@@ -258,6 +320,9 @@ class DairyFarmModel:
                 "ration_nitrogen_kg": feed_packet.payload["ration_nitrogen_kg"] if feed_packet is not None else 0.0,
                 "feed_loop_offset_kg": feed_packet.payload["feed_offset_kg"] if feed_packet is not None else 0.0,
                 "water_loop_offset_l": feed_packet.payload["water_offset_l"] if feed_packet is not None else 0.0,
+                "l1_feed_offset_kg": feed_packet.payload.get("l1_feed_offset_kg", 0.0) if feed_packet is not None else 0.0,
+                "l2_water_offset_l": feed_packet.payload.get("l2_water_offset_l", 0.0) if feed_packet is not None else 0.0,
+                "l4_feed_offset_kg": feed_packet.payload.get("l4_feed_offset_kg", 0.0) if feed_packet is not None else 0.0,
                 "new_disease_cases": disease_packet.payload["new_cases"] if disease_packet is not None else 0,
                 "active_disease_cases": disease_packet.payload["active_cases"] if disease_packet is not None else 0,
                 "disease_economic_cost": disease_packet.payload.get("outbreak_economic_cost", 0.0) if disease_packet is not None else 0.0,
@@ -299,6 +364,9 @@ class DairyFarmModel:
                 "total_revenue": manager_packet.payload["total_revenue"] if manager_packet is not None else 0.0,
                 "total_cost": manager_packet.payload["total_cost"] if manager_packet is not None else 0.0,
                 "profit": manager_packet.payload["profit"] if manager_packet is not None else 0.0,
+                "raw_milk_revenue": manager_packet.payload["raw_milk_revenue"] if manager_packet is not None else 0.0,
+                "byproduct_revenue": manager_packet.payload["byproduct_revenue"] if manager_packet is not None else 0.0,
+                "carbon_credit_value": manager_packet.payload["carbon_credit_value"] if manager_packet is not None else 0.0,
                 "manager_recommendation": manager_packet.payload["recommendation"] if manager_packet is not None else "",
                 "policy_conflict_count": len(manager_packet.payload.get("policy_conflicts", [])) if manager_packet is not None else 0,
                 "automatic_policy_action_count": len(manager_packet.payload.get("automatic_policy_actions", [])) if manager_packet is not None else 0,
