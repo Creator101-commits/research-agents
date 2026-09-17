@@ -11,6 +11,7 @@ class FarmManagerAgent(BaseAgent):
     _OBJECTIVES = ("profit", "environment", "animal_welfare", "circularity")
 
     def __init__(self, ctx) -> None:
+        """Initialize objective weights and manager history state."""
         super().__init__(ctx)
         ctx.state.setdefault(
             "objective_weights",
@@ -83,6 +84,7 @@ class FarmManagerAgent(BaseAgent):
         self.ctx.state.setdefault("execution_order", []).append("farm_manager_policy")
 
     def tick(self, day: date) -> None:
+        """Calculate daily farm economics, objective scores, and management recommendations."""
         cow = self.ctx.get_packet("cow_daily_packet")
         feed = self.ctx.get_packet("feed_crop_packet")
         water = self.ctx.get_packet("water_packet")
@@ -262,6 +264,7 @@ class FarmManagerAgent(BaseAgent):
         self.ctx.state.setdefault("execution_order", []).append(self.name)
 
     def monthly(self, day: date) -> None:
+        """Aggregate manager economics for the current calendar month."""
         if not self.ctx.daily_records:
             return
         month = day.strftime("%Y-%m")
@@ -284,6 +287,7 @@ class FarmManagerAgent(BaseAgent):
         )
 
     def annual(self, day: date) -> None:
+        """Record the annual genetics review supplied by the breeding agent."""
         genetics = self.ctx.get_packet("genetics_packet")
         if genetics is None:
             return
@@ -301,6 +305,7 @@ class FarmManagerAgent(BaseAgent):
 
     @staticmethod
     def _recommendation(profit: float, feed_cost: float, treatment_cost: float) -> str:
+        """Choose the highest-priority recommendation from daily cost signals."""
         if treatment_cost > feed_cost:
             return "review_health_protocol"
         if profit < 0:
@@ -309,6 +314,7 @@ class FarmManagerAgent(BaseAgent):
 
     @staticmethod
     def _ranked_recommendations(profit: float, feed_cost: float, treatment_cost: float) -> list[str]:
+        """Order policy recommendations by health, profitability, and default priority."""
         recommendations = ["maintain_current_policy"]
         if profit < 0.0:
             recommendations.insert(0, "review_cost_structure")
@@ -320,6 +326,7 @@ class FarmManagerAgent(BaseAgent):
     def _recommendation_details(
         profit: float, feed_cost: float, treatment_cost: float, sensor_alert_count: int
     ) -> list[dict[str, str]]:
+        """Build actionable recommendations with severity, triggers, and reasons."""
         recommendations: list[dict[str, str]] = []
         if treatment_cost > feed_cost:
             recommendations.append({"tier": "Critical", "action": "review_health_protocol", "trigger": "treatment_cost_exceeds_feed_cost", "reason": "Disease cost is the dominant controllable daily cost."})
@@ -339,6 +346,7 @@ class FarmManagerAgent(BaseAgent):
         energy_value: float,
         carbon_credit_value: float,
     ) -> dict[str, dict[str, float | None]]:
+        """Estimate equipment benefits, return on investment, and payback periods."""
         configured = self.ctx.scenario.get("equipment_capex", {})
         defaults = {
             "milking_parlour_bulk_tank": 0.0,

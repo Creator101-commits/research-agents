@@ -129,6 +129,16 @@ class DashboardCowsTests(unittest.TestCase):
         self.assertIsNone(row["observed_dmi_kg"])
         self.assertIsNone(row["rumen_ph"])
 
+    def test_trait_values_are_collapsed_until_requested(self) -> None:
+        self.assertIn("cow-trait-disclosure", APP)
+        self.assertIn("<details", APP)
+        self.assertIn("Expand retained trait distributions", APP)
+        self.assertIn("cow-trait-disclosure", CSS)
+
+    def test_warning_banner_groups_repeated_messages(self) -> None:
+        self.assertIn("const grouped = new Map()", APP)
+        self.assertIn("occurrences", APP)
+
         empty = SimulationContext(
             scenario={"name": "no-cow-packet", "days": 1},
             calibration={},

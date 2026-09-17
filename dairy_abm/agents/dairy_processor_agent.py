@@ -10,6 +10,7 @@ class DairyProcessorAgent(BaseAgent):
     name = "dairy_processor"
 
     def tick(self, day: date) -> None:
+        """Convert farm milk into products and route residuals when processing is enabled."""
         policy = self.ctx.state["policy"]
         l4_enabled = bool(
             self.ctx.scenario.get(

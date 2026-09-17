@@ -10,10 +10,12 @@ class EnergyAgent(BaseAgent):
     name = "energy"
 
     def __init__(self, ctx) -> None:
+        """Initialize the daily energy history for the simulation context."""
         super().__init__(ctx)
         ctx.state.setdefault("energy_history", [])
 
     def tick(self, day: date) -> None:
+        """Convert manure, solar, and thermochemical inputs into daily energy outputs."""
         manure_packet = self.ctx.get_packet("manure_packet")
         thermochemical_packet = self.ctx.get_packet("thermochemical_manure_packet")
         market_packet = self.ctx.get_packet("market_price_packet")

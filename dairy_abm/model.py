@@ -28,6 +28,7 @@ class DairyFarmModel:
     """Top-level simulation shell."""
 
     def __init__(self, scenario: dict[str, Any], calibration: dict[str, Any]) -> None:
+        """Resolve the farm system, validate inputs, and construct all agents."""
         scenario, calibration, farm_system_profile = resolve_farm_system(scenario, calibration)
         validate_calibration(calibration)
         seed = int(scenario.get("seed", 1))
@@ -69,6 +70,7 @@ class DairyFarmModel:
         ]
 
     def run(self) -> SimulationContext:
+        """Run the scheduler for the configured dates and finalize run-level analysis."""
         start = date.fromisoformat(self.ctx.scenario.get("start_date", "2026-01-01"))
         days = int(self.ctx.scenario.get("days", 1))
         clock = SimulationClock(start=start, days=days)
@@ -87,6 +89,7 @@ class DairyFarmModel:
         return self.ctx
 
     def _finalize_economic_analysis(self, day: date) -> None:
+        """Compute and publish investment and DMC analysis after the final day."""
         investment = analyze_investments(
             self.ctx.scenario, self.ctx.calibration, self.ctx.daily_records
         )
@@ -139,6 +142,7 @@ class DairyFarmModel:
             )
 
     def _land_enabled(self) -> bool:
+        """Return whether the optional land-management agent is enabled."""
         calibration_land = self.ctx.calibration.get("land", {}).get("enabled", {}).get("value", False)
         return bool(self.ctx.scenario.get("enable_land_agent", calibration_land))
 
@@ -164,6 +168,7 @@ class DairyFarmModel:
             raise ConfigError("land scenario overrides require enable_land_agent")
 
     def _initialize_policy_state(self) -> None:
+        """Resolve scenario policy flags before agents begin daily work."""
         policy = self.ctx.state["policy"]
         policy.update(
             {
@@ -225,6 +230,7 @@ class DairyFarmModel:
         )
 
     def _run_daily(self, day: date) -> None:
+        """Execute the established daily agent order and record the schedule."""
         self.ctx.state["execution_order"] = []
         # The blueprint requires a pre-production phase: rations must be ready
         # before Cow production, and management policy must reach Disease first.
@@ -247,21 +253,25 @@ class DairyFarmModel:
         self._record_schedule(day, "daily", list(self.ctx.state["execution_order"]))
 
     def _run_weekly(self, day: date) -> None:
+        """Run each agent's weekly hook and record participating agents."""
         for agent in self.agents:
             agent.weekly(day)
         self._record_schedule(day, "weekly", [agent.name for agent in self.agents])
 
     def _run_monthly(self, day: date) -> None:
+        """Run each agent's monthly hook and record participating agents."""
         for agent in self.agents:
             agent.monthly(day)
         self._record_schedule(day, "monthly", [agent.name for agent in self.agents])
 
     def _run_annual(self, day: date) -> None:
+        """Run annual genetics and farm-manager reviews in scheduler order."""
         self.genetics_agent.annual(day)
         self.farm_manager_agent.annual(day)
         self._record_schedule(day, "annual", [self.genetics_agent.name, self.farm_manager_agent.name])
 
     def _record_schedule(self, day: date, phase: str, agents: list[str]) -> None:
+        """Record one scheduler phase and its agent execution order."""
         self.ctx.schedule_records.append(
             {
                 "day": day.isoformat(),
@@ -271,6 +281,7 @@ class DairyFarmModel:
         )
 
     def _record_daily(self, day: date) -> None:
+        """Combine latest packets into the stable daily report record."""
         cow_packet = self.ctx.get_packet("cow_daily_packet")
         feed_packet = self.ctx.get_packet("feed_crop_packet")
         disease_packet = self.ctx.get_packet("disease_state_packet")

@@ -10,6 +10,7 @@ class DiseaseAgent(BaseAgent):
     name = "disease"
 
     def __init__(self, ctx) -> None:
+        """Initialize disease state and outbreak tracking for every cow."""
         super().__init__(ctx)
         ctx.state.setdefault("disease_outbreak_history", [])
         ctx.state.setdefault("disease_history", [])
@@ -25,6 +26,7 @@ class DiseaseAgent(BaseAgent):
             cow.setdefault("vaccinated", False)
 
     def _seed_outbreak(self, day: date, cows: list[dict[str, object]]) -> int:
+        """Seed the configured outbreak once when its date or simulation tick is reached."""
         if not bool(self.ctx.scenario.get("enable_disease_outbreak", False)):
             return 0
         target_tick = int(self.ctx.scenario.get("disease_outbreak_tick", 100))
@@ -50,6 +52,7 @@ class DiseaseAgent(BaseAgent):
         return seeded
 
     def tick(self, day: date) -> None:
+        """Advance infection, recovery, vaccination, quarantine, and outbreak cost state."""
         cows = self.ctx.state.get("cows", [])
         for cow in cows:
             cow.setdefault(

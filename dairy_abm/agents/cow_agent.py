@@ -12,10 +12,12 @@ class CowAgent(BaseAgent):
     name = "cow"
 
     def __init__(self, ctx) -> None:
+        """Initialize the agent and create the configured starting herd."""
         super().__init__(ctx)
         ctx.state.setdefault("cows", self._build_initial_herd())
 
     def _build_initial_herd(self) -> list[dict[str, Any]]:
+        """Build the herd from scenario animals or the configured herd size."""
         herd = self.ctx.scenario.get("herd")
         if isinstance(herd, list):
             return [self._normalize_cow(cow, index) for index, cow in enumerate(herd)]
@@ -26,6 +28,7 @@ class CowAgent(BaseAgent):
         ]
 
     def _normalize_cow(self, cow: dict[str, Any], index: int) -> dict[str, Any]:
+        """Fill missing cow state and normalize traits into the runtime schema."""
         normalized = dict(cow)
         milk_trait = float(normalized.get("milk_trait", 1.0))
         feed_efficiency_trait = float(normalized.get("feed_efficiency_trait", 1.0))
@@ -96,6 +99,7 @@ class CowAgent(BaseAgent):
 
     @staticmethod
     def _expected_dmi(cow: dict[str, Any], milk_e_mcal: float) -> float:
+        """Estimate dry-matter intake from parity, milk energy, body size, and condition."""
         parity = 0.0 if int(cow.get("parity", 1)) <= 1 else 1.0
         body_weight = float(cow.get("body_weight_kg", 650.0))
         bcs = float(cow.get("body_condition_score", 3.0))
@@ -124,6 +128,7 @@ class CowAgent(BaseAgent):
         return max(0.25, (dim / peak) ** 0.2 * exp(0.2 * (1.0 - dim / peak)))
 
     def tick(self, day: date) -> None:
+        """Advance each cow and publish daily production, health, and reproduction results."""
         cows = self.ctx.state.get("cows", [])
         disease_packet = self.ctx.get_packet("disease_state_packet")
         market_packet = self.ctx.get_packet("market_price_packet")

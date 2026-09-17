@@ -39,6 +39,10 @@ This produces six output files:
 
 `summary.json` also includes a `report_contract` section describing the period, units, and confidence semantics for the principal daily, monthly, annual, and experiment-level KPIs. Each `daily.csv` row includes `report_confidence`, a pipe-delimited `source:quality/confidence` summary for the packets used to produce that row.
 
+### Source-reference comparison
+
+`scenarios/cdairy_airand_reference.json` compares the model's directly equivalent milk-output measure against the AIRAND year-15 target transcribed from the supplied Cdairy workbook. Set `reference_benchmark` to `"cdairy_airand_year15"` in any scenario to add `reference_benchmark` to `summary.json`. Run it with `--calibration configs/reference_targets/cdairy_airand_milk_calibration.json` to apply the single-point milk calibration. The comparison preserves source-cell provenance and deliberately leaves pregnancy, days-open, culling, clinical-mastitis, antibiotic, component-sales, and NPV targets unavailable until the model represents the same measure. It does not overwrite model outputs or treat one seeded run as equivalent to the workbook's 1,000-replication result.
+
 ```sh
 ls output/
 # annual.csv  calibration_inventory.json  daily.csv  monthly.csv  schedule.csv  summary.json
@@ -187,6 +191,7 @@ Scenarios are JSON files with these supported keys:
 | `days` | int | `1` | Number of simulation days |
 | `seed` | int | `1` | RNG seed for deterministic replay |
 | `herd_size` | int | `100` | Initial number of cows |
+| `reference_benchmark` | string | none | Optional source-reference profile; `cdairy_airand_year15` adds a unit-matched benchmark to `summary.json` |
 | `land_cropland_ha` | float | calibration default | Cropland hectares |
 | `land_pasture_ha` | float | calibration default | Pasture hectares |
 | `enable_processor` | bool | `false` | Enable dairy processor agent |

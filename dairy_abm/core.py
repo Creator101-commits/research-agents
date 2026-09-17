@@ -30,6 +30,7 @@ class EventLog:
     events: list[dict[str, Any]] = field(default_factory=list)
 
     def add(self, day: date, source: str, level: str, message: str, **fields: Any) -> None:
+        """Append a structured event with its source, severity, and fields."""
         self.events.append(
             {
                 "day": day.isoformat(),
@@ -55,6 +56,7 @@ class SimulationContext:
     annual_records: list[dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
+        """Initialize shared loop, policy, history, and ledger state."""
         self.state.setdefault("loop_credits", {"feed_offset_kg": 0.0, "water_offset_l": 0.0})
         self.state.setdefault(
             "loop_credit_sources",
@@ -76,12 +78,15 @@ class SimulationContext:
         self.state.setdefault("environment_ledger", {})
 
     def publish(self, packet: Packet) -> None:
+        """Publish a packet under its stable packet name."""
         self.packets[packet.name] = packet
 
     def get_packet(self, name: str, default: Any = None) -> Packet | Any:
+        """Return the latest packet by name or a caller-provided default."""
         return self.packets.get(name, default)
 
     def record_environment_stream(self, packet: Packet) -> None:
+        """Record an environmental stream and reject duplicate source-period keys."""
         stream_name = packet.stream_id or packet.name
         key = f"{packet.source}:{stream_name}:{packet.day.isoformat()}:{packet.period}"
         ledger = self.state["environment_ledger"]
@@ -96,18 +101,22 @@ class SimulationClock:
     days: int
 
     def dates(self) -> list[date]:
+        """Return every simulation date covered by the clock."""
         return [self.start + timedelta(days=offset) for offset in range(self.days)]
 
     @staticmethod
     def is_week_end(day: date) -> bool:
+        """Return whether a date is the final day of its Sunday-based week."""
         return day.weekday() == 6
 
     @staticmethod
     def is_month_end(day: date) -> bool:
+        """Return whether a date is the final calendar day of its month."""
         return (day + timedelta(days=1)).month != day.month
 
     @staticmethod
     def is_year_end(day: date) -> bool:
+        """Return whether a date is December 31."""
         return day.month == 12 and day.day == 31
 
 
@@ -115,34 +124,42 @@ class BaseAgent:
     name = "base"
 
     def __init__(self, ctx: SimulationContext) -> None:
+        """Attach a simulation context to the base agent."""
         self.ctx = ctx
 
     def tick(self, day: date) -> None:
+        """Provide the default no-op daily hook for optional agents."""
         return None
 
     def weekly(self, day: date) -> None:
+        """Provide the default no-op weekly hook for optional agents."""
         return None
 
     def monthly(self, day: date) -> None:
+        """Provide the default no-op monthly hook for optional agents."""
         return None
 
     def annual(self, day: date) -> None:
+        """Provide the default no-op annual hook for optional agents."""
         return None
 
 
 def require_nonnegative(name: str, value: float) -> float:
+    """Reject negative values and return the validated number."""
     if value < 0:
         raise ConfigError(f"{name} must be nonnegative, got {value}")
     return value
 
 
 def require_fraction(name: str, value: float) -> float:
+    """Reject values outside the inclusive unit interval."""
     if not 0 <= value <= 1:
         raise ConfigError(f"{name} must be between 0 and 1, got {value}")
     return value
 
 
 def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Recursively merge nested override mappings into a shallow base copy."""
     merged = dict(base)
     for key, value in override.items():
         if isinstance(value, dict) and isinstance(merged.get(key), dict):
@@ -153,11 +170,13 @@ def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]
 
 
 def read_json(path: Path) -> dict[str, Any]:
+    """Read a UTF-8 JSON object from disk."""
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
 
 def write_json(path: Path, payload: Any) -> None:
+    """Write JSON to disk, creating parent directories as needed."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2, sort_keys=True)
@@ -165,6 +184,7 @@ def write_json(path: Path, payload: Any) -> None:
 
 
 def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
+    """Write dictionaries to a sorted-column CSV file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     if not rows:
         path.write_text("", encoding="utf-8")

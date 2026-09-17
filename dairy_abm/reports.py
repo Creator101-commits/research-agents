@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from dairy_abm.analysis.reference_benchmark import evaluate_reference_benchmark
 from dairy_abm.config import calibration_inventory, value
 from dairy_abm.core import SimulationContext, write_csv, write_json
 
@@ -84,6 +85,7 @@ REPORT_CONTRACT = {
 }
 
 def write_reports(output_dir: Path, ctx: SimulationContext) -> None:
+    """Write the official JSON and CSV report files for a completed run."""
     summary: dict[str, Any] = {
         "scenario_name": ctx.scenario.get("name", "unnamed"),
         "farm_system": ctx.scenario.get("farm_system", "conventional"),
@@ -134,6 +136,11 @@ def write_reports(output_dir: Path, ctx: SimulationContext) -> None:
         "policy": dict(ctx.state.get("policy", {})),
         "investment_analysis": ctx.state.get("investment_analysis", {}),
         "dmc_analysis": ctx.state.get("dmc_analysis", {}),
+        "reference_benchmark": evaluate_reference_benchmark(
+            ctx.scenario.get("reference_benchmark"),
+            ctx.daily_records,
+            float(ctx.scenario.get("milk_density_kg_per_l", 1.03)),
+        ),
         "events": ctx.events.events,
         "latest_packets": {
             name: {

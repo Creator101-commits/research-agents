@@ -10,10 +10,12 @@ class SensorsAgent(BaseAgent):
     name = "sensors"
 
     def __init__(self, ctx) -> None:
+        """Initialize sensor fleet maintenance history."""
         super().__init__(ctx)
         ctx.state.setdefault("sensor_fleet_history", [])
 
     def _thi(self) -> float | None:
+        """Calculate the temperature-humidity index when weather inputs are numeric."""
         temperature_raw = self.ctx.scenario.get("ambient_temperature_c", value(self.ctx.calibration, "sensors.ambient_temperature_c"))
         humidity_raw = self.ctx.scenario.get("relative_humidity_pct", value(self.ctx.calibration, "sensors.relative_humidity_pct"))
         if not isinstance(temperature_raw, (int, float)) or not isinstance(humidity_raw, (int, float)):
@@ -25,6 +27,7 @@ class SensorsAgent(BaseAgent):
 
     @staticmethod
     def _season_label(day: date) -> str:
+        """Map a calendar date to its meteorological season label."""
         month = day.month
         if month in (12, 1, 2):
             return "winter"
@@ -35,6 +38,7 @@ class SensorsAgent(BaseAgent):
         return "fall"
 
     def tick(self, day: date) -> None:
+        """Generate noisy sensor observations, alerts, and maintenance packets for the herd."""
         cows = self.ctx.state.get("cows", [])
         missing_probability = require_fraction(
             "sensors.missing_reading_probability",

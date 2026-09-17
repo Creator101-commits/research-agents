@@ -81,6 +81,7 @@ FARM_SYSTEM_PROFILES: dict[str, dict[str, Any]] = {
 
 
 def list_farm_systems() -> tuple[str, ...]:
+    """Return the registered farm-system identifiers in declaration order."""
     return tuple(FARM_SYSTEM_PROFILES)
 
 

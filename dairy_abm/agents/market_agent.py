@@ -33,6 +33,7 @@ class MarketAgent(BaseAgent):
     }
 
     def __init__(self, ctx) -> None:
+        """Initialize market histories and load optional observed-price data."""
         super().__init__(ctx)
         ctx.state.setdefault("market_history", [])
         ctx.state.setdefault("market_price_history", [])
@@ -40,6 +41,7 @@ class MarketAgent(BaseAgent):
         self._observations = self._load_observations()
 
     def _load_observations(self) -> list[dict[str, Any]]:
+        """Load and normalize the configured market observation CSV."""
         configured_path = self.ctx.scenario.get("market_data_csv")
         if not configured_path:
             return []
@@ -54,6 +56,7 @@ class MarketAgent(BaseAgent):
         return [row for row in rows if row]
 
     def _normalize_row(self, raw: dict[str, str | None]) -> dict[str, Any]:
+        """Normalize one wide- or long-format market observation row."""
         row = {str(key).strip().lower(): (value or "").strip() for key, value in raw.items() if key}
         normalized: dict[str, Any] = {
             "date": row.get("date"),
@@ -75,6 +78,7 @@ class MarketAgent(BaseAgent):
 
     @staticmethod
     def _parse_number(raw: str | None) -> float | None:
+        """Parse an optional numeric market value and reject malformed input."""
         if raw is None or raw.strip().lower() in {"", "na", "n/a", "null"}:
             return None
         try:
@@ -84,6 +88,7 @@ class MarketAgent(BaseAgent):
 
     @staticmethod
     def _parse_int(raw: str | None) -> int | None:
+        """Parse an optional integer market year."""
         if raw is None or not raw.strip():
             return None
         try:
@@ -93,6 +98,7 @@ class MarketAgent(BaseAgent):
 
     @staticmethod
     def _parse_month(raw: str | None) -> int | None:
+        """Parse and validate a market month or period number."""
         if raw is None or not raw.strip():
             return None
         try:
@@ -104,6 +110,7 @@ class MarketAgent(BaseAgent):
         return month
 
     def _select_observation(self, day: date) -> tuple[dict[str, Any] | None, str]:
+        """Select the most specific observation available for a simulation day."""
         day_text = day.isoformat()
         for row in self._observations:
             if row.get("date") == day_text:
@@ -117,6 +124,7 @@ class MarketAgent(BaseAgent):
         return None, "no_observation"
 
     def _static_prices(self) -> dict[str, float]:
+        """Return calibrated fallback market prices."""
         return {
             "milk_price_per_l": float(value(self.ctx.calibration, "market.milk_price_per_l")),
             "feed_cost_per_kg_dm": float(value(self.ctx.calibration, "market.feed_cost_per_kg_dm")),
@@ -126,6 +134,7 @@ class MarketAgent(BaseAgent):
         }
 
     def _observed_prices(self, day: date) -> tuple[dict[str, float], str, str]:
+        """Merge observed prices with static and last-valid fallbacks."""
         row, selection = self._select_observation(day)
         prices = self._static_prices()
         last_valid: dict[str, float] = self.ctx.state["market_last_valid"]
@@ -170,6 +179,7 @@ class MarketAgent(BaseAgent):
         return prices, quality, selection
 
     def tick(self, day: date) -> None:
+        """Publish daily market prices, component context, and volatility signals."""
         mode = str(self.ctx.scenario.get("market_mode", "static"))
         if mode not in {"static", "observed", "observed_plus_shock"}:
             raise ConfigError(f"market_mode must be static, observed, or observed_plus_shock, got {mode!r}")

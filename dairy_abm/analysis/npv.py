@@ -19,11 +19,13 @@ def npv(cash_flows: list[float], discount_rate: float) -> float:
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
+    """Read a CSV file into dictionaries keyed by its header row."""
     with path.open(encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
 
 
 def _float(row: dict[str, Any], key: str) -> float | None:
+    """Parse a nullable numeric field from an output row."""
     value = row.get(key)
     if value in (None, "", "None", "null"):
         return None
@@ -34,6 +36,7 @@ def _float(row: dict[str, Any], key: str) -> float | None:
 
 
 def _annual_profit(daily_rows: list[dict[str, str]], annual_rows: list[dict[str, str]]) -> list[float]:
+    """Prefer annual profit records and otherwise aggregate daily profit by year."""
     annual_profit = [
         _float(row, "net_farm_profit")
         if _float(row, "net_farm_profit") is not None
@@ -53,6 +56,7 @@ def _annual_profit(daily_rows: list[dict[str, str]], annual_rows: list[dict[str,
 
 
 def _equipment_cash_flows(summary: dict[str, Any]) -> dict[str, list[float]]:
+    """Extract equipment cash flows from investment analysis or summary fallbacks."""
     investments = summary.get("investment_analysis", {}).get("technologies", {})
     if isinstance(investments, dict):
         cash_flows = {
@@ -79,6 +83,7 @@ def analyze_outputs(
     summary_path: Path | None = None,
     discount_rate: float = DEFAULT_DISCOUNT_RATE,
 ) -> dict[str, Any]:
+    """Compute farm and equipment NPVs from exported simulation files."""
     daily_rows = _read_csv(daily_path)
     annual_rows = _read_csv(annual_path) if annual_path is not None and annual_path.exists() else []
     farm_cash_flows = _annual_profit(daily_rows, annual_rows)
@@ -99,6 +104,7 @@ def analyze_outputs(
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Parse CLI arguments and print NPV analysis as JSON."""
     parser = argparse.ArgumentParser(description="Compute farm and equipment NPV from simulation outputs.")
     parser.add_argument("--daily", type=Path, required=True)
     parser.add_argument("--annual", type=Path)

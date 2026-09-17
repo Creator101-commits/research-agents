@@ -10,6 +10,7 @@ class WaterAgent(BaseAgent):
     name = "water"
 
     def __init__(self, ctx) -> None:
+        """Initialize wastewater storage and water history state."""
         super().__init__(ctx)
         ctx.state.setdefault("wastewater_storage_l", 0.0)
         ctx.state.setdefault("water_history", [])
@@ -40,6 +41,7 @@ class WaterAgent(BaseAgent):
         self.ctx.state.setdefault("execution_order", []).append("water_delivery")
 
     def tick(self, day: date) -> None:
+        """Account for farm water demand, treatment, reuse, and nutrient recovery."""
         cow_packet = self.ctx.get_packet("cow_daily_packet")
         feed_packet = self.ctx.get_packet("feed_crop_packet")
         cow_count = int(cow_packet.payload["cow_count"]) if cow_packet is not None else 0

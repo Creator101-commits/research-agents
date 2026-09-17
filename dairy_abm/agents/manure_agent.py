@@ -10,11 +10,13 @@ class ManureAgent(BaseAgent):
     name = "manure"
 
     def __init__(self, ctx) -> None:
+        """Initialize stored-manure inventory and flow history."""
         super().__init__(ctx)
         ctx.state.setdefault("stored_manure_inventory_kg", 0.0)
         ctx.state.setdefault("manure_flow_history", [])
 
     def _route_fractions(self) -> tuple[float, float, float]:
+        """Read and validate the policy-controlled manure routing fractions."""
         policy_routes = self.ctx.state["policy"].get("manure_route_policy", {})
         if not isinstance(policy_routes, dict):
             policy_routes = {}
@@ -35,6 +37,7 @@ class ManureAgent(BaseAgent):
         return digester, compost, storage
 
     def _cofeed_assembly(self, digester_kg: float) -> tuple[float, float, bool, str | None]:
+        """Assemble optional co-feed quantities for the digester feedstock."""
         grass_available = max(0.0, float(self.ctx.scenario.get("grass_cofeed_kg", 0.0)))
         food_available = max(0.0, float(self.ctx.scenario.get("food_waste_cofeed_kg", 0.0)))
         cofeed_requested = grass_available > 0.0 or food_available > 0.0
@@ -56,6 +59,7 @@ class ManureAgent(BaseAgent):
         return grass, food, feasible, None
 
     def tick(self, day: date) -> None:
+        """Collect manure, route nutrients and gases, and publish resource packets."""
         cow_packet = self.ctx.get_packet("cow_daily_packet")
         feed_context = self.ctx.get_packet("feed_nitrogen_context_packet")
         processor_residual = self.ctx.get_packet("processor_residual_packet")

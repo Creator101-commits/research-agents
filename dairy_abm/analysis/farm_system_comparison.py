@@ -23,6 +23,7 @@ LOOP_CONFIGURATIONS: dict[str, tuple[bool, bool, bool, bool]] = {
 def _scenario_for_run(
     base: dict[str, Any], farm_system: str, configuration: str, seed: int
 ) -> dict[str, Any]:
+    """Create one comparable scenario with the requested farm system and loops."""
     if configuration not in LOOP_CONFIGURATIONS:
         raise ConfigError(f"unknown loop configuration {configuration!r}")
     l1, l2, l3, l4 = LOOP_CONFIGURATIONS[configuration]
@@ -62,6 +63,7 @@ def assess_farm_systems(
     configurations: Iterable[str] | None = None,
     seeds: Iterable[int] = (1,),
 ) -> dict[str, Any]:
+    """Run the selected farm-system, loop, and seed combinations."""
     selected_systems = tuple(systems or list_farm_systems())
     selected_configs = tuple(configurations or LOOP_CONFIGURATIONS)
     selected_seeds = tuple(int(seed) for seed in seeds)
@@ -153,6 +155,7 @@ def assess_farm_systems(
 
 
 def write_farm_system_assessment(output_dir: Path, assessment: dict[str, Any]) -> None:
+    """Write the comparative assessment in JSON and CSV formats."""
     output_dir.mkdir(parents=True, exist_ok=True)
     write_json(output_dir / "farm_system_assessment.json", assessment)
     write_csv(output_dir / "farm_system_assessment.csv", assessment["runs"])

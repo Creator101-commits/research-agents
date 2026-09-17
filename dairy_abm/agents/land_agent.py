@@ -11,10 +11,12 @@ class LandManagementAgent(BaseAgent):
     name = "land"
 
     def __init__(self, ctx) -> None:
+        """Initialize rotational grazing condition state."""
         super().__init__(ctx)
         ctx.state.setdefault("pasture_paddock_condition", {})
 
     def _seasonal_availability(self, day: date) -> tuple[float, str]:
+        """Resolve monthly pasture availability and its configuration source."""
         rules = self.ctx.scenario.get("land_seasonal_availability")
         if rules is None:
             return 1.0, "not_configured"
@@ -24,6 +26,7 @@ class LandManagementAgent(BaseAgent):
         return require_fraction("land seasonal availability", float(raw_fraction)), "scenario"
 
     def tick(self, day: date) -> None:
+        """Allocate land between crops and pasture and publish grazing access."""
         cropland_ha = require_nonnegative(
             "land.cropland_ha",
             float(self.ctx.scenario.get("land_cropland_ha", value(self.ctx.calibration, "land.cropland_ha"))),

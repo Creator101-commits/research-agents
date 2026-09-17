@@ -115,6 +115,15 @@
 .cow-scatter text { fill: var(--muted); font-size: 10px; }
 .cow-dot { fill: var(--accent); stroke: var(--paper); stroke-width: 2; }
 .cow-traits { display: grid; gap: 14px; }
+.cow-trait-disclosure { border-top: 1px dashed var(--tin); }
+.cow-trait-disclosure summary { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 0; cursor: pointer; list-style: none; }
+.cow-trait-disclosure summary::-webkit-details-marker { display: none; }
+.cow-trait-disclosure summary::after { content: "+"; color: var(--accent); font-size: 18px; line-height: 1; }
+.cow-trait-disclosure[open] summary::after { content: "−"; }
+.cow-trait-disclosure summary span { display: grid; gap: 3px; }
+.cow-trait-disclosure summary b { font-size: 12px; }
+.cow-trait-disclosure summary small, .cow-trait-disclosure summary strong { color: var(--muted); font-size: 10px; font-weight: 500; }
+.cow-trait-groups { display: grid; gap: 14px; padding-bottom: 4px; }
 .cow-trait-group { padding-top: 10px; border-top: 1px dashed var(--tin); }
 .cow-trait-group header { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; }
 .cow-trait-group header span { color: var(--muted); }
@@ -125,6 +134,17 @@
 .cow-trait > b { text-align: right; font-weight: 600; }
 .cow-chart-unavailable { min-height: 170px; display: grid; place-content: center; text-align: center; font-size: 16px; font-weight: 700; }
 .cow-chart-unavailable span { font-size: 11px; font-weight: 400; }
+.reference-benchmark { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-top: 18px; padding: 16px; border: 1px solid var(--line); border-left: 3px solid var(--sage); background: var(--sage-soft); }
+.reference-benchmark h3 { margin: 5px 0; font-size: 18px; letter-spacing: -.03em; }
+.reference-benchmark p { max-width: 620px; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.reference-benchmark dl { display: grid; grid-template-columns: repeat(3, minmax(120px, 1fr)); gap: 12px; min-width: min(100%, 420px); margin: 0; }
+.reference-benchmark dl div { display: grid; gap: 4px; }
+.reference-benchmark dt { color: var(--muted); font-size: 9px; text-transform: uppercase; }
+.reference-benchmark dd { margin: 0; font-size: 12px; font-weight: 700; }
+@media (max-width: 700px) {
+  .reference-benchmark { display: block; }
+  .reference-benchmark dl { grid-template-columns: 1fr; margin-top: 14px; }
+}
 
 .comparison-content, .comparison-workspace { min-width: 0; }
 .comparison-head, .comparison-result-head { display: flex; justify-content: space-between; align-items: end; gap: 24px; padding: 12px 0 24px; border-bottom: 1px solid var(--ink); }

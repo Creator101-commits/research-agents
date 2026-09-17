@@ -15,16 +15,19 @@ LOOP_LABELS = {
 
 
 def _annualize(total: float, observed_days: int) -> float:
+    """Annualize a total observed over a partial simulation period."""
     return total * 365.0 / observed_days if observed_days > 0 else 0.0
 
 
 def _npv(cash_flows: list[float], discount_rate: float) -> float:
+    """Discount cash flows while validating the discount-rate domain."""
     if discount_rate <= -1.0:
         raise ConfigError("investment discount rate must be greater than -1")
     return sum(amount / (1.0 + discount_rate) ** year for year, amount in enumerate(cash_flows))
 
 
 def _discounted_payback(capex: float, annual_net_benefit: float, rate: float, horizon: int) -> float | None:
+    """Find the fractional year when discounted benefits recover the capital cost."""
     if capex <= 0.0 or annual_net_benefit <= 0.0:
         return None
     remaining = capex
@@ -39,6 +42,7 @@ def _discounted_payback(capex: float, annual_net_benefit: float, rate: float, ho
 def estimate_loop_capex(
     scenario: dict[str, Any], calibration: dict[str, Any]
 ) -> dict[str, dict[str, Any]]:
+    """Estimate capital costs for enabled circular farm-system loops."""
     herd_size = max(0, int(scenario.get("herd_size", len(scenario.get("herd", [])) or 100)))
     cropland_ha = max(0.0, float(scenario.get("land_cropland_ha", value(calibration, "land.cropland_ha"))))
     cropland_acres = cropland_ha * 2.47105381

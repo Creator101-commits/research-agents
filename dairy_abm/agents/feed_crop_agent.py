@@ -11,6 +11,7 @@ class FeedCropAgent(BaseAgent):
     name = "feed_crop"
 
     def __init__(self, ctx) -> None:
+        """Initialize feed, soil nitrogen, and local coproduct inventories."""
         super().__init__(ctx)
         ctx.state.setdefault(
             "feed_inventory_kg_dm",
@@ -34,6 +35,7 @@ class FeedCropAgent(BaseAgent):
         ctx.state.setdefault("plant_coproduct_inventory_kg_dm", float(ctx.scenario.get("plant_coproduct_inventory_kg_dm", 0.0)))
 
     def tick(self, day: date) -> None:
+        """Balance daily feed demand, nutrient flows, crop supply, and ration targets."""
         credits = self.ctx.state.get("loop_credits", {"feed_offset_kg": 0.0, "water_offset_l": 0.0})
         feed_offset = float(credits["feed_offset_kg"])
         water_offset = float(credits["water_offset_l"])

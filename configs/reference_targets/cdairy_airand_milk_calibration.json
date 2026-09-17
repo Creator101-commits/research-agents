@@ -1,0 +1,12 @@
+{
+  "cow": {
+    "base_milk_l_per_cow_day": {
+      "value": 50.8197373,
+      "unit": "L/cow/day",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Tables!D69",
+      "assumption": true,
+      "description": "Single-point production calibration for the Cdairy AIRAND reference scenario. Fitted only to the year-15 milk target after converting model litres to kg at 1.03 kg/L; it does not validate other biological, financial, or environmental measures."
+    }
+  }
+}

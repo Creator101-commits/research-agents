@@ -15,6 +15,7 @@ DEFAULT_CALIBRATION_PATH = ROOT / "configs" / "calibration.json"
 
 
 def load_calibration(path: str | None = None) -> dict[str, Any]:
+    """Load, merge, and validate the authoritative calibration registry."""
     base = read_json(DEFAULT_CALIBRATION_PATH)
     if path is None:
         validate_calibration(base)
@@ -25,9 +26,11 @@ def load_calibration(path: str | None = None) -> dict[str, Any]:
 
 
 def calibration_inventory(calibration: dict[str, Any]) -> list[dict[str, Any]]:
+    """Flatten calibration leaves into a sorted, UI-friendly inventory."""
     inventory: list[dict[str, Any]] = []
 
     def walk(prefix: str, node: Any) -> None:
+        """Visit nested calibration mappings and collect metadata leaves."""
         if isinstance(node, dict) and {"value", "unit", "source", "assumption"} <= set(node):
             inventory.append(
                 {
@@ -51,6 +54,7 @@ def calibration_inventory(calibration: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def value(calibration: dict[str, Any], dotted_key: str) -> Any:
+    """Resolve a dotted calibration key to its stored value."""
     node: Any = calibration
     for part in dotted_key.split("."):
         node = node[part]
@@ -60,6 +64,7 @@ def value(calibration: dict[str, Any], dotted_key: str) -> Any:
 
 
 def _validate_override_value(row: dict[str, Any], candidate: Any) -> None:
+    """Validate one override against the type and range of its registry row."""
     key = row["key"]
     default = row["default"]
     if isinstance(default, bool):
@@ -123,6 +128,7 @@ def apply_calibration_overrides(
 
 
 def validate_calibration(calibration: dict[str, Any]) -> None:
+    """Validate calibration metadata and the registry's required fraction sums."""
     inventory = calibration_inventory(calibration)
     if not inventory:
         raise ConfigError("calibration inventory is empty")
@@ -189,12 +195,14 @@ def validate_calibration(calibration: dict[str, Any]) -> None:
 
 
 def _require_sum(calibration: dict[str, Any], keys: list[str], label: str) -> None:
+    """Require a group of calibration values to sum to one."""
     total = sum(float(value(calibration, key)) for key in keys)
     if abs(total - 1.0) > 0.000001:
         raise ConfigError(f"{label} must sum to 1.0, got {total}")
 
 
 def _require_fractions(calibration: dict[str, Any], keys: list[str], label: str) -> None:
+    """Require each named calibration value to be a valid fraction."""
     for key in keys:
         fraction = float(value(calibration, key))
         if not 0.0 <= fraction <= 1.0:

@@ -10,6 +10,7 @@ from copy import deepcopy
 from typing import Any
 
 from dairy_abm.analysis.npv import DEFAULT_DISCOUNT_RATE, npv
+from dairy_abm.analysis.reference_benchmark import evaluate_reference_benchmark
 from dairy_abm.config import calibration_inventory
 from dairy_abm.core import SimulationContext
 from dairy_abm.reports import REPORT_CONTRACT
@@ -340,6 +341,7 @@ _FEATURE_DEFINITIONS = {
 def _calibration_value_from_mapping(
     calibration: dict[str, Any], dotted_key: str, default: Any = None
 ) -> Any:
+    """Resolve a dotted calibration value from a nested dashboard mapping."""
     node: Any = calibration
     try:
         for part in dotted_key.split("."):
@@ -354,6 +356,7 @@ def _calibration_value_from_mapping(
 def _feature_flags_for(
     scenario: dict[str, Any], calibration: dict[str, Any]
 ) -> dict[str, bool]:
+    """Resolve dashboard feature flags from scenario values and calibration defaults."""
     return {
         name: bool(scenario.get(scenario_key, _calibration_value_from_mapping(calibration, calibration_key, False)))
         for name, (scenario_key, calibration_key) in _FEATURE_DEFINITIONS.items()
@@ -361,6 +364,7 @@ def _feature_flags_for(
 
 
 def _feature_flags(ctx: SimulationContext) -> dict[str, bool]:
+    """Return feature flags for a simulation context."""
     return _feature_flags_for(ctx.scenario, ctx.calibration)
 
 
@@ -387,6 +391,7 @@ def serialize_dashboard_config(
 
 
 def _comparison_value(payload: dict[str, Any], key: str) -> Any:
+    """Read a metric value from a dashboard summary or compatibility field."""
     summary = payload.get("summary", {})
     metric = summary.get(key)
     if isinstance(metric, dict):
@@ -448,6 +453,7 @@ def serialize_comparison(runs: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _initial_herd_size(ctx: SimulationContext) -> int | None:
+    """Determine the configured initial herd size for dashboard metadata."""
     herd = ctx.scenario.get("herd")
     if isinstance(herd, list):
         return len(herd)
@@ -456,6 +462,7 @@ def _initial_herd_size(ctx: SimulationContext) -> int | None:
 
 
 def _aggregate(rows: list[dict[str, Any]], field: Any, operation: str) -> Any:
+    """Aggregate rows using latest, mean, sum, or ratio operations."""
     if operation == "latest":
         key = field
         return next((row.get(key) for row in reversed(rows) if row.get(key) is not None), None)
@@ -493,6 +500,7 @@ def _metric(
     confidence: str | None = None,
     quality: str | None = None,
 ) -> dict[str, Any]:
+    """Build a consistent metric envelope with availability and provenance fields."""
     available = value_ is not None
     result: dict[str, Any] = {
         "value": value_,
@@ -511,6 +519,7 @@ def _metric(
 
 
 def _packet_provenance(packet: Any) -> dict[str, Any] | None:
+    """Serialize packet provenance without exposing the packet object itself."""
     if packet is None:
         return None
     day = packet.day.isoformat() if hasattr(packet.day, "isoformat") else packet.day
@@ -529,6 +538,7 @@ def _packet_provenance(packet: Any) -> dict[str, Any] | None:
 def _history_provenance(
     history_name: str, rows: list[dict[str, Any]], packet: Any = None
 ) -> dict[str, Any] | None:
+    """Build provenance for packet-backed or historical dashboard data."""
     provenance = _packet_provenance(packet)
     if not rows and provenance is None:
         return None
@@ -560,6 +570,7 @@ def _metric_from_provenance(
     aggregation: str,
     provenance: dict[str, Any] | None,
 ) -> dict[str, Any]:
+    """Attach history provenance to a normalized dashboard metric."""
     return _metric(
         value_,
         unit,
@@ -578,6 +589,7 @@ def _history_metric(
     aggregation: str,
     packet: Any = None,
 ) -> dict[str, Any]:
+    """Aggregate a history field and preserve its source metadata."""
     provenance = _history_provenance(history_name, rows, packet)
     return _metric_from_provenance(
         _aggregate(rows, field, aggregation),
@@ -595,6 +607,7 @@ def _daily_loop_metric(
     aggregation: str,
     packet_name: str | None = None,
 ) -> dict[str, Any]:
+    """Aggregate a daily record field and identify its packet source."""
     packet = ctx.get_packet(packet_name) if packet_name else None
     provenance = _history_provenance("daily_records", ctx.daily_records, packet)
     return _metric_from_provenance(
@@ -613,6 +626,7 @@ def _packet_metric(
     unit: str,
     aggregation: str = "latest",
 ) -> dict[str, Any]:
+    """Read one field from the latest packet and wrap it as a dashboard metric."""
     packet = ctx.get_packet(packet_name)
     provenance = _packet_provenance(packet)
     value_ = packet.payload.get(field) if packet is not None else None
@@ -632,6 +646,7 @@ def _loop_section(
     provenance: list[dict[str, Any]],
     details: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """Describe a loop's enabled, data, metric, and provenance state."""
     state = "active" if enabled and has_data else "inactive" if has_data else "unavailable"
     return {
         "state": state,
@@ -643,6 +658,7 @@ def _loop_section(
 
 
 def _combined_loop_state(*sections: dict[str, Any]) -> str:
+    """Combine individual loop states into one flow-level state."""
     states = {section["state"] for section in sections}
     if "unavailable" in states:
         return "unavailable"
@@ -658,6 +674,7 @@ def _build_loop_flow(
     l3: dict[str, Any],
     l4: dict[str, Any],
 ) -> dict[str, Any]:
+    """Build the dashboard graph of material and energy loop nodes and edges."""
     data = bool(ctx.daily_records)
     processor = ctx.get_packet("processor_packet")
     processor_has_data = processor is not None
@@ -697,6 +714,7 @@ def _build_loop_flow(
 
 
 def _build_loop_sections(ctx: SimulationContext) -> dict[str, Any]:
+    """Assemble dashboard sections for nutrient, water, energy, and byproduct loops."""
     features = _feature_flags(ctx)
     daily = ctx.daily_records
     manure_rows = ctx.state.get("manure_flow_history", [])
@@ -814,6 +832,7 @@ def _build_loop_sections(ctx: SimulationContext) -> dict[str, Any]:
     return loops
 
 def _environment_daily_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Project environmental history rows onto the dashboard field contract."""
     return [
         {field: deepcopy(row.get(field)) for field in DASHBOARD_ENVIRONMENT_FIELDS}
         for row in rows
@@ -823,6 +842,7 @@ def _environment_daily_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _environment_ledger_rows(
     ctx: SimulationContext, history: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
+    """Flatten ledger packets, or historical stream fallbacks, into dashboard rows."""
     rows: list[dict[str, Any]] = []
     ledger = ctx.state.get("environment_ledger", {})
     packets = ledger.values() if isinstance(ledger, dict) else []
@@ -867,6 +887,7 @@ def _environment_ledger_rows(
 
 
 def _build_environment_audit(ctx: SimulationContext) -> dict[str, Any]:
+    """Build the environment audit with metrics, history, ledger, and warnings."""
     history = ctx.state.get("environment_history", [])
     history = history if isinstance(history, list) else []
     environment_packet = ctx.get_packet("environment_packet")
@@ -920,6 +941,7 @@ def _build_environment_audit(ctx: SimulationContext) -> dict[str, Any]:
     }
 
 def _economics_daily_rows(ctx: SimulationContext) -> list[dict[str, Any]]:
+    """Join daily economics with environmental and disease history."""
     source_rows = ctx.daily_records if isinstance(ctx.daily_records, list) else []
     environment_rows = ctx.state.get("environment_history", [])
     environment_by_day = {
@@ -981,6 +1003,7 @@ def _economics_metric(
     source: str,
     packet: Any = None,
 ) -> dict[str, Any]:
+    """Aggregate one economics field and attach packet or history provenance."""
     provenance = _history_provenance("daily_records", rows, packet)
     return _metric_from_provenance(
         _aggregate(rows, field, operation),
@@ -992,6 +1015,7 @@ def _economics_metric(
 
 
 def _farm_npv_metric(ctx: SimulationContext) -> tuple[dict[str, Any], list[float]]:
+    """Calculate farm NPV from annualized daily profits."""
     annual_profit: dict[str, float] = {}
     for row in ctx.daily_records:
         day = row.get("day")
@@ -1013,6 +1037,7 @@ def _farm_npv_metric(ctx: SimulationContext) -> tuple[dict[str, Any], list[float
 
 
 def _build_economics(ctx: SimulationContext) -> dict[str, Any]:
+    """Build the dashboard economics section and its contract metadata."""
     daily = _economics_daily_rows(ctx)
     manager_packet = ctx.get_packet("manager_packet")
     market_packet = ctx.get_packet("market_price_packet")
@@ -1091,6 +1116,7 @@ def _build_economics(ctx: SimulationContext) -> dict[str, Any]:
     }
 
 def _build_equipment_roi(ctx: SimulationContext) -> dict[str, Any]:
+    """Build equipment ROI cards and NPV values from the manager packet."""
     manager_packet = ctx.get_packet("manager_packet")
     manager_payload = manager_packet.payload if manager_packet is not None else {}
     raw_assets = manager_payload.get("equipment_roi") if isinstance(manager_payload, dict) else None
@@ -1160,6 +1186,7 @@ def _build_equipment_roi(ctx: SimulationContext) -> dict[str, Any]:
 
 
 def _split_execution_order(value_: Any) -> list[str]:
+    """Normalize a serialized execution order into a list of agent names."""
     if isinstance(value_, str):
         return [item for item in value_.split(",") if item]
     if isinstance(value_, list):
@@ -1172,6 +1199,7 @@ def _build_model_details(
     duration_s: float,
     calibration_overrides: dict[str, Any] | None,
 ) -> dict[str, Any]:
+    """Build scheduler, policy, feature, warning, and contract metadata for a run."""
     daily = [row for row in ctx.daily_records if isinstance(row, dict)]
     latest_daily = daily[-1] if daily else None
     schedule_records = [row for row in ctx.schedule_records if isinstance(row, dict)]
@@ -1253,6 +1281,7 @@ def _build_model_details(
     return details
 
 def _build_export_manifest(run_id: str, available: bool) -> dict[str, Any]:
+    """Build download metadata for official report artifacts."""
     artifacts = []
     if available:
         artifacts = [
@@ -1288,28 +1317,33 @@ def _build_export_manifest(run_id: str, available: bool) -> dict[str, Any]:
 
 
 def _is_number(value_: Any) -> bool:
+    """Return whether a value is numeric without treating booleans as numbers."""
     return isinstance(value_, (int, float)) and not isinstance(value_, bool)
 
 
 def _safe_ratio(numerator: Any, denominator: Any) -> float | None:
+    """Calculate a positive-denominator ratio or return no data."""
     if not _is_number(numerator) or not _is_number(denominator) or denominator <= 0:
         return None
     return float(numerator) / float(denominator)
 
 
 def _last_number(values: Any) -> float | None:
+    """Return the most recent numeric value from a history list."""
     if not isinstance(values, list):
         return None
     return next((float(item) for item in reversed(values) if _is_number(item)), None)
 
 
 def _ranked_ids(rows: list[dict[str, Any]], field: str, reverse: bool = False) -> list[Any]:
+    """Rank cow identifiers by a numeric field."""
     ranked = [row for row in rows if _is_number(row.get(field))]
     ranked.sort(key=lambda row: row[field], reverse=reverse)
     return [row["id"] for row in ranked]
 
 
 def _trait_distributions(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Summarize numeric trait values and their cow-level distributions."""
     values: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
         traits = row.get("trait_vector")
@@ -1330,6 +1364,7 @@ def _trait_distributions(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]
 
 
 def _build_cow_explorer(ctx: SimulationContext) -> dict[str, Any]:
+    """Build the latest-day cow explorer records, rankings, and health summaries."""
     packet = ctx.get_packet("cow_daily_packet")
     payload = packet.payload if packet is not None and isinstance(packet.payload, dict) else {}
     raw_records = payload.get("cow_records", [])
@@ -1419,12 +1454,14 @@ def _build_cow_explorer(ctx: SimulationContext) -> dict[str, Any]:
 
 
 def _daily_rows(ctx: SimulationContext) -> list[dict[str, Any]]:
+    """Project daily records onto the dashboard daily-field contract."""
     return [
         {field: deepcopy(record.get(field)) for field in DASHBOARD_DAILY_FIELDS}
         for record in ctx.daily_records
     ]
 
 def _period_key(record: dict[str, Any], period: str) -> str | None:
+    """Return the month or year key used to group a report row."""
     day = record.get("day")
     if day is None:
         return None
@@ -1433,11 +1470,13 @@ def _period_key(record: dict[str, Any], period: str) -> str | None:
 
 
 def _period_confidence(rows: list[dict[str, Any]]) -> str | None:
+    """Combine distinct source confidence strings for a reporting period."""
     values = [str(row["report_confidence"]) for row in rows if row.get("report_confidence")]
     return "|".join(dict.fromkeys(values)) if values else None
 
 
 def _rollup_period_rows(rows: list[dict[str, Any]], period: str) -> list[dict[str, Any]]:
+    """Roll daily records into monthly or annual dashboard series."""
     groups: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
         key = _period_key(row, period)
@@ -1458,6 +1497,7 @@ def _rollup_period_rows(rows: list[dict[str, Any]], period: str) -> list[dict[st
 def _overlay_period_reports(
     rows: list[dict[str, Any]], reports: list[dict[str, Any]], period: str
 ) -> None:
+    """Overlay official monthly or annual report fields onto rolled-up rows."""
     by_period = {row["day"]: row for row in rows}
     period_field = "month" if period == "monthly" else "year"
     for report in reports:
@@ -1472,6 +1512,7 @@ def _overlay_period_reports(
 
 
 def _period_rows(ctx: SimulationContext, period: str) -> list[dict[str, Any]]:
+    """Build a period series and apply matching monthly or annual reports."""
     rows = _rollup_period_rows(ctx.daily_records, period)
     reports = ctx.monthly_records if period == "monthly" else ctx.annual_records
     _overlay_period_reports(rows, reports, period)
@@ -1503,6 +1544,11 @@ def serialize_dashboard_run(
         name: _aggregate(ctx.daily_records, field, operation)
         for name, (field, _unit, operation) in _SUMMARY_DEFINITIONS.items()
     }
+    reference_benchmark = evaluate_reference_benchmark(
+        ctx.scenario.get("reference_benchmark"),
+        ctx.daily_records,
+        float(ctx.scenario.get("milk_density_kg_per_l", 1.03)),
+    )
     summary = {
         name: _metric(value_, unit, "ctx.daily_records", operation)
         for name, value_ in metrics.items()
@@ -1523,6 +1569,7 @@ def serialize_dashboard_run(
         "event_count": event_count,
         "calibration_override_count": len(overrides),
         "calibration_overrides": overrides,
+        "calibration_profile": ctx.scenario.get("reference_calibration"),
     }
     features = _feature_flags(ctx)
     warnings = build_dashboard_warnings(ctx)
@@ -1532,6 +1579,7 @@ def serialize_dashboard_run(
         "meta": meta,
         "features": features,
         "summary": summary,
+        "reference_benchmark": reference_benchmark,
         "series": {"daily": daily, "monthly": monthly, "annual": annual},
         "loops": _build_loop_sections(ctx),
         "cows": _build_cow_explorer(ctx),

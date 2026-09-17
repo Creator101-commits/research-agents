@@ -11,6 +11,7 @@ from dairy_abm.reports import write_reports
 
 
 def _add_loop_toggle_arguments(parser: argparse.ArgumentParser, loop: str, destination: str) -> None:
+    """Add mutually exclusive enable and disable flags for one loop."""
     group = parser.add_mutually_exclusive_group()
     group.add_argument(f"--enable-{loop}-loop", dest=destination, action="store_true")
     group.add_argument(f"--disable-{loop}-loop", dest=destination, action="store_false")
@@ -18,6 +19,7 @@ def _add_loop_toggle_arguments(parser: argparse.ArgumentParser, loop: str, desti
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the command-line parser for simulation and analysis commands."""
     parser = argparse.ArgumentParser(prog="dairy-abm")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -53,6 +55,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Execute the selected CLI command and write its requested outputs."""
     args = build_parser().parse_args(argv)
 
     if args.command == "validate-config":

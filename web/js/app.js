@@ -75,14 +75,21 @@ function setError(message) {
 function setWarnings(warnings) {
   state.warnings = Array.isArray(warnings) ? warnings : [];
   $("warning-banner").hidden = state.warnings.length === 0;
-  $("warning-text").textContent = state.warnings
-    .map(warning => warning.message || warning.detail || "Model warning")
-    .join(" ");
+  const grouped = new Map();
+  state.warnings.forEach(warning => {
+    const message = warning.message || warning.detail || "Model warning";
+    grouped.set(message, (grouped.get(message) || 0) + 1);
+  });
+  $("warning-text").textContent = Array.from(grouped, ([message, count]) =>
+    count === 1 ? message : `${message} (${count} occurrences)`
+  ).join(" ");
 }
 
-function updateScenarioLabel(name) {
+function updateScenarioLabel(name, calibrationProfile = null) {
   const label = name || "baseline";
-  $("scenario-label").textContent = `${label} / calibrated`;
+  $("scenario-label").textContent = calibrationProfile
+    ? `${label} / reference calibration`
+    : `${label} / scenario defaults`;
   $("header-scenario").textContent = label;
 }
 
@@ -108,6 +115,26 @@ const TOGGLE_KEYS = [
   ["enable_land_agent", "Land agent"],
 ];
 
+function scenarioDefaults(filename) {
+  const defaults = state.config && state.config.scenario_defaults;
+  return (defaults && defaults[filename]) || (state.config && state.config.defaults) || {};
+}
+
+function applyScenarioDefaults(filename) {
+  const def = scenarioDefaults(filename);
+  $("days").value = def.days ?? "";
+  $("start-date").value = def.start_date || "";
+  $("seed").value = def.seed ?? "";
+  $("herd").value = def.herd_size ?? "";
+  document.querySelectorAll("#switches input").forEach(input => {
+    input.checked = Boolean(def[input.dataset.k]);
+  });
+  state.parameterDraft = {};
+  state.parameterErrors = {};
+  updateScenarioLabel(def.name || filename.replace(/\.json$/, ""), def.reference_calibration);
+  if (state.activePage === "parameters") renderParameters();
+}
+
 const COLUMNS = [
   ["day", "Date"],
   ["milk_l", "Milk (L)"],
@@ -127,17 +154,13 @@ async function initialize() {
   try {
     const data = await loadDefaults();
     state.config = data;
-    const def = data.defaults;
-    updateScenarioLabel(def.name || "baseline");
     $("scenario").innerHTML = data.scenarios
       .map(s => `<option value="${esc(s)}">${esc(s.replace(/\.json$/, ""))}</option>`).join("");
     $("scenario").value = data.scenarios.includes("baseline.json") ? "baseline.json" : data.scenarios[0];
-    $("days").value = def.days;
-    $("start-date").value = def.start_date || "";
-    $("seed").value = def.seed; $("herd").value = def.herd_size;
     $("switches").innerHTML = TOGGLE_KEYS.map(([key,label]) =>
       `<label class="switch"><span>${label}</span>
-        <input type="checkbox" data-k="${key}" ${def[key] ? "checked" : ""}></label>`).join("");
+        <input type="checkbox" data-k="${key}"></label>`).join("");
+    applyScenarioDefaults($("scenario").value);
     setError("");
   } catch (error) {
     setError(error.message || "Unable to load dashboard configuration");
@@ -214,7 +237,14 @@ function renderOverview() {
   ].join("");
 
   const meta = d.meta || d;
-  target.innerHTML = `<div class="overview-head"><div><span class="eyebrow">RUN SUMMARY</span><h2>${esc(meta.scenario_name || d.name || "unnamed")}</h2><p>Authoritative values from ${esc(String(meta.days ?? d.days))} simulated days beginning ${esc(meta.start_date || d.start_date || "-")}.</p></div><span class="overview-source">Python dashboard contract</span></div><div class="overview-kpis">${kpis}</div><div class="overview-charts">${charts}</div>`;
+  const benchmark = d.reference_benchmark;
+  const comparable = benchmark && Array.isArray(benchmark.metrics)
+    ? benchmark.metrics.find(metric => metric.comparison === "comparable")
+    : null;
+  const benchmarkPanel = comparable
+    ? `<section class="reference-benchmark"><div><span class="eyebrow">SOURCE REFERENCE CHECK</span><h3>${esc(benchmark.label)}</h3><p>Only the directly comparable milk measure is shown. Other workbook values are not converted into model proxies.</p></div><dl><div><dt>Source target</dt><dd>${esc(fmt(comparable.target, 0))} ${esc(comparable.unit)}</dd></div><div><dt>Model output</dt><dd>${esc(fmt(comparable.observed, 2))} ${esc(comparable.unit)}</dd></div><div><dt>Difference</dt><dd>${esc(fmt(comparable.absolute_gap, 2))} ${esc(comparable.unit)}</dd></div></dl></section>`
+    : "";
+  target.innerHTML = `<div class="overview-head"><div><span class="eyebrow">RUN SUMMARY</span><h2>${esc(meta.scenario_name || d.name || "unnamed")}</h2><p>Model-reported values from ${esc(String(meta.days ?? d.days))} simulated days beginning ${esc(meta.start_date || d.start_date || "-")}.</p></div><span class="overview-source">Python dashboard contract</span></div>${benchmarkPanel}<div class="overview-kpis">${kpis}</div><div class="overview-charts">${charts}</div>`;
 }
 
 function chartCard(config, rows, period) {
@@ -699,7 +729,7 @@ function renderCowHealth(cows) {
 function renderCowTraits(cows) {
   const traits = Object.entries(cows.trait_distributions || {});
   if (!traits.length) return `<div class="cow-chart-unavailable">N/A<br><span>No genetic trait values were retained.</span></div>`;
-  return traits.map(([name, distribution]) => {
+  const groupMarkup = traits.map(([name, distribution]) => {
     const range = Number(distribution.max) - Number(distribution.min);
     const values = (distribution.values || []).map(item => {
       const width = range > 0 ? ((Number(item.value) - Number(distribution.min)) / range) * 100 : 100;
@@ -707,6 +737,11 @@ function renderCowTraits(cows) {
     }).join("");
     return `<article class="cow-trait-group"><header><b>${esc(name)}</b><span>mean ${esc(fmt(distribution.mean, 3))}</span></header>${values}</article>`;
   }).join("");
+  const retainedValues = traits.reduce(
+    (total, [, distribution]) => total + (Array.isArray(distribution.values) ? distribution.values.length : 0),
+    0,
+  );
+  return `<details class="cow-trait-disclosure"><summary><span><b>Expand retained trait distributions</b><small>One bar per retained cow value</small></span><strong>${fmt(traits.length)} traits · ${fmt(retainedValues)} values</strong></summary><div class="cow-trait-groups">${groupMarkup}</div></details>`;
 }
 
 function renderCows() {
@@ -1172,7 +1207,7 @@ async function onRun(ev) {
     state.view = "graphs";
     state.period = "daily";
     state.selectedPeriod = "daily";
-    updateScenarioLabel(data.name);
+    updateScenarioLabel(data.name, data.meta && data.meta.calibration_profile);
     updateRunMeta(data);
     setWarnings(data.warnings);
     navigate("simulation");
@@ -1345,5 +1380,5 @@ initRouter(renderShell);
 initialize();
 $("run").addEventListener("submit", onRun);
 $("open-report").addEventListener("click", showReport);
-$("scenario").addEventListener("change", () => updateScenarioLabel($("scenario").value.replace(/\.json$/, "")));
+$("scenario").addEventListener("change", () => applyScenarioDefaults($("scenario").value));
 $("back-workspace").addEventListener("click", hideReport);

@@ -1,0 +1,20 @@
+{
+  "name": "cdairy-airand-reference-comparison",
+  "start_date": "2026-01-01",
+  "days": 365,
+  "seed": 1,
+  "herd_size": 400,
+  "reference_benchmark": "cdairy_airand_year15",
+  "reference_calibration": "configs/reference_targets/cdairy_airand_milk_calibration.json",
+  "enable_processor": false,
+  "enable_whey_processing": false,
+  "enable_land_agent": false,
+  "l1_nutrient_loop_enabled": false,
+  "l2_water_loop_enabled": false,
+  "l3_energy_loop_enabled": false,
+  "l4_byproduct_loop_enabled": false,
+  "auto_biosecurity_response": false,
+  "auto_environment_response": false,
+  "auto_feed_response": false,
+  "auto_energy_response": false
+}

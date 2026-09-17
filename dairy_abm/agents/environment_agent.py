@@ -11,12 +11,14 @@ class EnvironmentAgent(BaseAgent):
     name = "environment"
 
     def __init__(self, ctx) -> None:
+        """Initialize environmental history used by the emissions ledger and reports."""
         super().__init__(ctx)
         ctx.state.setdefault("environment_history", [])
 
     def _record_stream(
         self, day: date, source: str, stream_id: str, direction: str, kg_co2e: float
     ) -> dict[str, Any]:
+        """Record one validated emissions or avoided-emissions stream in the ledger."""
         amount = require_nonnegative(f"{stream_id}_kg_co2e", kg_co2e)
         payload = {
             "source": source,
@@ -40,9 +42,11 @@ class EnvironmentAgent(BaseAgent):
 
     @staticmethod
     def _intensity(total: float, denominator: float) -> float | None:
+        """Return an emissions intensity when its denominator is positive."""
         return total / denominator if denominator > 0.0 else None
 
     def tick(self, day: date) -> None:
+        """Combine daily agent packets into emissions, circularity, and sustainability KPIs."""
         cow = self.ctx.get_packet("cow_daily_packet")
         manure = self.ctx.get_packet("manure_packet")
         energy = self.ctx.get_packet("energy_packet")
@@ -211,6 +215,7 @@ class EnvironmentAgent(BaseAgent):
         self.ctx.state.setdefault("execution_order", []).append(self.name)
 
     def _aggregate(self, rows: list[dict[str, Any]]) -> dict[str, float | None]:
+        """Aggregate environmental history into cumulative totals and intensities."""
         gross = sum(float(row["gross_kg_co2e"]) for row in rows)
         avoided = sum(float(row["avoided_kg_co2e"]) for row in rows)
         net = sum(float(row["net_kg_co2e"]) for row in rows)
@@ -232,6 +237,7 @@ class EnvironmentAgent(BaseAgent):
         }
 
     def monthly(self, day: date) -> None:
+        """Publish the current month's aggregated environmental report."""
         month = day.strftime("%Y-%m")
         rows = [row for row in self.ctx.state["environment_history"] if row["day"].startswith(month)]
         if not rows:

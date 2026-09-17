@@ -37,6 +37,22 @@ SCENARIO_DIR = ROOT / "scenarios"
 DEFAULT_SCENARIO = read_json(SCENARIO_DIR / "baseline.json")
 CALIBRATION = load_calibration(None)
 
+_SCENARIO_UI_KEYS = (
+    "name",
+    "days",
+    "start_date",
+    "seed",
+    "herd_size",
+    "enable_processor",
+    "enable_whey_processing",
+    "enable_land_agent",
+    "l1_nutrient_loop_enabled",
+    "l2_water_loop_enabled",
+    "l3_energy_loop_enabled",
+    "l4_byproduct_loop_enabled",
+    "reference_calibration",
+)
+
 @dataclass
 class CachedRun:
     ctx: object
@@ -62,6 +78,31 @@ DISPLAY_FIELDS = [
     ("active_disease_cases", "Disease cases"),
     ("sustainability_score_0_100", "Sust. score"),
 ]
+
+
+def _scenario_ui_defaults(scenario: dict) -> dict:
+    """Return only the scenario inputs represented by the run form."""
+    return {
+        key: scenario.get(key, DEFAULT_SCENARIO.get(key))
+        for key in _SCENARIO_UI_KEYS
+    }
+
+
+def _scenario_calibration(scenario: dict) -> dict:
+    """Load an optional scenario-bound calibration file from this repository."""
+    profile = scenario.get("reference_calibration")
+    if profile is None:
+        return CALIBRATION
+    if not isinstance(profile, str):
+        raise ValueError("reference_calibration must be a repository-relative file path")
+    path = (ROOT / profile).resolve()
+    try:
+        path.relative_to(ROOT)
+    except ValueError as exc:
+        raise ValueError("reference_calibration must live inside the repository") from exc
+    if not path.is_file():
+        raise ValueError(f"reference_calibration file not found: {profile}")
+    return load_calibration(str(path))
 
 
 def _run_simulation(params: dict) -> dict:
@@ -139,7 +180,9 @@ def _run_simulation(params: dict) -> dict:
     calibration_overrides = params.get("calibration_overrides", {})
     if not isinstance(calibration_overrides, dict):
         raise ValueError("calibration_overrides must be an object")
-    run_calibration = apply_calibration_overrides(CALIBRATION, calibration_overrides)
+    run_calibration = apply_calibration_overrides(
+        _scenario_calibration(scenario), calibration_overrides
+    )
 
     t0 = time.perf_counter()
     ctx = DairyFarmModel(scenario, run_calibration).run()
@@ -375,7 +418,18 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/scenario":
             names = sorted(p.name for p in SCENARIO_DIR.glob("*.json"))
-            self._send(200, {"defaults": DEFAULT_SCENARIO, "scenarios": names})
+            scenario_defaults = {
+                name: _scenario_ui_defaults(read_json(SCENARIO_DIR / name))
+                for name in names
+            }
+            self._send(
+                200,
+                {
+                    "defaults": DEFAULT_SCENARIO,
+                    "scenarios": names,
+                    "scenario_defaults": scenario_defaults,
+                },
+            )
         elif path == "/api/config":
             names = sorted(p.name for p in SCENARIO_DIR.glob("*.json"))
             self._send(

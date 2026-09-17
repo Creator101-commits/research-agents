@@ -22,6 +22,7 @@ DMC_PREMIUM_RATES_2026: dict[float, tuple[float, float | None]] = {
 
 
 def dmc_feed_cost(corn_usd_bu: float, soybean_meal_usd_ton: float, alfalfa_usd_ton: float) -> float:
+    """Calculate the DMC feed-cost formula after validating nonnegative inputs."""
     for name, amount in {
         "corn_usd_bu": corn_usd_bu,
         "soybean_meal_usd_ton": soybean_meal_usd_ton,
@@ -33,6 +34,7 @@ def dmc_feed_cost(corn_usd_bu: float, soybean_meal_usd_ton: float, alfalfa_usd_t
 
 
 def dmc_margin(all_milk_usd_cwt: float, corn_usd_bu: float, soybean_meal_usd_ton: float, alfalfa_usd_ton: float) -> float:
+    """Calculate the DMC margin above the feed-cost formula."""
     if all_milk_usd_cwt < 0.0:
         raise ConfigError("all_milk_usd_cwt must be nonnegative")
     return all_milk_usd_cwt - dmc_feed_cost(corn_usd_bu, soybean_meal_usd_ton, alfalfa_usd_ton)
@@ -47,6 +49,7 @@ def annual_premium(
     lock_in_discount: bool = False,
     administrative_fee: float = 100.0,
 ) -> dict[str, float | None]:
+    """Calculate annual DMC premiums for Tier 1 and optional Tier 2 coverage."""
     if production_history_lb < 0.0:
         raise ConfigError("production_history_lb must be nonnegative")
     if not 0.05 <= coverage_fraction <= 0.95 or abs(coverage_fraction * 20 - round(coverage_fraction * 20)) > 1e-9:
@@ -109,6 +112,7 @@ def monthly_indemnity(
     coverage_fraction: float,
     producer_share: float = 1.0,
 ) -> float:
+    """Calculate the producer's monthly indemnity at a selected coverage level."""
     if not 0.0 <= producer_share <= 1.0:
         raise ConfigError("DMC producer_share must be between 0 and 1")
     covered_monthly_cwt = production_history_lb * coverage_fraction / 100.0 / 12.0
@@ -151,6 +155,7 @@ def tiered_monthly_indemnity(
 def analyze_dmc(
     scenario: dict[str, Any], daily_records: list[dict[str, Any]]
 ) -> dict[str, Any]:
+    """Summarize simulated IOFC, DMC premiums, and optional official market inputs."""
     observed_days = len(daily_records)
     milk_l = sum(float(row.get("milk_l", 0.0)) for row in daily_records)
     milk_revenue = sum(float(row.get("raw_milk_revenue", row.get("milk_revenue", 0.0))) for row in daily_records)

@@ -24,11 +24,13 @@ class GeneticsAgent(BaseAgent):
     }
 
     def __init__(self, ctx) -> None:
+        """Initialize genetic trend histories for the simulation."""
         super().__init__(ctx)
         ctx.state.setdefault("genetic_trend", [])
         ctx.state.setdefault("herd_nm_trend", [])
 
     def record_daily_intake(self, day: date) -> None:
+        """Record observed intake and diet stability needed for candidate eligibility."""
         cow_packet = self.ctx.get_packet("cow_daily_packet")
         if cow_packet is None:
             return
@@ -84,6 +86,7 @@ class GeneticsAgent(BaseAgent):
         active_disease_cases: int,
         cull_cow_price: float | None,
     ) -> dict[str, float]:
+        """Adjust calibrated trait weights for current feed, disease, and cull-price signals."""
         weights = {
             trait: float(value(self.ctx.calibration, f"genetics.trait_weights.{trait}"))
             for trait in self._TRAITS
@@ -116,6 +119,7 @@ class GeneticsAgent(BaseAgent):
         return {trait: weight / total for trait, weight in weights.items()}
 
     def _selection_intensity_i(self, selection_fraction: float) -> float:
+        """Calculate normal-distribution selection intensity for a selected fraction."""
         if selection_fraction >= 1.0:
             return 0.0
         z_score = NormalDist().inv_cdf(1.0 - selection_fraction)
@@ -123,6 +127,7 @@ class GeneticsAgent(BaseAgent):
         return normal_density / selection_fraction
 
     def _trait_merit(self, cow: dict[str, object], weights: dict[str, float]) -> float:
+        """Score a cow's core trait vector using the supplied selection weights."""
         trait_vector = cow["trait_vector"]
         if not isinstance(trait_vector, dict):
             raise ConfigError(f"cow {cow['id']} has an invalid trait vector")
@@ -130,6 +135,7 @@ class GeneticsAgent(BaseAgent):
 
     @staticmethod
     def _full_merit(cow: dict[str, object], weights: dict[str, float]) -> float:
+        """Score inherited traits while reversing the sign of the lower-is-better RFI trait."""
         traits = cow.get("trait_vector", {})
         if not isinstance(traits, dict):
             return 0.0
@@ -141,6 +147,7 @@ class GeneticsAgent(BaseAgent):
         return score
 
     def _offspring_trait_vector(self, selected: list[dict[str, object]]) -> tuple[list[str], dict[str, float] | None, dict[str, float] | None]:
+        """Create a stochastic offspring trait vector from the selected parents."""
         if not selected:
             return [], None, None
         dam = selected[0]
@@ -164,6 +171,7 @@ class GeneticsAgent(BaseAgent):
         return [str(dam["id"]), str(sire["id"])], offspring, offspring_markers
 
     def annual(self, day: date) -> None:
+        """Select parents annually, create one offspring, and publish genetic trend metrics."""
         cows = self.ctx.state.get("cows", [])
         feed_packet = self.ctx.get_packet("feed_crop_packet")
         feed_cost_signal = (

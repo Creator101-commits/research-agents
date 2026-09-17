@@ -210,6 +210,15 @@ class WebAppHTTPTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("baseline.json", data["scenarios"])
         self.assertEqual(data["defaults"]["name"], "baseline")
+        self.assertEqual(data["scenario_defaults"]["baseline.json"]["herd_size"], 100)
+        reference = data["scenario_defaults"]["cdairy_airand_reference.json"]
+        self.assertEqual(reference["days"], 365)
+        self.assertEqual(reference["herd_size"], 400)
+        self.assertFalse(reference["l1_nutrient_loop_enabled"])
+        self.assertEqual(
+            reference["reference_calibration"],
+            "configs/reference_targets/cdairy_airand_milk_calibration.json",
+        )
 
     def test_static_assets_are_served_and_traversal_is_rejected(self):
         status, headers, body = self.request("GET", "/assets/js/app.js")
