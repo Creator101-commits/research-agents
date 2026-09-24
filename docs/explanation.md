@@ -139,7 +139,7 @@ The current runtime has 13 agent modules. Twelve are part of the normal system; 
 | **Farm Manager policy dispatch** | Applies policy and operational decisions before disease and cow production. It publishes effective policy context used by downstream agents. |
 | **Disease** | Models disease compartments and disease economics. It supports outbreak seeding, transmission, recovery, quarantine, biosecurity, vaccination, immunity, inherited resistance, and stress susceptibility. |
 | **Water delivery** | Prepares drinking/parlor water before cows act, then performs treatment, recovery, reuse, storage, nutrient recovery, and water-cost accounting. |
-| **Cow** | Simulates individual cow state and herd output: age, parity, days in milk, body condition, body weight, DMI, milk, manure, enteric methane, rumen pH/SARA, heat stress, reproduction, pregnancy, calving, mortality, traits, and NUE. |
+| **Cow** | Simulates individual cow state and herd output: age, parity, days in milk, body condition, body weight (a parity baseline of 540 kg at first parity to 680 kg at mature parity, moved within a lactation by the daily intake residual), DMI, milk, manure, enteric methane, rumen pH/SARA, heat stress, reproduction, pregnancy, calving, mortality, traits, and NUE. |
 | **Dairy Processor** | Optional processing of milk into product streams. Tracks product mix, product revenue, whey/scotta/sludge/waste-milk residuals, processing energy, capacity, and byproduct routes. |
 | **Manure** | Splits manure into digester, compost, and storage routes; tracks collection, overflow, persistent storage, N/P/K, methane/N2O-related flows, co-feed, thermochemical paths, and nutrient returns. |
 | **Energy** | Converts eligible biogas and thermochemical inputs into energy using CHP, electricity, or boiler modes. It also models solar, parasitic load, demand capping, grid displacement, heat, self-sufficiency, and energy value. |
@@ -181,10 +181,12 @@ The scheduler preserves a deliberate compatibility boundary: the chosen daily or
 
 The model represents four circular loops explicitly:
 
-- **L1 nutrient/manure loop:** compost-derived feed credit becomes available to Feed/Crop on the following day.
+- **L1 nutrient/manure loop:** the separator's solid share (`manure.compost_route_fraction`, 0.35) is composted only while L1 is on; compost and digestate N/P/K return to cropland and lower the synthetic fertilizer requirement. The Blueprint defines no feed offset for this loop, so L1 creates no feed credit; its money value is compost revenue, and avoided fertilizer is reported in kg N and kg CO2e. With L1 off that share goes to storage.
 - **L2 water loop:** recovered-water credit offsets following-day irrigation demand.
-- **L3 energy loop:** biogas generation is gated by the energy-loop switch. It is intentionally self-contained and does not alter Feed/Crop mass inputs.
-- **L4 dairy-byproduct loop:** whey-derived feed credit becomes available the next day when processor and whey processing are active.
+- **L3 energy loop:** the switch decides whether the digester runs at all (Blueprint Energy 2.6, `biogas_investment_active`). With L3 off the liquid share goes to storage and biogas, digestate and electricity are 0. It does not alter Feed/Crop mass inputs.
+- **L4 dairy-byproduct loop:** whey and waste milk sent to feed become a next-day feed credit equal to their dry matter (whey x dry whey yield, waste milk x fat + SNF) when processor and whey processing are active.
+
+Farm profit has two layers. The herd layer is the Cdairy workbook economics (every Table 4 line), priced daily from the herd statistics with `dairy_abm.analysis.cdairy_economics`; feed is charged on all lactating and dry-cow intake at the workbook prices, home-grown feed included. The loop layer is itemized: electricity value (displaced farm demand only), heat value (0 unless a farm heat demand is configured), carbon credits, compost revenue, by-product revenue, and the L4 feed saving (returned dry matter at the workbook prices), minus water, cooling, processing energy and disease costs. Processor product sales are reported as `processor_revenue_not_in_profit` and are not added to profit. With every loop off, the herd layer equals `annual_excel_economics` for each complete year.
 
 The one-day delay is intentional. It prevents same-day feedback and preserves the fixed scheduler order. Credits are persistent in `SimulationContext`, consumed once by Feed/Crop, and reported in daily records.
 

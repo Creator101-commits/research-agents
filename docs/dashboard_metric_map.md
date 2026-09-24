@@ -1,10 +1,75 @@
 # Dashboard Metric Map
 
-Historical Phase 1 inventory for the earlier twelve-page dashboard. The current eight-page Conventional implementation uses `dairy_abm/dashboard_conventional.py`; the mappings below describe the retained `/api/run` contract and should not be read as the current browser page list.
+Historical Phase 1 inventory for the earlier twelve-page dashboard. The current Conventional implementation (the eight target pages plus the Formulas & Values page, kept by owner decision) uses `dairy_abm/dashboard_conventional.py`; the mappings below describe the retained `/api/run` contract and should not be read as the current browser page list.
 
 ## Current Conventional contract
 
 `POST /api/conventional/run` returns `{series, avg, totals, days, n, cfg, herdSummary}` from a seeded Python `DairyFarmModel` run. `series` maps model daily records to the target charts; `avg` and `totals` aggregate those same records. Milk, manure, feed, water, energy, emissions, revenue, costs, and profit remain in their model source units. `netFeed` is the nonnegative DMI less the model's feed loop offset; FCR divides kilograms of feed by kilograms of milk and is unavailable on zero-milk days. `energyVal` excludes `heatVal` so the display does not count heat twice. Sludge fertilizer remains liters and is not added to organic fertilizer kilograms. `wheyFoods` is unavailable because the Python model does not report that target quantity. Other herd costs and revenue reconcile displayed total revenue and costs to model profit. The `herdSummary` ranks retained per-cow histories; it is not a reconstruction of missing dated packet records. Cow ranking shows a short display ID and retains the model's full cow ID in `modelId` and the table tooltip.
+
+### Farm economics in the Conventional payload (2026-09-23)
+
+- `totals.herdRevenue`, `totals.herdCost`, `totals.herdProfit`: the Cdairy workbook herd economics (every Table 4 line) accumulated daily from the same herd statistics `annual_excel_economics` prices; with all loops off they equal it for each complete year. `totals.workbookFeedCost` is Stats_MAST rows 28-29 (all lactating and dry DMI at the workbook prices, home-grown feed included); `totals.otherHerdCost` is the rest of the herd cost.
+- `feedCost` is the charged feed cost: `workbookFeedCost - loopFeedSaving`. `loopFeedSaving` values the L4 feed offset (dry matter of whey and waste milk sent to feed) at the workbook prices; `l1FeedSaving` is 0 because the Blueprint defines no L1 feed offset. `fertilizerNSaved` and `fertilizerOffsetCO2e` report the avoided synthetic fertilizer (not monetized: no fertilizer price). `purchasedFeedCost` is the physical purchased-feed cash flow, kept for reference.
+- `totals.loopLines` lists the circular-loop layer: `electricityValue`, `heatValue`, `carbonCredits`, `compostRevenue`, `loopFeedSaving`, and the negative `waterCost`, `coolingCost`, `processingEnergyCost`, `diseaseCost`. `profit = herdProfit + loopNet`.
+- `processorRevenueNotInProfit` is the processor's product sales. It is reported only; profit keeps the workbook milk component sales because the model has no product-side costs. The processor runs with L4 so whey and waste milk exist for the by-product loop.
+- `surplusElec`, `displacedElec`, `farmElecDemand`: electricity is valued only up to the farm demand (implementation assumption, 100 kWh/day); the surplus is reported without value (Blueprint Energy 10). `heatDemand` is 0, so `heatVal` is 0 while `heat` is generated (Blueprint Energy 8.5).
+- `digesterManure`, `compostManure`, `digestateN/P/K`: manure routed to the digester and to compost, and digestate nutrients, used by the ROI page instead of back-calculated flows.
+- `notes` carries the on-screen reasons for series that are zero by design (`heatVal`, `solar`, `carbon`) and the energy-value limit (`energyVal`).
+- `cfg` adds model values for the ROI page: `dry_feed_cost_per_kg`, `carbon_credit_price_per_tonne_co2e` (0 unless a scenario sets it), `heat_value_effective_per_kWh`, `farm_energy_demand_kwh_per_day`.
+- `herdSummary[].calvings` counts `calving` and `first_calving`; `peakFactor` is the cow's `peak_factor`; `water` is the herd-average drinking allocation (the Blueprint has no per-cow equation), labelled in the table.
+
+### Connected controls
+
+Each connected control changes the run output (`tests/test_dashboard_param_effects.py`). `water_loop_fresh_water_offset_fraction` is also accepted though the target has no form control for it. The target's hidden `nutrient_loop_feed_substitution_fraction` and `byproduct_loop_feed_substitution_kg_per_kg` have no model equivalent: L1 has no feed credit and L4 credits returned dry matter.
+
+| Target control | Model input |
+|---|---|
+| `number_of_cows` | scenario `herd_size` |
+| `simulation_years` | scenario `days` |
+| `random_seed` | scenario `seed` |
+| `methane_reduction_factor` | multiplier on `cow.enteric_ch4_kg_per_cow_day` |
+| `separator_solid_fraction` | `manure.compost_route_fraction` = value, `manure.digester_route_fraction` = 1 - value, storage 0 |
+| `biogas_m3_per_kg_manure_to_digester` | methane m3 per kg manure = `manure.volatile_solids_fraction` x `manure.biochemical_methane_potential_m3_per_kg_vs` (sets the BMP) |
+| `compost_kg_per_kg_manure_to_compost` | calibration `manure.compost_product_yield_fraction` |
+| `solar_electricity_kWh_per_cow_per_day` | `energy.solar_kw_per_cow` x scenario `solar_capacity_factor` (0.2) x 24 h, with `solar_sized_per_cow` |
+| `fraction_milk_to_processor` | calibration `dairy_processor.fraction_milk_to_processor` |
+| `fraction_whey_to_animal_feed_loop` | calibration `dairy_processor.fraction_whey_to_feed` |
+| `fraction_milk_to_cheese` | calibration `dairy_processor.product_mix_cheese` |
+| `fraction_milk_to_butter` | calibration `dairy_processor.product_mix_butter` |
+| `fraction_milk_to_yogurt` | calibration `dairy_processor.product_mix_yogurt` |
+| `fraction_milk_to_fresh` | calibration `dairy_processor.product_mix_fresh` |
+| `fraction_milk_to_functional` | calibration `dairy_processor.product_mix_functional` |
+| `price_per_L_milk_cheese` | calibration `dairy_processor.price_per_l_milk_cheese` |
+| `price_per_L_milk_butter` | calibration `dairy_processor.price_per_l_milk_butter` |
+| `price_per_L_milk_yogurt` | calibration `dairy_processor.price_per_l_milk_yogurt` |
+| `price_per_L_milk_fresh` | calibration `dairy_processor.price_per_l_milk_fresh` |
+| `price_per_L_milk_functional` | calibration `dairy_processor.price_per_l_milk_functional` |
+| `feed_cost_per_kg` | calibration `cdairy_economics.dmi_wet_price_per_kg`, `market.feed_cost_per_kg_dm`, `feed_crop.ration_cost_per_kg_dm` |
+| `water_cost_per_L` | calibration `water.water_cost_per_l` |
+| `electricity_price_currency_per_kWh` | calibration `energy.electricity_price_per_kwh` |
+| `compost_value_currency_per_kg` | calibration `manure.compost_value_per_kg` |
+| `grid_avoided_kg_co2e_per_kWh` | calibration `energy.grid_offset_kg_co2e_per_kwh` |
+| `land_cropland_ha` | scenario `land_cropland_ha` |
+| `wood_b` | calibration `herd.wood_b` |
+| `wood_c` | calibration `herd.wood_c` |
+| `mature_parity` | calibration `herd.mature_parity` |
+| `cow_peak_std_fraction` | calibration `herd.cow_peak_std_fraction` |
+| `illness_duration_days_mean` | 1 / `disease.recovery_daily_probability` |
+| `manure_kg_per_kg_dmi` | `cow.base_manure_kg_per_cow_day` / `cow.base_dmi_kg_per_cow_day` |
+| `peak_milk_L_first_parity` | calibration `herd.peak_milk_l_first_parity` |
+| `peak_milk_L_mature` | calibration `herd.peak_milk_l_mature` |
+| `dry_period_days` | calibration `herd.dry_period_days` |
+| `max_parity` | calibration `herd.max_parity` |
+| `illness_milk_penalty_fraction` | calibration `disease.milk_loss_sick_fraction` |
+| `annual_involuntary_cull_fraction` | calibration `herd.cow_involuntary_cull_rate_annual` |
+| `bodyweight_first_parity_kg` | calibration `cow.bodyweight_first_parity_kg` |
+| `bodyweight_mature_kg` | calibration `cow.bodyweight_mature_kg` |
+
+### Disabled controls ("Not used by the Python model")
+
+`enable_random_daily_variation`, `enable_seasonal_profile`, `enable_dynamic_loop_feedback`, `milk_yield_L_per_cow_per_day`, `feed_intake_kg_per_cow_per_day`, `water_use_L_per_cow_per_day`, `manure_output_kg_per_cow_per_day`, `smart_tech_feed_efficiency_factor`, `smart_tech_water_efficiency_factor`, `smart_tech_milk_yield_factor`, `health_feed_efficiency_factor`, `health_milk_yield_factor`, `manure_to_treatment_fraction`, `electricity_kWh_per_m3_biogas`, `heat_kWh_per_m3_biogas`, `fraction_dairy_products_of_milk`, `fraction_whey_of_milk`, `milk_price_currency_per_L`, `heat_value_currency_per_kWh`, `enteric_methane_kg_co2e_per_cow_per_day`, `manure_n2o_kg_co2e_per_kg_manure`, `biogas_methane_displacement_kg_co2e_per_m3`, `land_pasture_ha`, `soil_carbon_sequestration_index`, `land_silvopastoral_tree_cover_fraction`, `daily_variation_std_fraction`, `seasonal_amplitude_fraction`, `milk_manure_correlation`, `illness_feed_penalty_fraction`, `maintenance_dmi_fraction_of_bw`, `dmi_kg_per_L_milk`, `water_base_L`, `water_L_per_kg_dmi`, `water_L_per_L_milk`, `water_seasonal_amplitude`, `lactation_length_days`, `daily_illness_probability`.
+
+Notes: `land_pasture_ha` is disabled because the land agent is off in the dashboard scenario, so pasture changes nothing; `heat_value_currency_per_kWh` is disabled because no farm heat demand is configured; `lactation_length_days` has no model parameter because lactation length emerges from reproduction and dry-off; `milk_price_currency_per_L` is replaced by the workbook component prices.
 
 `POST /api/conventional/compare` runs all sixteen loop combinations with identical controls. `GET /api/conventional/params` identifies supported controls and defaults. `GET /api/conventional/parity` serves the saved eight-seed workbook comparison. The target's eight equipment ROI rows are catalogue-based scenario estimates and do not replace the Python farm manager's investment report. The top bar's official exports use the cached Python context.
 

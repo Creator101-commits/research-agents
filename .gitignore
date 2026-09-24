@@ -41,3 +41,7 @@ output/
 
 # Logs
 *.log
+
+# Parity reference copies (source material with emojis; kept local, not committed)
+docs/parity/conventional_dashboard_target.html
+docs/parity/blueprint_extracted.txt
