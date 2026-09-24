@@ -41,9 +41,18 @@ class EnergyAgent(BaseAgent):
         methane_fraction = max(0.0, min(1.0, float(self.ctx.scenario.get("biogas_methane_fraction", 0.6))))
         conversion_mode = str(self.ctx.state["policy"].get("energy_conversion_mode", "chp")).lower()
         mode_efficiency = {"chp": 0.38, "electricity": 0.34, "boiler": 0.0}.get(conversion_mode, 0.38)
-        biogas_gross_kwh = biogas_m3 * methane_fraction * 9.97 * mode_efficiency
+        # Manure publishes CH4 m3 (VS x BMP), so the methane fraction is not applied again.
+        biogas_gross_kwh = biogas_m3 * 9.97 * mode_efficiency
         if bool(self.ctx.scenario.get("solar_sized_per_cow", False)):
-            herd_size = int(self.ctx.state.get("herd_size", len(self.ctx.state.get("cows", []))))
+            herd_size = int(
+                self.ctx.state.get(
+                    "herd_size",
+                    sum(
+                        1 for cow in self.ctx.state.get("cows", [])
+                        if cow.get("alive", True) and int(cow.get("parity", 1)) >= 1
+                    ),
+                )
+            )
             solar_capacity_kw = max(0, herd_size) * float(value(self.ctx.calibration, "energy.solar_kw_per_cow"))
         else:
             solar_capacity_kw = max(0.0, float(self.ctx.state["policy"].get("solar_capacity_kw", 0.0)))
@@ -111,7 +120,12 @@ class EnergyAgent(BaseAgent):
             "heat_demand_mj": heat_demand_mj,
             "heat_displaced_mj": heat_displaced_mj,
             "heat_value": heat_cost_saved,
-            "electricity_generated_kwh": require_nonnegative("electricity_generated_kwh", net_kwh),
+            # Blueprint 3.2 / 8.1: electricity_generated_kwh = 85.73 x digester feedstock (t);
+            # solar, syngas and parasitic load stay separate and meet only in the balance.
+            "electricity_generated_kwh": require_nonnegative(
+                "electricity_generated_kwh", feedstock_gross_kwh if l3_enabled else 0.0
+            ),
+            "net_electricity_balance_kwh": require_nonnegative("net_electricity_balance_kwh", net_kwh),
             "electricity_price_per_kwh": require_nonnegative("electricity_price_per_kwh", electricity_price),
             "energy_value": require_nonnegative("energy_value", energy_cost_saved + heat_cost_saved),
             "energy_cost_saved_day": require_nonnegative("energy_cost_saved_day", energy_cost_saved),

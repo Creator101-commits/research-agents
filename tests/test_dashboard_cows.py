@@ -60,7 +60,10 @@ class DashboardCowsTests(unittest.TestCase):
             self.assertEqual(row["pregnant"], state_by_id[row["id"]]["pregnant"])
             self.assertEqual(row["trait_vector"], state_by_id[row["id"]]["trait_vector"])
             self.assertNotIn("efficiency_score", row)
-            self.assertAlmostEqual(row["fcr_kg_dm_per_l"], row["dmi_kg"] / row["milk_l"])
+            if row["milk_l"] > 0:
+                self.assertAlmostEqual(row["fcr_kg_dm_per_l"], row["dmi_kg"] / row["milk_l"])
+            else:
+                self.assertIsNone(row["fcr_kg_dm_per_l"])
 
         self.assertEqual(
             sum(cows["health_counts"].values()),
@@ -151,18 +154,12 @@ class DashboardCowsTests(unittest.TestCase):
         self.assertEqual(empty_result["period"], "latest-day")
 
     def test_cow_page_uses_real_records_and_no_legacy_score(self) -> None:
-        self.assertIn('id="cows-content"', INDEX)
-        self.assertIn("renderCows", APP)
-        self.assertIn("data.cows", APP)
-        self.assertIn("data-cow-sort", APP)
-        start = APP.index("function renderCows")
-        end = APP.index("function toolbar", start)
-        cow_page = APP[start:end]
-        self.assertNotIn("aggregate(", cow_page)
-        self.assertNotIn("efficiency_score", APP)
-        self.assertIn("cow-scatter", CSS)
-        self.assertIn("cow-table", CSS)
-        self.assertIn("cow-health", CSS)
+        ui = (WEB / "js" / "dashboard.js").read_text(encoding="utf-8")
+        self.assertIn('id="section-ranking"', INDEX)
+        self.assertIn("lastResult.herdSummary", ui)
+        self.assertIn("function generateRanking()", ui)
+        self.assertNotIn("new HerdModel", ui)
+        self.assertNotIn("makePRNG", ui)
 
 
 if __name__ == "__main__":

@@ -4,8 +4,27 @@ from datetime import date
 from math import exp, pi, sqrt
 from statistics import NormalDist
 
-from dairy_abm.config import value
-from dairy_abm.core import BaseAgent, ConfigError, Packet, require_fraction
+from dairy_abm.config import ROOT, value
+from dairy_abm.core import BaseAgent, ConfigError, Packet, read_json, require_fraction
+
+NM9_TABLE_PATH = ROOT / "configs" / "genetics_nm9.json"
+
+
+def nm9_proxy_weights(template: str) -> dict[str, float]:
+    """Relative emphasis of USDA NM$9 mapped onto the ABM proxy traits (signed, sum |w| = 1)."""
+    table = read_json(NM9_TABLE_PATH)
+    higher = set(table.get("higher_is_better_proxies", []))
+    weights: dict[str, float] = {}
+    for proxy, official in table["proxy_mapping"].items():
+        emphases = [float(table["traits"][name]["emphasis_pct"][template]) for name in official]
+        weights[proxy] = sum(abs(e) for e in emphases) if proxy in higher else sum(emphases)
+    total = sum(abs(w) for w in weights.values())
+    return {trait: w / total for trait, w in weights.items()}
+
+
+def rfi_lb_per_lactation_to_kg_per_day(rfi_lb: float, lactation_days: float = 305.0) -> float:
+    """Convert an official RFI PTA (lb DMI per lactation) to the ABM daily residual (kg DM/day)."""
+    return rfi_lb * 0.45359237 / lactation_days
 
 
 class GeneticsAgent(BaseAgent):
@@ -16,18 +35,19 @@ class GeneticsAgent(BaseAgent):
         "body_weight_composite", "livability_score", "fertility_score",
         "health_composite_score", "calving_ease_score",
     )
-    _SCENARIO_TEMPLATES = {
-        "NM": {"milk_yield": 0.25, "butterfat_ebv": 0.16, "protein_ebv": 0.16, "rfi_fat_ebv": 0.14, "body_weight_composite": 0.06, "livability_score": 0.08, "fertility_score": 0.07, "health_composite_score": 0.06, "calving_ease_score": 0.02},
-        "CM": {"milk_yield": 0.31, "butterfat_ebv": 0.19, "protein_ebv": 0.16, "rfi_fat_ebv": 0.11, "body_weight_composite": 0.05, "livability_score": 0.07, "fertility_score": 0.05, "health_composite_score": 0.04, "calving_ease_score": 0.02},
-        "FM": {"milk_yield": 0.20, "butterfat_ebv": 0.14, "protein_ebv": 0.14, "rfi_fat_ebv": 0.16, "body_weight_composite": 0.08, "livability_score": 0.10, "fertility_score": 0.09, "health_composite_score": 0.07, "calving_ease_score": 0.02},
-        "GM": {"milk_yield": 0.18, "butterfat_ebv": 0.12, "protein_ebv": 0.12, "rfi_fat_ebv": 0.17, "body_weight_composite": 0.08, "livability_score": 0.10, "fertility_score": 0.11, "health_composite_score": 0.09, "calving_ease_score": 0.03},
-    }
+    # Blueprint section 4.3: scenario templates are the USDA NM$9 relative
+    # emphasis mapped onto the ABM's reduced trait vector (a documented proxy).
+    _SCENARIO_TEMPLATES = {template: nm9_proxy_weights(template) for template in ("NM", "CM", "FM", "GM")}
+    # Traits that may take negative values (efficient RFI, light BWC).
+    _SIGNED_TRAITS = {"rfi_fat_ebv", "body_weight_composite"}
 
     def __init__(self, ctx) -> None:
         """Initialize genetic trend histories for the simulation."""
         super().__init__(ctx)
         ctx.state.setdefault("genetic_trend", [])
         ctx.state.setdefault("herd_nm_trend", [])
+        ctx.state.setdefault("sire_pool_traits", None)
+        ctx.state["offspring_traits_fn"] = self.offspring_traits
 
     def record_daily_intake(self, day: date) -> None:
         """Record observed intake and diet stability needed for candidate eligibility."""
@@ -71,14 +91,20 @@ class GeneticsAgent(BaseAgent):
                 expected = float(record.get("expected_dmi_eq2_1_kg_dm", cow.get("expected_dmi_kg", 0.0)))
                 rfi = float(observed) - expected
                 cow["dmi_record_series"].append({"day": day.isoformat(), "observed_dmi_kg": float(observed), "expected_dmi_kg": expected, "rfi_fat": rfi})
-                cow["rfi_fat_phenotype"] = sum(item["rfi_fat"] for item in cow["dmi_record_series"]) / len(cow["dmi_record_series"])
+                # Running mean keeps the daily update O(1).
+                cow["_rfi_fat_sum"] = float(cow.get("_rfi_fat_sum", 0.0)) + rfi
+                cow["rfi_fat_phenotype"] = cow["_rfi_fat_sum"] / len(cow["dmi_record_series"])
             elif cow.get("alive", True):
                 # RFI eligibility requires a contiguous observed record window.
                 cow["recorded_dmi_days"] = 0
             cow["candidate_record_complete"] = cow["recorded_dmi_days"] >= minimum_days
             cow["ebv_confidence"] = min(1.0, cow["recorded_dmi_days"] / minimum_days)
-            if bool(self.ctx.state.get("diet_change_recorded", False)):
-                cow["ebv_confidence"] *= cross_diet_modifier
+            # Blueprint 8.5: effective_RFI_fat = RFI_fat_EBV x r_cross_diet after a diet change.
+            traits = cow.get("trait_vector", {})
+            rfi_ebv = float(traits.get("rfi_fat_ebv", 0.0)) if isinstance(traits, dict) else 0.0
+            cow["effective_rfi_fat"] = (
+                rfi_ebv * cross_diet_modifier if bool(self.ctx.state.get("diet_change_recorded", False)) else rfi_ebv
+            )
 
     def _selection_weights(
         self,
@@ -104,13 +130,14 @@ class GeneticsAgent(BaseAgent):
             weights["health"] *= float(
                 value(self.ctx.calibration, "genetics.health_weight_multiplier_under_disease_stress")
             )
-        if cull_cow_price is not None and cull_cow_price < float(
-            value(self.ctx.calibration, "genetics.low_cull_price_threshold")
+        if cull_cow_price is not None and cull_cow_price > float(
+            value(self.ctx.calibration, "genetics.high_cull_price_threshold")
         ):
+            # Blueprint 4.4: a high cull price or mortality raises livability.
             weights["survivability"] *= float(
                 value(
                     self.ctx.calibration,
-                    "genetics.survivability_weight_multiplier_under_low_cull_price",
+                    "genetics.survivability_weight_multiplier_under_high_cull_price",
                 )
             )
         total = sum(weights.values())
@@ -135,16 +162,36 @@ class GeneticsAgent(BaseAgent):
 
     @staticmethod
     def _full_merit(cow: dict[str, object], weights: dict[str, float]) -> float:
-        """Score inherited traits while reversing the sign of the lower-is-better RFI trait."""
+        """net_merit_score = sum_j w_j * trait_j with signed NM$9 emphasis (RFI and BWC negative)."""
         traits = cow.get("trait_vector", {})
         if not isinstance(traits, dict):
             return 0.0
         score = 0.0
         for trait, weight in weights.items():
-            trait_value = float(traits.get(trait, 1.0 if trait != "rfi_fat_ebv" else 0.0))
-            # Lower RFI improves the breeding index; all other EBVs increase it.
-            score += weight * (-trait_value if trait == "rfi_fat_ebv" else trait_value)
+            trait_value = float(traits.get(trait, 0.0 if trait in ("rfi_fat_ebv",) else 1.0))
+            score += weight * trait_value
         return score
+
+    @staticmethod
+    def feed_saved(traits: dict[str, float]) -> float:
+        """Blueprint 4.3 Holstein Feed Saved: PTA FSAV = -1 x PTA RFI - 162.7 x PTA BWC."""
+        table = read_json(NM9_TABLE_PATH)["feed_saved"]
+        return table["rfi_coefficient"] * float(traits.get("rfi_fat_ebv", 0.0)) + table["bwc_coefficient"] * (
+            float(traits.get("body_weight_composite", 1.0)) - 1.0
+        )
+
+    def offspring_traits(self, dam: dict[str, object]) -> dict[str, float]:
+        """Offspring trait = parent average (dam and selected sire pool) + small random variation."""
+        dam_traits = dam.get("trait_vector", {}) if isinstance(dam.get("trait_vector"), dict) else {}
+        sire_traits = self.ctx.state.get("sire_pool_traits") or dam_traits
+        variation_fraction = float(value(self.ctx.calibration, "genetics.offspring_trait_variation_fraction"))
+        offspring: dict[str, float] = {}
+        for trait in set(dam_traits) | set(self._INHERITED_TRAITS):
+            default = 0.0 if trait == "rfi_fat_ebv" else 1.0
+            mean = (float(dam_traits.get(trait, default)) + float(sire_traits.get(trait, default))) / 2.0
+            draw = mean + (self.ctx.rng.gauss(0.0, abs(mean) * variation_fraction) if variation_fraction and mean else 0.0)
+            offspring[trait] = draw if trait in self._SIGNED_TRAITS else max(0.0, draw)
+        return offspring
 
     def _offspring_trait_vector(self, selected: list[dict[str, object]]) -> tuple[list[str], dict[str, float] | None, dict[str, float] | None]:
         """Create a stochastic offspring trait vector from the selected parents."""
@@ -164,14 +211,14 @@ class GeneticsAgent(BaseAgent):
         for trait in self._INHERITED_TRAITS:
             parental_mean = (float(dam_traits.get(trait, 0.0)) + float(sire_traits.get(trait, 0.0))) / 2.0
             variation = self.ctx.rng.gauss(0.0, abs(parental_mean) * variation_fraction) if variation_fraction else 0.0
-            offspring[trait] = max(0.0, parental_mean + variation)
+            offspring[trait] = parental_mean + variation if trait in self._SIGNED_TRAITS else max(0.0, parental_mean + variation)
             if isinstance(dam_markers, dict) and isinstance(sire_markers, dict):
                 inherited_marker = float(dam_markers.get(trait, offspring[trait])) if self.ctx.rng.random() < 0.5 else float(sire_markers.get(trait, offspring[trait]))
                 offspring_markers[trait] = inherited_marker + self.ctx.rng.gauss(0.0, abs(inherited_marker) * variation_fraction)
         return [str(dam["id"]), str(sire["id"])], offspring, offspring_markers
 
     def annual(self, day: date) -> None:
-        """Select parents annually, create one offspring, and publish genetic trend metrics."""
+        """Rank candidates annually, set the sire pool, and publish genetic trend metrics."""
         cows = self.ctx.state.get("cows", [])
         feed_packet = self.ctx.get_packet("feed_crop_packet")
         feed_cost_signal = (
@@ -208,12 +255,26 @@ class GeneticsAgent(BaseAgent):
         if grazing_context_active:
             selection_weights["fertility"] *= 1.1
             full_weights["fertility_score"] *= 1.1
-        mortality_signal = sum(1 for cow in cows if not cow.get("alive", True))
-        if mortality_signal:
-            full_weights["livability_score"] *= 1.25
-        if active_disease_cases:
-            full_weights["health_composite_score"] *= 1.25
-        full_weight_total = sum(full_weights.values())
+        # Blueprint 4.4 signal reweighting on the ranking weights, then renormalise.
+        mortality_signal = sum(1 for cow in cows if not cow.get("alive", True) and cow.get("removal_reason") in (None, "cow_died", "heifer_died"))
+        high_cull_price = cull_cow_price is not None and cull_cow_price > float(
+            value(self.ctx.calibration, "genetics.high_cull_price_threshold")
+        )
+        if mortality_signal or high_cull_price:
+            full_weights["livability_score"] *= float(
+                value(self.ctx.calibration, "genetics.survivability_weight_multiplier_under_high_cull_price")
+            )
+        if active_disease_cases >= int(value(self.ctx.calibration, "genetics.disease_frequency_stress_threshold")) and active_disease_cases:
+            full_weights["health_composite_score"] *= float(
+                value(self.ctx.calibration, "genetics.health_weight_multiplier_under_disease_stress")
+            )
+        if feed_cost_signal is not None and feed_cost_signal > float(
+            value(self.ctx.calibration, "genetics.feed_cost_stress_threshold_per_kg_dm")
+        ):
+            stress = float(value(self.ctx.calibration, "genetics.feed_efficiency_weight_multiplier_under_feed_stress"))
+            full_weights["rfi_fat_ebv"] *= stress
+            full_weights["body_weight_composite"] *= stress
+        full_weight_total = sum(abs(trait_weight) for trait_weight in full_weights.values())
         full_weights = {trait: trait_weight / full_weight_total for trait, trait_weight in full_weights.items()}
         weight_total = sum(selection_weights.values())
         selection_weights = {trait: weight / weight_total for trait, weight in selection_weights.items()}
@@ -236,16 +297,26 @@ class GeneticsAgent(BaseAgent):
             herd_mean_rfi = 0.0
             selected = []
         else:
-            herd_mean_rfi = sum(float(cow.get("feed_efficiency_trait", 1.0)) for cow in eligible_cows) / len(eligible_cows)
+            herd_mean_rfi = sum(
+                float(cow.get("trait_vector", {}).get("rfi_fat_ebv", 0.0)) for cow in eligible_cows
+            ) / len(eligible_cows)
             selected_count = max(1, int(round(len(eligible_cows) * selection_fraction)))
             selected = sorted(eligible_cows, key=lambda cow: self._full_merit(cow, full_weights), reverse=True)[:selected_count]
-            annual_gain = float(value(self.ctx.calibration, "genetics.annual_rfi_gain_fraction"))
-            for cow in selected:
-                cow["feed_efficiency_trait"] = max(0.5, float(cow.get("feed_efficiency_trait", 1.0)) * (1.0 - annual_gain))
+        # Selected parents set the sire pool for the coming year's calvings; adult
+        # traits are never modified after birth (blueprint Cow 11.4).
+        if selected:
+            pool: dict[str, float] = {}
+            for trait in self._INHERITED_TRAITS:
+                pool[trait] = sum(float(cow["trait_vector"].get(trait, 0.0)) for cow in selected) / len(selected)
+            self.ctx.state["sire_pool_traits"] = pool
+        annual_gain = float(value(self.ctx.calibration, "genetics.annual_rfi_gain_fraction"))
+        gain_in_range = 0.0075 <= annual_gain <= 0.01
 
         offspring_parent_ids, offspring_trait_vector, offspring_markers = self._offspring_trait_vector(selected)
         offspring_id = None
-        if offspring_trait_vector is not None:
+        # The annual template offspring is reported only; calves enter the herd
+        # through calvings in the herd life-cycle submodel.
+        if offspring_trait_vector is not None and bool(self.ctx.scenario.get("genetics_adds_annual_offspring", False)):
             offspring_id = f"calf-{day.year}-{len(cows) + 1}"
             self.ctx.state["cows"].append({
                 "id": offspring_id,
@@ -289,6 +360,15 @@ class GeneticsAgent(BaseAgent):
         trend = {
             "year": day.year,
             "herd_mean_rfi_fat": herd_mean_rfi,
+            "herd_mean_rfi_fat_ebv": herd_mean_rfi,
+            "herd_mean_feed_saved": (
+                sum(self.feed_saved(cow.get("trait_vector", {})) for cow in eligible_cows) / len(eligible_cows)
+                if eligible_cows
+                else None
+            ),
+            "annual_rfi_gain_fraction": annual_gain,
+            "annual_gain_in_blueprint_range": gain_in_range,
+            "sire_pool_traits": dict(self.ctx.state.get("sire_pool_traits") or {}),
             "selected_parent_count": len(selected),
             "minimum_intake_record_days": int(value(self.ctx.calibration, "genetics.minimum_intake_record_days")),
             "feed_cost_signal_per_kg_dm": feed_cost_signal,

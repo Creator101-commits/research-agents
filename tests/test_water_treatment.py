@@ -26,13 +26,15 @@ class WaterTreatmentTest(unittest.TestCase):
         calibration["water"]["treatment_recovery_fraction"]["value"] = 1.0
         calibration["water"]["amino_acid_policy_active_default"]["value"] = False
         calibration["feed_crop"]["irrigation_l_per_ha_day"]["value"] = 5.0
-        ctx = DairyFarmModel(scenario(land_cropland_ha=1.0), calibration).run()
+        ctx = DairyFarmModel(scenario(land_cropland_ha=1.0, days=2), calibration).run()
         water = ctx.packets["water_packet"].payload
         feed = ctx.packets["feed_crop_packet"].payload
 
+        # Treated water reaches irrigation once, through the next-day L2 credit.
         self.assertEqual(water["recycled_irrigation_l"], 5.0)
         self.assertGreater(water["treated_water_surplus_l"], 0.0)
-        self.assertEqual(feed["irrigation_l"], 5.0)
+        self.assertEqual(feed["irrigation_l"], 0.0)
+        self.assertEqual(feed["irrigation_demand_l"], 5.0)
         self.assertAlmostEqual(
             water["net_freshwater_use_l"], water["total_water_use_l"] - water["recycled_irrigation_l"]
         )

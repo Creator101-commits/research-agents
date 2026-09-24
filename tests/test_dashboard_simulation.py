@@ -16,22 +16,12 @@ APP = (WEB / "js" / "app.js").read_text(encoding="utf-8")
 
 class DashboardSimulationTests(unittest.TestCase):
     def test_simulation_form_exposes_only_supported_run_controls(self) -> None:
-        for element_id in ("scenario", "days", "start-date", "seed", "herd", "go"):
-            self.assertIn(f'id="{element_id}"', INDEX)
-        self.assertIn('type="date"', INDEX)
-        self.assertIn('type="submit"', INDEX)
-        self.assertIn("Duration", INDEX)
-        self.assertIn("Start date", INDEX)
-        for key in (
-            "l1_nutrient_loop_enabled",
-            "l2_water_loop_enabled",
-            "l3_energy_loop_enabled",
-            "l4_byproduct_loop_enabled",
-            "enable_processor",
-            "enable_whey_processing",
-            "enable_land_agent",
-        ):
-            self.assertIn(key, APP)
+        ui = (WEB / "js" / "dashboard.js").read_text(encoding="utf-8")
+        self.assertIn('id="runBtn"', INDEX)
+        self.assertIn("/api/conventional/run", ui)
+        self.assertIn("supportedParams", ui)
+        self.assertIn("modelConfig()", ui)
+        self.assertNotIn("function simulateDay", ui)
 
     def test_form_sends_start_date_and_verified_switches_to_run_api(self) -> None:
         self.assertIn('start_date: $("start-date").value', APP)

@@ -162,18 +162,18 @@ class GeneticsProcessorLandAgentsTest(unittest.TestCase):
         self.assertEqual(ctx.state["cows"][0]["trait_vector"]["milk_yield"], 1.2)
         self.assertEqual(ctx.state["cows"][1]["trait_vector"]["milk_yield"], 0.8)
 
-    def test_genetics_reweights_for_disease_pressure_and_low_cull_value(self) -> None:
+    def test_genetics_reweights_for_disease_pressure_and_high_cull_value(self) -> None:
         calibration = load_calibration()
-        calibration["disease"]["mastitis_daily_probability"]["value"] = 1.0
+        calibration["disease"]["lameness_daily_probability"]["value"] = 1.0
         calibration["disease"]["recovery_daily_probability"]["value"] = 0.0
-        calibration["market"]["cull_cow_price"]["value"] = 500.0
+        calibration["market"]["cull_cow_price"]["value"] = 1200.0
         ctx = DairyFarmModel(
             scenario(start_date="2026-11-27", days=35, herd_size=2), calibration
         ).run()
         packet = ctx.packets["genetics_packet"].payload
 
         self.assertGreater(packet["active_disease_cases"], 0)
-        self.assertEqual(packet["cull_cow_price"], 500.0)
+        self.assertEqual(packet["cull_cow_price"], 1200.0)
         self.assertGreater(packet["selection_weights"]["health"], 0.1)
         self.assertGreater(packet["selection_weights"]["survivability"], 0.1)
 

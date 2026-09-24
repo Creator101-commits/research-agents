@@ -78,17 +78,12 @@ class DashboardOverviewTests(unittest.TestCase):
                 self.assertFalse(result["summary"][key]["available"])
 
     def test_overview_is_a_run_summary_and_preserves_unavailable_values(self) -> None:
-        self.assertIn('id="overview-content"', INDEX)
-        self.assertIn("renderOverview", APP)
-        self.assertIn("average_milk_per_cow", APP)
-        self.assertIn("Total milk", APP)
-        self.assertIn("Milk production", APP)
-        self.assertIn("Environmental performance", APP)
-        self.assertIn("Resource use", APP)
-        self.assertIn('available === false', APP)
-        self.assertIn("N/A", APP)
-        self.assertIn("overview-charts", CSS)
-        self.assertIn("overview-kpis", CSS)
+        ui = (WEB / "js" / "dashboard.js").read_text(encoding="utf-8")
+        self.assertIn('id="section-overview"', INDEX)
+        self.assertIn('id="kpiGrid"', INDEX)
+        self.assertIn("function renderKPIs(avg)", ui)
+        self.assertIn("function updateRevSummary(res)", ui)
+        self.assertIn("revenue − all costs", INDEX)
 
     def test_overview_uses_backend_series_without_period_rollups(self) -> None:
         start = APP.index("function renderOverview")

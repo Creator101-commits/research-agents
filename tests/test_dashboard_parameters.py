@@ -15,16 +15,12 @@ CSS = "\n".join(path.read_text(encoding="utf-8") for path in (WEB / "styles").gl
 
 class DashboardParametersTests(unittest.TestCase):
     def test_parameter_page_is_generated_from_calibration_inventory(self) -> None:
-        self.assertIn('id="parameters-content"', INDEX)
-        self.assertIn("loadCalibration", API)
-        self.assertIn("renderParameters", APP)
-        self.assertIn('data-parameter-key', APP)
-        self.assertIn("calibration_overrides", APP)
-        self.assertIn("parameterDraft", STATE)
-        self.assertIn("parameter-search", APP)
-        self.assertIn("parameter-reset-all", APP)
-        self.assertNotIn("genetics.selection_intensity", APP)
-        self.assertIn("parameter-editor", CSS)
+        ui = (WEB / "js" / "dashboard.js").read_text(encoding="utf-8")
+        self.assertIn('id="section-params"', INDEX)
+        self.assertIn('id="section-animal"', INDEX)
+        self.assertIn("/api/conventional/params", ui)
+        self.assertIn("Not used by the Python model", ui)
+        self.assertIn("modelConfig()", ui)
 
     def test_parameter_editor_keeps_validation_and_metadata_in_python_contract(self) -> None:
         self.assertIn("valid_range", APP)
@@ -32,6 +28,14 @@ class DashboardParametersTests(unittest.TestCase):
         self.assertIn("source", APP)
         self.assertIn("description", APP)
         self.assertIn("Fix calibration values", APP)
+
+    def test_scenario_switch_uses_backend_defaults_and_clears_drafts(self) -> None:
+        self.assertIn("scenario_defaults", APP)
+        self.assertIn("applyScenarioDefaults", APP)
+        self.assertIn("state.parameterDraft = {}", APP)
+        self.assertIn("reference calibration", APP)
+        self.assertIn("calibrationScenario", STATE)
+        self.assertIn("warningCounts = new Map()", APP)
 
 
 if __name__ == "__main__":

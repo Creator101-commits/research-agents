@@ -17,7 +17,10 @@ class WaterAgent(BaseAgent):
 
     def prepare_delivery(self, day: date) -> None:
         """Make the current-day drinking-water constraint available to Cow."""
-        cows = [cow for cow in self.ctx.state.get("cows", []) if cow.get("alive", True)]
+        cows = [
+            cow for cow in self.ctx.state.get("cows", [])
+            if cow.get("alive", True) and int(cow.get("parity", 1)) >= 1
+        ]
         requested = len(cows) * float(value(self.ctx.calibration, "water.drinking_l_per_cow_day"))
         source_capacity = float(self.ctx.scenario.get("freshwater_supply_l_per_day", requested))
         availability_fraction = min(1.0, source_capacity / requested) if requested > 0.0 else 1.0
@@ -64,7 +67,8 @@ class WaterAgent(BaseAgent):
             if amino_acid_policy_active
             else 0.0
         )
-        gross_l = drinking_l + parlor_l + irrigation_l
+        # Blueprint 8.1: total = drinking + cleaning + irrigation demand (gross).
+        gross_l = drinking_l + parlor_l + irrigation_demand_l
         total_water_use_l = max(0.0, gross_l - amino_acid_adjustment_l)
         wastewater_l = parlor_l * require_fraction(
             "water.wastewater_return_fraction",
@@ -95,8 +99,10 @@ class WaterAgent(BaseAgent):
             treated_water_l = 0.0
             wastewater_storage_l = wastewater_available_l
         self.ctx.state["wastewater_storage_l"] = wastewater_storage_l
-        recycled_irrigation_l = min(treated_water_l, irrigation_demand_l)
-        treated_water_surplus_l = treated_water_l - recycled_irrigation_l
+        # Recycled water reaches irrigation through the one-day L2 credit that
+        # Feed/Crop applies, so it is credited exactly once (blueprint 8.3).
+        recycled_irrigation_l = max(0.0, min(irrigation_demand_l, irrigation_demand_l - irrigation_l))
+        treated_water_surplus_l = max(0.0, treated_water_l - recycled_irrigation_l)
         net_freshwater_use_l = max(0.0, total_water_use_l - recycled_irrigation_l)
         water_intensity = total_water_use_l / milk_l if milk_l > 0.0 else None
 

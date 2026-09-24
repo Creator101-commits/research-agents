@@ -55,7 +55,7 @@ class MarketLandIntegrationTest(unittest.TestCase):
         self.assertTrue(any(event["source"] == "market" for event in ctx.events.events))
         self.assertAlmostEqual(ctx.daily_records[1]["milk_price_per_l"], second["milk_price_per_l"])
         self.assertAlmostEqual(
-            ctx.packets["feed_crop_packet"].payload["feed_cost_per_kg_dm"],
+            ctx.packets["feed_crop_packet"].payload["lactating_feed_price_per_kg_dm"],
             second["feed_cost_per_kg_dm"],
         )
         self.assertAlmostEqual(

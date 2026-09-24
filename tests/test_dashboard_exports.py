@@ -90,11 +90,10 @@ class DashboardExportsTests(unittest.TestCase):
         self.assertEqual(payload["exports"]["artifacts"], [])
 
     def test_export_page_is_routed_and_read_only(self) -> None:
-        self.assertIn('id="exports-content"', INDEX)
-        self.assertIn("renderExports", APP)
-        self.assertIn("data.exports", APP)
-        self.assertIn("write_reports", APP)
-        self.assertIn("export-center", CSS)
+        ui = (WEB / "js" / "dashboard.js").read_text(encoding="utf-8")
+        self.assertIn('id="exportBtn"', INDEX)
+        self.assertIn("function exportRun()", ui)
+        self.assertIn("/api/export/", ui)
 
 
 if __name__ == "__main__":

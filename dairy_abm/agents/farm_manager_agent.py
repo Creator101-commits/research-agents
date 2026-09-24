@@ -128,23 +128,46 @@ class FarmManagerAgent(BaseAgent):
         sensor_alert_count = (
             len(sensors.payload.get("filtered_alerts", [])) if sensors is not None else 0
         )
-        labor_cost = cow_count * float(value(self.ctx.calibration, "farm_manager.labor_cost_per_cow_day"))
-        fixed_cost = float(value(self.ctx.calibration, "farm_manager.fixed_cost_per_day"))
         carbon_credit_value = float(environment.payload.get("carbon_credit_value", 0.0)) if environment is not None else 0.0
         processor_revenue = float(processor.payload["processor_revenue"]) if processor is not None and processor_enabled else 0.0
         byproduct_revenue = (
             float(processor.payload.get("byproduct_revenue", 0.0)) if processor is not None and processor_enabled else 0.0
         )
-        total_revenue = milk_revenue + byproduct_revenue + energy_value + carbon_credit_value
-        total_cost = (
-            feed_cost
-            + water_cost
-            + cooling_cost
-            + processing_energy_cost
-            + disease_cost
-            + labor_cost
-            + fixed_cost
+        # Herd economics use the Cdairy workbook's revenue and cost rows
+        # (Excel precedence); circular-loop items are added on top.
+        herd = dict(cow.payload.get("workbook_daily_economics", {})) if cow is not None else {}
+        get = lambda key: float(herd.get(key, 0.0))  # noqa: E731
+        adjustment = float(value(self.ctx.calibration, "cdairy_economics.profit_deviation_adjustment"))
+        cow_sales = get("cow_sales") + get("other_heifer_sales") * adjustment
+        calf_sales = get("bull_calf_sales") + (get("female_calf_sales") + get("extra_embryo_sales")) * adjustment
+        profit_deviation = (get("profit_deviation_cows") + get("profit_deviation_heifers")) * adjustment
+        breeding_cost = get("embryo_donor_cost") + get("breeding_cost_cows") + get("breeding_cost_heifers")
+        reproduction_cost = (
+            get("heat_detection_cost_cows") + get("heat_detection_cost_heifers") + get("pregnancy_diagnosis_cost")
+            + get("presynch_cost_cows") + get("presynch_cost_heifers") + get("firstsynch_cost_heifers")
+            + get("resynch_cost_heifers")
         )
+        other_variable_cost = get("open_pregnant_wet_cost") + get("milking_dry_cost")
+        heifer_cost = get("heifer_raised_cost") + get("heifer_purchased_cost") + get("genomic_testing_cost")
+        mastitis_cost = get("mastitis_treatment_cost")
+        dry_cow_therapy_cost = get("dry_cow_therapy_cost")
+        fixed_cost = get("fixed_costs")
+        herd_revenue = milk_revenue + cow_sales + calf_sales + profit_deviation
+        herd_cost = (
+            feed_cost + breeding_cost + reproduction_cost + other_variable_cost + heifer_cost
+            + mastitis_cost + dry_cow_therapy_cost + fixed_cost
+        )
+        manure_packet = self.ctx.get_packet("manure_packet")
+        compost_revenue = (
+            float(manure_packet.payload.get("compost_product_kg", 0.0))
+            * float(value(self.ctx.calibration, "manure.compost_value_per_kg"))
+            if manure_packet is not None
+            else 0.0
+        )
+        loop_revenue = byproduct_revenue + energy_value + carbon_credit_value + compost_revenue
+        loop_cost = water_cost + cooling_cost + processing_energy_cost + disease_cost
+        total_revenue = herd_revenue + loop_revenue
+        total_cost = herd_cost + loop_cost
         profit = total_revenue - total_cost
 
         circularity_score = float(environment.payload.get("circularity_score", 0.0)) if environment is not None else 0.0
@@ -223,9 +246,23 @@ class FarmManagerAgent(BaseAgent):
                     "treatment_cost": require_nonnegative("treatment_cost", treatment_cost),
                     "disease_cost": require_nonnegative("disease_cost", disease_cost),
                     "sensor_alert_count": sensor_alert_count,
-                    "labor_cost": require_nonnegative("labor_cost", labor_cost),
                     "fixed_cost": require_nonnegative("fixed_cost", fixed_cost),
-                    "total_revenue": require_nonnegative("total_revenue", total_revenue),
+                    "cow_sales": cow_sales,
+                    "calf_sales": calf_sales,
+                    "profit_deviation": profit_deviation,
+                    "breeding_cost": require_nonnegative("breeding_cost", breeding_cost),
+                    "reproduction_management_cost": require_nonnegative("reproduction_management_cost", reproduction_cost),
+                    "other_variable_cost": require_nonnegative("other_variable_cost", other_variable_cost),
+                    "heifer_cost": require_nonnegative("heifer_cost", heifer_cost),
+                    "mastitis_treatment_cost": require_nonnegative("mastitis_treatment_cost", mastitis_cost),
+                    "dry_cow_therapy_cost": require_nonnegative("dry_cow_therapy_cost", dry_cow_therapy_cost),
+                    "herd_revenue": herd_revenue,
+                    "herd_cost": herd_cost,
+                    "herd_profit": herd_revenue - herd_cost,
+                    "loop_revenue": loop_revenue,
+                    "compost_revenue": compost_revenue,
+                    "loop_cost": loop_cost,
+                    "total_revenue": total_revenue,
                     "total_cost": require_nonnegative("total_cost", total_cost),
                     "profit": profit,
                     "cash_balance": cash_balance,

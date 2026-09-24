@@ -24,6 +24,8 @@ class SensorsDiseaseIntegrationTest(unittest.TestCase):
     def test_sensors_publish_thi_observed_dmi_sara_bolus_and_filtered_alerts(self) -> None:
         calibration = load_calibration()
         calibration["sensors"]["bolus_replacement_ticks"]["value"] = 2
+        calibration["sensors"]["estrus_fused_sensor_reliability"]["value"] = 1.0
+        calibration["sensors"]["estrus_single_sensor_reliability"]["value"] = 1.0
         ctx = DairyFarmModel(
             scenario(
                 days=3,
@@ -57,7 +59,8 @@ class SensorsDiseaseIntegrationTest(unittest.TestCase):
 
     def test_sensor_mastitis_alert_does_not_create_a_disease_case(self) -> None:
         calibration = load_calibration()
-        calibration["disease"]["mastitis_daily_probability"]["value"] = 0.0
+        for parity in ("parity1", "parity2", "parity3", "parity4plus"):
+            calibration["herd"][f"clinical_mastitis_incidence_{parity}"]["value"] = 0.0
         calibration["disease"]["lameness_daily_probability"]["value"] = 0.0
         calibration["disease"]["transmission_daily_probability"]["value"] = 0.0
         ctx = DairyFarmModel(

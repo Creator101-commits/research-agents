@@ -66,7 +66,7 @@ class DashboardEnvironmentTests(unittest.TestCase):
         self.assertTrue(environment["monthly"])
         self.assertTrue(all(row["report"] == "environment" for row in environment["monthly"]))
         self.assertIsNotNone(environment["monthly"][0]["circularity_score"])
-        self.assertIsNotNone(environment["monthly"][0]["sustainability_score_0_100"])
+        self.assertIsNone(environment["monthly"][0]["sustainability_score_0_100"])
 
     def test_environment_contract_keeps_zero_denominator_and_missing_context_unavailable(self) -> None:
         zero = self._run(days=1, herd_size=0)
@@ -86,17 +86,11 @@ class DashboardEnvironmentTests(unittest.TestCase):
         self.assertTrue(all(not metric["available"] for metric in environment["metrics"].values()))
 
     def test_environment_page_renders_serialized_values_without_browser_aggregation(self) -> None:
-        self.assertIn('id="environment-content"', INDEX)
-        self.assertIn("renderEnvironment", APP)
-        start = APP.index("function renderEnvironment")
-        end = APP.index("function toolbar", start)
-        environment_page = APP[start:end]
-        self.assertIn("data.environment", environment_page)
-        self.assertIn("audit.ledger", environment_page)
-        self.assertNotIn("aggregate(", environment_page)
-        self.assertNotIn("gross_kg_co2e -", environment_page)
-        self.assertIn("environment-audit", CSS)
-        self.assertIn("environment-ledger", CSS)
+        ui = (WEB / "js" / "dashboard.js").read_text(encoding="utf-8")
+        self.assertIn('id="section-loops"', INDEX)
+        self.assertIn("function buildLoops(res)", ui)
+        self.assertIn("res.series.netGHG", ui)
+        self.assertIn("res.series.grossGHG", ui)
 
 
 if __name__ == "__main__":

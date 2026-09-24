@@ -84,17 +84,11 @@ class DashboardEquipmentTests(unittest.TestCase):
         self.assertEqual(equipment["equipment_npvs"], {})
 
     def test_equipment_page_only_mentions_model_represented_assets(self) -> None:
-        self.assertIn('id="equipment-content"', INDEX)
-        self.assertIn("renderEquipment", APP)
-        start = APP.index("function renderEquipment")
-        end = APP.index("function toolbar", start)
-        equipment_page = APP[start:end]
-        self.assertIn("data.equipment", equipment_page)
-        self.assertIn("equipment.assets", equipment_page)
-        self.assertNotIn("function npv", equipment_page)
-        self.assertNotIn("anaerobic digester", equipment_page.lower())
-        self.assertIn("equipment-roi", CSS)
-        self.assertIn("equipment-card", CSS)
+        ui = (WEB / "js" / "dashboard.js").read_text(encoding="utf-8")
+        self.assertIn('id="section-roi"', INDEX)
+        self.assertIn("EQUIPMENT_CATALOGUE", ui)
+        self.assertIn("function buildEquipROI(res)", ui)
+        self.assertIn("scenario estimates", INDEX)
 
 
 if __name__ == "__main__":

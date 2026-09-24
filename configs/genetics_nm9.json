@@ -1,0 +1,37 @@
+{
+  "id": "usda_nm9_01_25_rev_feb_2026",
+  "source": "USDA NM$9 (01-25), revised Feb 2026, as tabled in ABM Dairy Farm Agent Blueprint section 4.3",
+  "note": "Official economic values ($/PTA unit) and relative emphasis (%). The ABM ranks on a reduced trait vector; proxy_mapping documents which official traits each ABM trait stands for. This proxy is not the official index.",
+  "traits": {
+    "Milk": {"unit": "pounds", "value": {"NM": 0.022, "FM": 0.122, "CM": -0.02, "GM": 0.022}, "emphasis_pct": {"NM": 3.2, "FM": 17.6, "CM": -2.7, "GM": 3.0}},
+    "Fat": {"unit": "pounds", "value": {"NM": 5.01, "FM": 5.01, "CM": 5.01, "GM": 5.11}, "emphasis_pct": {"NM": 31.8, "FM": 31.7, "CM": 30.0, "GM": 30.3}},
+    "Protein": {"unit": "pounds", "value": {"NM": 3.33, "FM": 0.0, "CM": 4.73, "GM": 3.39}, "emphasis_pct": {"NM": 13.0, "FM": 0.0, "CM": 17.4, "GM": 12.3}},
+    "PL": {"unit": "months", "value": {"NM": 30, "FM": 30, "CM": 30, "GM": 17}, "emphasis_pct": {"NM": 13.0, "FM": 13.0, "CM": 12.3, "GM": 6.9}},
+    "SCS": {"unit": "log", "value": {"NM": -74, "FM": -42, "CM": -95, "GM": -75}, "emphasis_pct": {"NM": -2.6, "FM": -1.5, "CM": -3.2, "GM": -2.5}},
+    "BWC": {"unit": "composite", "value": {"NM": -57, "FM": -57, "CM": -57, "GM": -72}, "emphasis_pct": {"NM": -11.0, "FM": -11.0, "CM": -10.4, "GM": -13.0}},
+    "UDC": {"unit": "composite", "value": {"NM": 8, "FM": 8, "CM": 8, "GM": 10}, "emphasis_pct": {"NM": 1.3, "FM": 1.3, "CM": 1.3, "GM": 1.5}},
+    "FLC": {"unit": "composite", "value": {"NM": 3, "FM": 3, "CM": 3, "GM": 3}, "emphasis_pct": {"NM": 0.4, "FM": 0.4, "CM": 0.4, "GM": 0.4}},
+    "DPR": {"unit": "percent", "value": {"NM": 6, "FM": 6, "CM": 6, "GM": 17.3}, "emphasis_pct": {"NM": 2.1, "FM": 2.1, "CM": 2.0, "GM": 5.6}},
+    "CA$": {"unit": "dollars", "value": {"NM": 1, "FM": 1, "CM": 1, "GM": 1.1}, "emphasis_pct": {"NM": 3.3, "FM": 3.3, "CM": 3.2, "GM": 3.4}},
+    "HCR": {"unit": "percent", "value": {"NM": 1.5, "FM": 1.5, "CM": 1.5, "GM": 3}, "emphasis_pct": {"NM": 0.5, "FM": 0.5, "CM": 0.5, "GM": 0.9}},
+    "CCR": {"unit": "percent", "value": {"NM": 4.3, "FM": 4.3, "CM": 4.3, "GM": 13.3}, "emphasis_pct": {"NM": 1.8, "FM": 1.8, "CM": 1.7, "GM": 5.2}},
+    "LIV": {"unit": "percent", "value": {"NM": 14.3, "FM": 14.3, "CM": 14.3, "GM": 11.4}, "emphasis_pct": {"NM": 5.9, "FM": 5.9, "CM": 5.6, "GM": 4.4}},
+    "HTH$": {"unit": "dollars", "value": {"NM": 1, "FM": 1, "CM": 1, "GM": 1.1}, "emphasis_pct": {"NM": 1.5, "FM": 1.5, "CM": 1.4, "GM": 1.5}},
+    "RFI": {"unit": "pounds DMI/lactation", "value": {"NM": -0.35, "FM": -0.35, "CM": -0.35, "GM": -0.42}, "emphasis_pct": {"NM": -6.8, "FM": -6.8, "CM": -6.4, "GM": -7.6}},
+    "EFC": {"unit": "days", "value": {"NM": 2, "FM": 2, "CM": 2, "GM": 1.7}, "emphasis_pct": {"NM": 1.0, "FM": 1.0, "CM": 1.0, "GM": 0.8}},
+    "HLIV": {"unit": "percent", "value": {"NM": 8.2, "FM": 8.2, "CM": 8.2, "GM": 6.6}, "emphasis_pct": {"NM": 0.8, "FM": 0.7, "CM": 0.7, "GM": 0.6}}
+  },
+  "proxy_mapping": {
+    "milk_yield": ["Milk"],
+    "butterfat_ebv": ["Fat"],
+    "protein_ebv": ["Protein"],
+    "livability_score": ["PL", "LIV", "HLIV"],
+    "health_composite_score": ["SCS", "UDC", "FLC", "HTH$"],
+    "fertility_score": ["DPR", "HCR", "CCR", "EFC"],
+    "calving_ease_score": ["CA$"],
+    "body_weight_composite": ["BWC"],
+    "rfi_fat_ebv": ["RFI"]
+  },
+  "higher_is_better_proxies": ["health_composite_score"],
+  "feed_saved": {"rfi_coefficient": -1.0, "bwc_coefficient": -162.7, "rel_rfi": 0.617, "rel_bwc": 0.383}
+}

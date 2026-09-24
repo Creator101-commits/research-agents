@@ -7,7 +7,7 @@ import json
 import unittest
 
 from dairy_abm.cli import main
-from dairy_abm.config import load_calibration
+from dairy_abm.config import load_calibration, value
 from dairy_abm.core import ConfigError
 from dairy_abm.model import DairyFarmModel
 
@@ -49,13 +49,24 @@ class DailyFlowAgentsTest(unittest.TestCase):
         self.assertGreater(row["manure_kg"], 0.0)
         self.assertGreater(row["enteric_ch4_kg"], 0)
         self.assertGreaterEqual(row["feed_cost"], 0.0)
-        self.assertEqual(row["milk_revenue"], row["milk_l"] * row["milk_price_per_l"])
+        # Milk is priced with the Cdairy workbook component prices.
+        calibration = load_calibration()
+        price = lambda key: value(calibration, f"cdairy_economics.{key}")  # noqa: E731
+        herd = lambda key: value(calibration, f"herd.{key}")  # noqa: E731
+        milk_kg = row["milk_l"] * 1.03
+        scc_deviation = ((2 ** (herd("average_scs") - 3) * 100000) - 200000) / 1000
+        expected = milk_kg * (
+            price("milk_price_per_kg")
+            + herd("milk_fat_fraction") * price("fat_price_per_kg")
+            + herd("milk_protein_fraction") * price("protein_price_per_kg")
+            + scc_deviation * price("scs_penalty")
+        )
+        self.assertAlmostEqual(row["milk_revenue"], expected)
 
     def test_disease_state_reduces_milk_when_probability_forces_cases(self) -> None:
         healthy = DairyFarmModel(baseline_scenario(herd_size=5), load_calibration()).run()
         calibration = deepcopy(load_calibration())
-        calibration["disease"]["mastitis_daily_probability"]["value"] = 1.0
-        calibration["disease"]["lameness_daily_probability"]["value"] = 0.0
+        calibration["disease"]["lameness_daily_probability"]["value"] = 1.0
         calibration["disease"]["recovery_daily_probability"]["value"] = 0.0
         sick = DairyFarmModel(baseline_scenario(herd_size=5), calibration).run()
         self.assertEqual(sick.daily_records[0]["new_disease_cases"], 5)

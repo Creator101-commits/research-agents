@@ -78,7 +78,9 @@ class EnvironmentAgent(BaseAgent):
         recycled_water = float(water.payload.get("recycled_irrigation_l", 0.0)) if water is not None else 0.0
         soil_carbon_delta_kg = float(manure.payload.get("soil_organic_carbon_delta_kg", 0.0)) if manure is not None else 0.0
         land_soil_delta = float(soil_carbon.payload.get("soil_carbon_delta_kg_co2e") or 0.0) if soil_carbon else 0.0
-        soil_carbon_offset = max(0.0, soil_carbon_delta_kg * 3.67 + land_soil_delta)
+        # CO2 per kg C is the molecular-mass ratio 44/12; the soil-carbon change is
+        # reported separately and is not part of the blueprint net balance.
+        soil_carbon_offset = max(0.0, soil_carbon_delta_kg * 44.0 / 12.0 + land_soil_delta)
 
         ch4_gwp = float(value(self.ctx.calibration, "environment.ch4_gwp100"))
         n2o_gwp = float(value(self.ctx.calibration, "environment.n2o_gwp100"))
@@ -93,7 +95,6 @@ class EnvironmentAgent(BaseAgent):
             self._record_stream(day, "manure", "field_n2o", "positive", field_n2o * n2o_gwp),
             self._record_stream(day, "energy", "energy_grid_displacement", "avoided", energy_offset),
             self._record_stream(day, "feed_crop", "fertilizer_substitution", "avoided", fertilizer_offset),
-            self._record_stream(day, "manure", "soil_carbon", "avoided", soil_carbon_offset),
         ]
         gross_co2e = sum(stream["kg_co2e"] for stream in streams if stream["direction"] == "positive")
         avoided_co2e = sum(stream["kg_co2e"] for stream in streams if stream["direction"] == "avoided")
@@ -130,13 +131,42 @@ class EnvironmentAgent(BaseAgent):
         soil_context = dict(soil_carbon.payload) if soil_carbon is not None else None
         soil_index = float(soil_context.get("soil_carbon_sequestration_index", 0.0)) if soil_context else 0.0
         tree_cover = float(soil_context.get("silvopastoral_tree_cover_fraction", 0.0)) if soil_context else 0.0
-        soil_biodiversity_index = soil_index * (1.0 + tree_cover)
+        # Blueprint 2.4 / 4.5 / 10: these composite scores are published as null
+        # unless the scenario configures a scoring function.
+        biodiversity_config = self.ctx.scenario.get("soil_biodiversity_index_weights")
+        soil_biodiversity_index = (
+            float(biodiversity_config.get("soil_index", 0.0)) * soil_index
+            + float(biodiversity_config.get("tree_cover", 0.0)) * tree_cover
+            if isinstance(biodiversity_config, dict) and soil_context
+            else None
+        )
         avoided_fraction = avoided_co2e / gross_co2e if gross_co2e > 0.0 else 0.0
-        sustainability_score = min(100.0, 60.0 * circularity_score + 40.0 * min(1.0, avoided_fraction))
+        score_config = self.ctx.scenario.get("sustainability_score_weights")
+        sustainability_score = (
+            min(
+                100.0,
+                100.0 * float(score_config.get("circularity", 0.0)) * circularity_score
+                + 100.0 * float(score_config.get("avoided_fraction", 0.0)) * min(1.0, avoided_fraction),
+            )
+            if isinstance(score_config, dict)
+            else None
+        )
+        herrero_reference_shares = {"enteric_ch4": 0.65, "manure_ch4": 0.10, "manure_n2o": 0.29}
+        gross_shares = (
+            {
+                "enteric_ch4": enteric_ch4 * ch4_gwp / gross_co2e,
+                "manure_ch4": (manure_ch4 + unmanaged_ch4) * ch4_gwp / gross_co2e,
+                "manure_n2o": (manure_n2o + field_n2o) * n2o_gwp / gross_co2e,
+            }
+            if gross_co2e > 0.0
+            else None
+        )
         carbon_credit_price = float(market.payload.get("carbon_credit_price_per_tonne_co2e", 0.0)) if market else 0.0
         if carbon_credit_price <= 0.0:
             carbon_credit_price = float(value(self.ctx.calibration, "farm_manager.carbon_credit_price_per_tonne_co2e"))
-        carbon_credit_value = avoided_co2e / 1000.0 * carbon_credit_price
+        # Credits apply to validated avoided emissions only (grid and fertilizer).
+        creditable_offset = energy_offset + fertilizer_offset
+        carbon_credit_value = creditable_offset / 1000.0 * carbon_credit_price
         milk_intensity = self._intensity(net_co2e, milk_l)
         protein_intensity = self._intensity(net_co2e, milk_protein_kg)
         if milk_intensity is None or protein_intensity is None:
@@ -187,6 +217,10 @@ class EnvironmentAgent(BaseAgent):
             "milk_l": require_nonnegative("milk_l", milk_l),
             "milk_protein_kg": require_nonnegative("milk_protein_kg", milk_protein_kg),
             "kg_co2e_per_l_milk": milk_intensity,
+            "gross_kg_co2e_per_l_milk": self._intensity(gross_co2e, milk_l),
+            "herrero_reference_shares": herrero_reference_shares,
+            "gross_stream_shares": gross_shares,
+            "creditable_offset_kg_co2e": creditable_offset,
             "kg_co2e_per_kg_milk_protein": protein_intensity,
             "circularity_score": circularity_score,
             "circularity_indicators": circularity_indicators,
@@ -210,9 +244,46 @@ class EnvironmentAgent(BaseAgent):
             "final_offset_packet": {"avoided_kg_co2e": avoided_co2e, "confidence": "estimated", "pending": False},
         }
         self.ctx.state["environment_history"].append({"day": day.isoformat(), **payload})
-        payload["cumulative_kpis"] = self._aggregate(self.ctx.state["environment_history"])
+        payload["cumulative_kpis"] = self._cumulative(payload)
         self.ctx.publish(Packet(source=self.name, name="environment_packet", day=day, payload=payload))
         self.ctx.state.setdefault("execution_order", []).append(self.name)
+
+    def _cumulative(self, payload: dict[str, Any]) -> dict[str, float | None]:
+        """Running cumulative KPIs (same definitions as _aggregate) updated in O(1) per day."""
+        state = self.ctx.state.setdefault(
+            "environment_cumulative",
+            {"gross": 0.0, "avoided": 0.0, "net": 0.0, "milk": 0.0, "protein": 0.0, "water": 0.0, "score_sum": 0.0, "score_n": 0,
+             "circularity_sum": 0.0, "days": 0, "soil_c": 0.0, "fert_saved": 0.0},
+        )
+        state["days"] += 1
+        state["circularity_sum"] += float(payload.get("circularity_score", 0.0))
+        state["soil_c"] += float(payload.get("soil_carbon_delta_kg", 0.0))
+        state["fert_saved"] += float(payload.get("synthetic_fertilizer_saved_kg", 0.0))
+        state["gross"] += float(payload["gross_kg_co2e"])
+        state["avoided"] += float(payload["avoided_kg_co2e"])
+        state["net"] += float(payload["net_kg_co2e"])
+        state["milk"] += float(payload["milk_l"])
+        state["protein"] += float(payload["milk_protein_kg"])
+        water_env = payload.get("water_environment")
+        if isinstance(water_env, dict):
+            state["water"] += float(water_env.get("net_freshwater_use_l", 0.0))
+        if payload.get("sustainability_score_0_100") is not None:
+            state["score_sum"] += float(payload["sustainability_score_0_100"])
+            state["score_n"] += 1
+        return {
+            "gross_kg_co2e": state["gross"],
+            "avoided_kg_co2e": state["avoided"],
+            "net_kg_co2e": state["net"],
+            "milk_l": state["milk"],
+            "milk_protein_kg": state["protein"],
+            "kg_co2e_per_l_milk": self._intensity(state["net"], state["milk"]),
+            "kg_co2e_per_kg_milk_protein": self._intensity(state["net"], state["protein"]),
+            "water_l": state["water"],
+            "mean_sustainability_score_0_100": state["score_sum"] / state["score_n"] if state["score_n"] else None,
+            "mean_circularity_score": state["circularity_sum"] / state["days"],
+            "soil_carbon_delta_kg": state["soil_c"],
+            "synthetic_fertilizer_saved_kg": state["fert_saved"],
+        }
 
     def _aggregate(self, rows: list[dict[str, Any]]) -> dict[str, float | None]:
         """Aggregate environmental history into cumulative totals and intensities."""
@@ -230,7 +301,11 @@ class EnvironmentAgent(BaseAgent):
             "kg_co2e_per_l_milk": self._intensity(net, milk),
             "kg_co2e_per_kg_milk_protein": self._intensity(net, protein),
             "water_l": sum(float(row.get("water_environment", {}).get("net_freshwater_use_l", 0.0)) for row in rows if isinstance(row.get("water_environment"), dict)),
-            "mean_sustainability_score_0_100": sum(float(row.get("sustainability_score_0_100", 0.0)) for row in rows) / len(rows),
+            "mean_sustainability_score_0_100": (
+                sum(float(row["sustainability_score_0_100"]) for row in scored) / len(scored)
+                if (scored := [row for row in rows if row.get("sustainability_score_0_100") is not None])
+                else None
+            ),
             "mean_circularity_score": sum(float(row.get("circularity_score", 0.0)) for row in rows) / len(rows),
             "soil_carbon_delta_kg": sum(float(row.get("soil_carbon_delta_kg", 0.0)) for row in rows),
             "synthetic_fertilizer_saved_kg": sum(float(row.get("synthetic_fertilizer_saved_kg", 0.0)) for row in rows),

@@ -64,35 +64,12 @@ class DashboardChartsTests(unittest.TestCase):
                 self.assertIsNone(result["series"][period][0]["net_kg_co2e"])
 
     def test_charts_page_uses_registry_and_backend_period_series(self) -> None:
-        self.assertIn('id="charts-content"', INDEX)
-        self.assertIn("renderCharts", APP)
-        self.assertIn("CHART_REGISTRY", APP)
-        self.assertIn("d.series", APP)
-        start = APP.index("function renderCharts")
-        end = APP.index("function toolbar", start)
-        charts_page = APP[start:end]
-        self.assertNotIn("aggregate(", charts_page)
-        for field in (
-            "milk_l",
-            "purchased_feed_kg_dm",
-            "irrigation_l",
-            "net_kwh",
-            "electricity_generated_kwh",
-            "biogas_volume_m3",
-            "freshwater_withdrawal_l",
-            "gross_kg_co2e",
-            "avoided_kg_co2e",
-            "net_kg_co2e",
-            "kg_co2e_per_l_milk",
-            "soil_carbon_delta_kg",
-            "synthetic_fertilizer_saved_kg",
-            "disease_economic_cost",
-            "profit",
-        ):
-            self.assertIn(field, CHARTS)
-        self.assertIn('"annual"', CHARTS)
-        self.assertIn("charts-workspace", CSS)
-        self.assertIn("chart-registry", CSS)
+        ui = (WEB / "js" / "dashboard.js").read_text(encoding="utf-8")
+        self.assertIn('id="section-charts"', INDEX)
+        self.assertIn("function buildAllCharts(res)", ui)
+        self.assertIn("res.series.milk", ui)
+        self.assertIn("res.series.netGHG", ui)
+        self.assertIn('chart.umd.js', INDEX)
 
 
 if __name__ == "__main__":

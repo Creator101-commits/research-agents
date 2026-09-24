@@ -178,6 +178,47 @@ class MarketAgent(BaseAgent):
             self.ctx.events.add(day, self.name, "warning", "market observation contains missing values")
         return prices, quality, selection
 
+    @staticmethod
+    def _usda_component_prices(prices: dict[str, Any]) -> dict[str, float | None]:
+        """USDA class and component formulas (dymclassprices.pdf) when commodity prices exist."""
+        butter = prices.get("butter_price_usd_lb")
+        nfdm = prices.get("wholesale_nonfat_dry_milk_price_usd_lb")
+        dry_whey = prices.get("wholesale_whey_price_usd_lb")
+        butterfat = (float(butter) - 0.2272) * 1.211 if isinstance(butter, (int, float)) and butter else None
+        nonfat_solids = (float(nfdm) - 0.2393) * 0.99 if isinstance(nfdm, (int, float)) and nfdm else None
+        other_solids = (float(dry_whey) - 0.2668) * 1.03 if isinstance(dry_whey, (int, float)) and dry_whey else None
+        class_iii_skim = prices.get("class_iii_skim_price_usd_cwt")
+        class_iv_skim = prices.get("class_iv_skim_price_usd_cwt")
+        class_iii = (
+            float(class_iii_skim) * 0.965 + butterfat * 3.5
+            if isinstance(class_iii_skim, (int, float)) and butterfat is not None
+            else None
+        )
+        class_iv = (
+            float(class_iv_skim) * 0.965 + butterfat * 3.5
+            if isinstance(class_iv_skim, (int, float)) and butterfat is not None
+            else None
+        )
+        return {
+            "butterfat_price_usd_lb": butterfat,
+            "nonfat_solids_price_usd_lb": nonfat_solids,
+            "other_solids_price_usd_lb": other_solids,
+            "class_iii_price_usd_cwt": class_iii,
+            "class_iv_price_usd_cwt": class_iv,
+        }
+
+    @staticmethod
+    def _volatility_overlay(macro: dict[str, Any]) -> float | None:
+        """Optional Dong-Du-Gould regime overlay; null unless every determinant is supplied."""
+        keys = ("constant", "seasonality", "cheese_use_supply", "usdx_return", "corn_vol", "vix", "speculation")
+        if not all(isinstance(macro.get(key), (int, float)) for key in keys):
+            return None
+        return (
+            float(macro["constant"]) + float(macro["seasonality"]) + 0.54 * float(macro["cheese_use_supply"])
+            + 0.62 * float(macro["usdx_return"]) + 0.18 * float(macro["corn_vol"]) + 0.11 * float(macro["vix"])
+            + 0.027 * float(macro["speculation"])
+        )
+
     def tick(self, day: date) -> None:
         """Publish daily market prices, component context, and volatility signals."""
         mode = str(self.ctx.scenario.get("market_mode", "static"))
@@ -218,8 +259,8 @@ class MarketAgent(BaseAgent):
         component_price_per_l = 0.0
         if class_prices_per_l:
             component_price_per_l = sum(class_prices_per_l.values()) / len(class_prices_per_l)
-        butterfat_fraction = max(0.0, float(self.ctx.scenario.get("milk_fat_fraction", 0.039)))
-        protein_fraction = max(0.0, float(self.ctx.scenario.get("milk_protein_fraction", 0.032)))
+        butterfat_fraction = max(0.0, float(self.ctx.scenario.get("milk_fat_fraction", value(self.ctx.calibration, "herd.milk_fat_fraction"))))
+        protein_fraction = max(0.0, float(self.ctx.scenario.get("milk_protein_fraction", value(self.ctx.calibration, "herd.milk_protein_fraction"))))
         other_solids_fraction = max(0.0, float(self.ctx.scenario.get("milk_other_solids_fraction", 0.057)))
         lb_per_kg = 2.20462262
         component_wholesale_price_per_l = (
@@ -236,6 +277,28 @@ class MarketAgent(BaseAgent):
         history = self.ctx.state["market_price_history"]
         returns = [log(history[index] / history[index - 1]) for index in range(1, len(history)) if history[index - 1] > 0.0 and history[index] > 0.0]
         dong_du_gould_volatility = pstdev(returns[-20:]) * sqrt(252.0) if len(returns) >= 2 else 0.0
+        # Blueprint Market section 4 (Dong, Du & Gould 2011): within-month log returns,
+        # RV_t = sum r^2 and mvol_t = Var(dlog P) over the first 20 trading days.
+        month_key = day.strftime("%Y-%m")
+        month_returns = self.ctx.state.setdefault("market_month_returns", {}).setdefault(month_key, [])
+        if len(history) >= 2 and history[-2] > 0.0 and history[-1] > 0.0 and day.weekday() < 5:
+            month_returns.append(log(history[-1] / history[-2]))
+        realized_variance_month = sum(r * r for r in month_returns)
+        first20 = month_returns[:20]
+        mean20 = sum(first20) / len(first20) if first20 else 0.0
+        mvol_month = (
+            sum((r - mean20) ** 2 for r in first20) / (len(first20) - 1) if len(first20) >= 2 else None
+        )
+        base_price = self.ctx.state.setdefault("market_base_milk_price", prices["milk_price_per_l"])
+        price_index = prices["milk_price_per_l"] / base_price if base_price else None
+        price_change = (
+            (prices["milk_price_per_l"] - prior_milk_price) / prior_milk_price
+            if prior_milk_price and prior_milk_price > 0.0
+            else None
+        )
+        usda_components = self._usda_component_prices(prices)
+        macro = dict(self.ctx.scenario.get("market_macro_context", {}))
+        mvol_hat = self._volatility_overlay(macro)
         carbon_credit_price = max(0.0, float(self.ctx.scenario.get("carbon_credit_price_per_tonne_co2e", 0.0)))
         payload = {
             **prices,
@@ -244,6 +307,12 @@ class MarketAgent(BaseAgent):
             "period_selection": selection,
             "market_packet_quality_flag": quality,
             "realized_volatility": realized_volatility,
+            "price_index": price_index,
+            "price_change_fraction": price_change,
+            "realized_variance_month": realized_variance_month,
+            "mvol_first_20_trading_days": mvol_month,
+            "mvol_regression_overlay": mvol_hat,
+            "usda_component_prices": usda_components,
             "dong_du_gould_volatility_20d": dong_du_gould_volatility,
             "usda_class_prices_usd_cwt": class_prices,
             "usda_class_prices_per_l": class_prices_per_l,

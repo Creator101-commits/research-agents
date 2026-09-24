@@ -51,21 +51,21 @@ class IntegrationContractsTest(unittest.TestCase):
         self.assertGreaterEqual(environment["circularity_score"], 0)
         self.assertLessEqual(environment["circularity_score"], 1.0)
 
-    def test_feed_efficiency_genetics_reduces_feed_cost(self) -> None:
-        calibration_high = load_calibration()
-        calibration_low = load_calibration()
-        calibration_low["genetics"]["annual_rfi_gain_fraction"]["value"] = 0.0
+    def test_genetic_selection_never_mutates_adult_traits(self) -> None:
+        # Blueprint Cow 11.4: inherited traits are fixed after birth; selection acts
+        # through the sire pool that the next calvings inherit from.
         scenario = dict(BASE_SCENARIO)
         scenario["days"] = 370
         scenario["start_date"] = "2025-12-31"
         scenario["seed"] = 1
         scenario["herd_size"] = 10
         scenario["l4_byproduct_loop_enabled"] = False
-        with_improvement = DairyFarmModel(scenario, calibration_high).run()
-        without_improvement = DairyFarmModel(scenario, calibration_low).run()
-        improved_traits = [cow["feed_efficiency_trait"] for cow in with_improvement.state["cows"] if str(cow["id"]).startswith("cow-")]
-        baseline_traits = [cow["feed_efficiency_trait"] for cow in without_improvement.state["cows"] if str(cow["id"]).startswith("cow-")]
-        self.assertLess(sum(improved_traits), sum(baseline_traits))
+        ctx = DairyFarmModel(scenario, load_calibration()).run()
+        adults = [cow for cow in ctx.state["cows"] if str(cow["id"]).startswith("cow-")]
+        self.assertTrue(all(cow["feed_efficiency_trait"] == 1.0 for cow in adults))
+        genetics = ctx.packets["genetics_packet"].payload
+        self.assertIn("sire_pool_traits", genetics)
+        self.assertIn("herd_mean_rfi_fat_ebv", genetics)
 
     def test_active_agent_packets_have_required_contract_fields(self) -> None:
         ctx = DairyFarmModel(dict(BASE_SCENARIO), load_calibration()).run()

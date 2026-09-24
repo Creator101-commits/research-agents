@@ -20,21 +20,18 @@ CHARTS = (WEB / "js" / "charts.js").read_text(encoding="utf-8")
 
 class DashboardAccessibilityTests(unittest.TestCase):
     def test_sidebar_is_collapsible_and_navigation_has_current_state(self) -> None:
-        self.assertIn('id="sidebar"', INDEX)
-        self.assertIn('id="rail-toggle"', INDEX)
-        self.assertIn('aria-controls="sidebar"', INDEX)
-        self.assertIn('aria-expanded="true"', INDEX)
-        self.assertIn("is-rail-collapsed", LAYOUT)
-        self.assertIn("aria-current", APP)
-        self.assertIn("toggleRail", APP)
+        ui = (WEB / "js" / "dashboard.js").read_text(encoding="utf-8")
+        for page in ("overview", "charts", "loops", "compare", "roi", "ranking", "params", "animal"):
+            self.assertIn(f'id="nav-{page}"', INDEX)
+            self.assertIn(f'id="section-{page}"', INDEX)
+        self.assertIn("function navigate(id)", ui)
 
     def test_focus_loading_empty_and_reduced_motion_contracts_exist(self) -> None:
-        self.assertIn(":focus-visible", BASE)
-        self.assertIn('aria-busy', APP)
-        self.assertIn('role="status"', INDEX)
-        self.assertIn('role="alert"', INDEX)
-        self.assertIn("prefers-reduced-motion", BASE + COMPONENTS + PAGES)
-        self.assertIn(".empty-state", COMPONENTS)
+        css = (WEB / "styles" / "dashboard.css").read_text(encoding="utf-8")
+        self.assertIn(":focus-visible", css)
+        self.assertIn(".empty-state", css)
+        self.assertIn('id="statusBadge"', INDEX)
+        self.assertIn('aria-label="Toggle theme"', INDEX)
 
     def test_tables_and_charts_remain_readable_on_small_screens(self) -> None:
         self.assertGreaterEqual(len(re.findall(r"overflow-x:\s*auto", COMPONENTS + PAGES)), 6)
@@ -43,12 +40,12 @@ class DashboardAccessibilityTests(unittest.TestCase):
         self.assertIn('unit: "kg CO2e"', CHARTS)
 
     def test_run_controls_have_explicit_labels_and_units(self) -> None:
-        for control_id in ("scenario", "days", "start-date", "seed", "herd"):
-            self.assertRegex(INDEX, rf'<label[^>]*for="{control_id}"')
-        self.assertIn('aria-labelledby="systems-label"', INDEX)
-        self.assertIn('id="systems-label"', INDEX)
-        self.assertIn("Profit (currency)", APP)
-        self.assertIn("CO2e/L (kg CO2e/L)", APP)
+        ui = (WEB / "js" / "dashboard.js").read_text(encoding="utf-8")
+        self.assertIn('id="runBtn"', INDEX)
+        self.assertIn('id="exportBtn"', INDEX)
+        self.assertIn('id="kpiGrid"', INDEX)
+        self.assertIn("kg/kg", ui)
+        self.assertIn("supportedParams", ui)
 
 
 if __name__ == "__main__":

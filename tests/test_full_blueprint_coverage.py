@@ -92,6 +92,10 @@ class FullBlueprintCoverageTest(unittest.TestCase):
         self.assertTrue(manager["policy_conflicts"])
 
     def test_daily_export_contains_operational_kpis_and_calving_adds_nonproducing_calf(self) -> None:
+        calibration = load_calibration()
+        # Force a live female calf; bull calves are sold at birth (workbook rule).
+        calibration["herd"]["male_calf_fraction"]["value"] = 0.0
+        calibration["herd"]["stillbirth_fraction"]["value"] = 0.0
         ctx = DairyFarmModel(
             {
                 "days": 2,
@@ -99,7 +103,7 @@ class FullBlueprintCoverageTest(unittest.TestCase):
                 "gestation_days": 280,
                 "land_cropland_ha": 1.0,
             },
-            load_calibration(),
+            calibration,
         ).run()
         calves = [cow for cow in ctx.state["cows"] if str(cow["id"]).startswith("calf-dam-")]
         self.assertEqual(len(calves), 1)

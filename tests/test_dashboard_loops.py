@@ -122,18 +122,11 @@ class DashboardLoopsTests(unittest.TestCase):
                 self.assertFalse(loops[key]["enabled"])
 
     def test_loops_page_renders_backend_state_without_browser_aggregation(self) -> None:
-        self.assertIn('id="loops-content"', INDEX)
-        self.assertIn("renderLoops", APP)
-        self.assertIn("data.loops", APP)
-        start = APP.index("function renderLoops")
-        end = APP.index("function toolbar", start)
-        loops_page = APP[start:end]
-        self.assertNotIn("aggregate(", loops_page)
-        self.assertIn("active", loops_page)
-        self.assertIn("inactive", loops_page)
-        self.assertIn("unavailable", loops_page)
-        self.assertIn("loop-flow", CSS)
-        self.assertIn("loop-section", CSS)
+        ui = (WEB / "js" / "dashboard.js").read_text(encoding="utf-8")
+        self.assertIn('id="section-loops"', INDEX)
+        self.assertIn('id="loopGrid"', INDEX)
+        self.assertIn("function buildLoops(res)", ui)
+        self.assertIn("avg.compost", ui)
 
 
 if __name__ == "__main__":

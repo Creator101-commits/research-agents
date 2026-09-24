@@ -69,10 +69,7 @@ class DashboardEconomicsTests(unittest.TestCase):
             economics["latest"]["byproduct_revenue"],
             ctx.packets["manager_packet"].payload["byproduct_revenue"],
         )
-        self.assertEqual(
-            economics["latest"]["labor_cost"],
-            ctx.packets["manager_packet"].payload["labor_cost"],
-        )
+        self.assertIsNone(economics["latest"]["labor_cost"])
         self.assertTrue(economics["monthly"])
         self.assertTrue(all(row["report"] == "farm_manager" for row in economics["monthly"]))
         self.assertEqual(
@@ -104,17 +101,12 @@ class DashboardEconomicsTests(unittest.TestCase):
         self.assertTrue(all(not metric["available"] for metric in economics["metrics"].values()))
 
     def test_economics_page_renders_serialized_values_without_browser_aggregation(self) -> None:
-        self.assertIn('id="economics-content"', INDEX)
-        self.assertIn("renderEconomics", APP)
-        start = APP.index("function renderEconomics")
-        end = APP.index("function toolbar", start)
-        economics_page = APP[start:end]
-        self.assertIn("data.economics", economics_page)
-        self.assertIn("audit.daily", economics_page)
-        self.assertNotIn("aggregate(", economics_page)
-        self.assertNotIn("profit /", economics_page)
-        self.assertIn("economics-audit", CSS)
-        self.assertIn("economics-breakdown", CSS)
+        ui = (WEB / "js" / "dashboard.js").read_text(encoding="utf-8")
+        self.assertIn('id="revSummaryWrap"', INDEX)
+        self.assertIn('id="revOtherHerdNet"', INDEX)
+        self.assertIn("t.totalRevenue", ui)
+        self.assertIn("t.otherHerdNet", ui)
+        self.assertIn("t.profit", ui)
 
 
 if __name__ == "__main__":

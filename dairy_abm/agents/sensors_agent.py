@@ -22,8 +22,9 @@ class SensorsAgent(BaseAgent):
             return None
         temperature = float(temperature_raw)
         humidity = float(humidity_raw)
+        # NRC (1971) THI = (1.8T + 32) - (0.55 - 0.0055 RH)(1.8T - 26), i.e. F - (...)(F - 58).
         fahrenheit = 1.8 * temperature + 32.0
-        return fahrenheit - (0.55 - 0.0055 * humidity) * (fahrenheit - 26.0)
+        return fahrenheit - (0.55 - 0.0055 * humidity) * (1.8 * temperature - 26.0)
 
     @staticmethod
     def _season_label(day: date) -> str:
@@ -39,7 +40,8 @@ class SensorsAgent(BaseAgent):
 
     def tick(self, day: date) -> None:
         """Generate noisy sensor observations, alerts, and maintenance packets for the herd."""
-        cows = self.ctx.state.get("cows", [])
+        # Sensors are fitted to the adult (milking and dry) herd only.
+        cows = [cow for cow in self.ctx.state.get("cows", []) if int(cow.get("parity", 1)) >= 1]
         missing_probability = require_fraction(
             "sensors.missing_reading_probability",
             float(value(self.ctx.calibration, "sensors.missing_reading_probability")),

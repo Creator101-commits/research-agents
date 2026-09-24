@@ -1544,11 +1544,7 @@ def serialize_dashboard_run(
         name: _aggregate(ctx.daily_records, field, operation)
         for name, (field, _unit, operation) in _SUMMARY_DEFINITIONS.items()
     }
-    reference_benchmark = evaluate_reference_benchmark(
-        ctx.scenario.get("reference_benchmark"),
-        ctx.daily_records,
-        float(ctx.scenario.get("milk_density_kg_per_l", 1.03)),
-    )
+    reference_benchmark = evaluate_reference_benchmark(ctx.scenario.get("reference_benchmark"), ctx)
     summary = {
         name: _metric(value_, unit, "ctx.daily_records", operation)
         for name, value_ in metrics.items()

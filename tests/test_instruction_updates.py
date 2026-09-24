@@ -32,8 +32,11 @@ class InstructionUpdatesTest(unittest.TestCase):
         expected_gross = energy["feedstock_tons"] * calibration["energy"]["kwh_per_ton_feedstock"]["value"]
         self.assertAlmostEqual(energy["gross_kwh"], expected_gross)
         self.assertAlmostEqual(energy["biogas_derived_kwh_estimate"], energy["biogas_gross_kwh"])
+        # Blueprint 3.2: the published electricity is 85.73 x feedstock tonnes; the
+        # parasitic load is applied only in the net balance.
+        self.assertAlmostEqual(energy["electricity_generated_kwh"], expected_gross)
         self.assertAlmostEqual(
-            energy["electricity_generated_kwh"],
+            energy["net_electricity_balance_kwh"],
             expected_gross * (1.0 - calibration["energy"]["parasitic_load_fraction"]["value"]),
         )
 

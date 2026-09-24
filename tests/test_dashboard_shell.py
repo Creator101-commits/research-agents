@@ -34,22 +34,12 @@ PAGES = {
 
 class DashboardShellTests(unittest.TestCase):
     def test_final_navigation_and_shell_regions_exist(self) -> None:
-        for page_id, label in PAGES.items():
-            self.assertIn(f'data-page="{page_id}"', INDEX)
-            self.assertIn(label, INDEX)
-
-        for element_id in (
-            "app-shell",
-            "main-nav",
-            "page-content",
-            "run-status",
-            "scenario-label",
-            "active-run-meta",
-            "loading-state",
-            "error-banner",
-            "warning-banner",
-        ):
-            self.assertIn(f'id="{element_id}"', INDEX)
+        expected = ("overview", "charts", "loops", "compare", "roi", "ranking", "params", "animal")
+        for page in expected:
+            self.assertIn(f'id="nav-{page}"', INDEX)
+            self.assertIn(f'id="section-{page}"', INDEX)
+        self.assertNotIn('id="farmLanding"', INDEX)
+        self.assertIn('id="mainApp"', INDEX)
 
     def test_router_is_hash_based_and_state_has_shell_fields(self) -> None:
         self.assertIn("export const PAGES", ROUTER)
@@ -63,11 +53,10 @@ class DashboardShellTests(unittest.TestCase):
         self.assertIn("renderShell", APP)
 
     def test_shell_has_feedback_and_responsive_styles(self) -> None:
-        self.assertIn("aria-live", INDEX)
-        self.assertIn("is-loading", CSS)
-        self.assertIn("banner", CSS)
-        self.assertIn("@media (max-width: 900px)", CSS)
-        self.assertIn("@media (max-width: 600px)", CSS)
+        self.assertIn('id="statusBadge"', INDEX)
+        self.assertIn('data-theme-toggle', INDEX)
+        self.assertIn('@media (max-width: 900px)', CSS)
+        self.assertIn('--color-primary', CSS)
 
     def test_frontend_javascript_is_syntactically_valid(self) -> None:
         if not __import__("shutil").which("node"):

@@ -34,6 +34,27 @@ class FeedCropAgent(BaseAgent):
         ctx.state.setdefault("local_feed_inventory_kg_dm", float(ctx.scenario.get("local_feed_inventory_kg_dm", 0.0)))
         ctx.state.setdefault("plant_coproduct_inventory_kg_dm", float(ctx.scenario.get("plant_coproduct_inventory_kg_dm", 0.0)))
 
+    def _dmi_eq2_2(self, cow_packet) -> float | None:
+        """NASEM Eq 2-2 ration-effect DMI (kg/d per cow) for evaluating ration composition.
+
+        Eq 2-1 in the Cow agent stays the primary intake predictor. Use limits:
+        lactating Holstein cows past 60 DIM; forage NDF digestibility falls back to 52%.
+        """
+        if cow_packet is None:
+            return None
+        milking = int(cow_packet.payload.get("milking_cows", cow_packet.payload.get("cow_count", 0)) or 0)
+        if milking <= 0 or float(cow_packet.payload.get("mean_days_in_milk", 0.0)) <= 60.0:
+            return None
+        milk_yield_kg = float(cow_packet.payload.get("milk_kg", float(cow_packet.payload.get("milk_l", 0.0)) * 1.03)) / milking
+        f_ndf = float(value(self.ctx.calibration, "feed_crop.forage_ndf_pct_of_dm"))
+        adf_ndf = float(value(self.ctx.calibration, "feed_crop.adf_to_ndf_ratio"))
+        f_ndfd = float(value(self.ctx.calibration, "feed_crop.forage_ndf_digestibility_pct"))
+        return (
+            12.0 - 0.107 * f_ndf + 8.17 * adf_ndf + 0.0253 * f_ndfd
+            - 0.328 * (adf_ndf - 0.602) * (f_ndfd - 48.3)
+            + 0.225 * milk_yield_kg + 0.00390 * (f_ndfd - 48.3) * (milk_yield_kg - 33.1)
+        )
+
     def tick(self, day: date) -> None:
         """Balance daily feed demand, nutrient flows, crop supply, and ration targets."""
         credits = self.ctx.state.get("loop_credits", {"feed_offset_kg": 0.0, "water_offset_l": 0.0})
@@ -89,10 +110,20 @@ class FeedCropAgent(BaseAgent):
         grazing_intake_kg = require_nonnegative("grazing_intake_kg", grazing_intake_kg)
         market = self.ctx.get_packet("market_price_packet")
         sensor_packet = self.ctx.get_packet("sensor_observation_packet")
-        feed_cost = (
+        lactating_price = (
             float(market.payload["feed_cost_per_kg_dm"])
             if market is not None
             else float(value(self.ctx.calibration, "feed_crop.ration_cost_per_kg_dm"))
+        )
+        # Workbook pricing: lactating-cow DM and dry-cow DM carry separate prices
+        # (Stats_MAST rows 28-29), so the purchase price is their intake-weighted blend.
+        dry_price = float(value(self.ctx.calibration, "cdairy_economics.dmi_dry_price_per_kg"))
+        wet_dmi = float(cow_packet.payload.get("dmi_lactating_kg", total_dmi)) if cow_packet is not None else total_dmi
+        dry_dmi = float(cow_packet.payload.get("dmi_dry_kg", 0.0)) if cow_packet is not None else 0.0
+        feed_cost = (
+            (wet_dmi * lactating_price + dry_dmi * dry_price) / (wet_dmi + dry_dmi)
+            if wet_dmi + dry_dmi > 0.0
+            else lactating_price
         )
         land_packet = self.ctx.get_packet("land_packet")
         prior_manure = self.ctx.get_packet("manure_packet")
@@ -232,7 +263,10 @@ class FeedCropAgent(BaseAgent):
         )
         total_feed_from_farm = local_feed_used + grazing_intake_kg
         total_feed_all = total_feed_from_farm + local_import_used + purchased_feed + plant_coproduct_used + dairy_return_used
-        local_feed_autonomy = total_feed_from_farm / total_feed_all if total_feed_all > 0.0 else 1.0
+        # Blueprint 4.4: local_feed_autonomy = (own farm + local) / total feed demand, bounded 0..1.
+        local_feed_autonomy = (
+            min(1.0, max(0.0, (total_feed_from_farm + local_import_used) / total_dmi)) if total_dmi > 0.0 else 1.0
+        )
         production_system = str(
             self.ctx.scenario.get(
                 "production_system",
@@ -323,6 +357,7 @@ class FeedCropAgent(BaseAgent):
                 "feed_sourcing_hierarchy": ["own_farm", "plant_coproduct", "local", "market_import"],
                 "ration_coverage_fraction": ration_coverage_fraction,
                 "local_feed_autonomy": local_feed_autonomy,
+                "dmi_eq2_2_ration_effect_kg": self._dmi_eq2_2(cow_packet),
                 "seasonal_yield_modifier": season_yield_mod,
                 "catch_crop_n_leaching_kg": catch_crop_n_leaching_kg,
                 "catch_crop_active": catch_crop_active,
@@ -333,6 +368,8 @@ class FeedCropAgent(BaseAgent):
                 "feed_demand_after_grazing_kg": feed_demand,
                 "feed_cost": feed_cost_total,
                 "feed_cost_per_kg_dm": feed_cost,
+                "lactating_feed_price_per_kg_dm": lactating_price,
+                "dry_feed_price_per_kg_dm": dry_price,
                 "irrigation_l": irrigation_l,
                 "irrigation_demand_l": irrigation_demand_l,
                 "freshwater_irrigation_l": irrigation_l,

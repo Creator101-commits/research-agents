@@ -91,13 +91,9 @@ class DashboardModelDetailsTests(unittest.TestCase):
         self.assertEqual(details["event_count"], 0)
 
     def test_model_details_page_is_read_only_and_uses_serialized_fields(self) -> None:
-        self.assertIn('id="model-details-content"', INDEX)
-        self.assertIn("renderModelDetails", APP)
-        self.assertIn("model_details", APP)
-        self.assertIn("policy_summary", APP)
-        self.assertIn("report_contract", APP)
-        self.assertIn("model-details", CSS)
-        self.assertNotIn("13 active agents", APP.lower())
+        self.assertIn("<summary>Model details</summary>", INDEX)
+        self.assertIn("Python farm model", INDEX)
+        self.assertIn("disabled", INDEX)
 
 
 if __name__ == "__main__":

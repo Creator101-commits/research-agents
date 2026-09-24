@@ -9,6 +9,39 @@ from dairy_abm.core import BaseAgent, Packet, require_fraction, require_nonnegat
 class DairyProcessorAgent(BaseAgent):
     name = "dairy_processor"
 
+    # USDA ERS TB-1961 component draws per lb of product (blueprint Processor section 4).
+    _ERS_COEFFICIENTS = {
+        "butter": (0.8050, 0.0185),
+        "american_cheese": (0.3282, 0.8510),
+        "other_cheese": (0.2488, 0.8590),
+        "dry_whey": (0.0100, 0.9400),
+    }
+
+    def _component_ledger(self, processed_milk_l: float, streams_l: dict[str, float], whey_l: float) -> dict[str, float]:
+        """Debit milk fat and skim solids for product outputs and report the residuals."""
+        lb_per_kg = 2.20462
+        density = 1.03
+        milk_kg = processed_milk_l * density
+        fat_in_kg = milk_kg * float(value(self.ctx.calibration, "herd.milk_fat_fraction"))
+        snf_in_kg = milk_kg * float(value(self.ctx.calibration, "dairy_processor.milk_snf_fraction"))
+        outputs_lb = {
+            "butter": streams_l.get("butter", 0.0) * density * float(value(self.ctx.calibration, "dairy_processor.butter_yield_kg_per_kg_milk")) * lb_per_kg,
+            "american_cheese": streams_l.get("cheese", 0.0) * density * float(value(self.ctx.calibration, "dairy_processor.cheese_yield_kg_per_kg_milk")) * lb_per_kg,
+            "other_cheese": 0.0,
+            "dry_whey": whey_l * density * float(value(self.ctx.calibration, "dairy_processor.dry_whey_yield_kg_per_kg_whey")) * lb_per_kg,
+        }
+        fat_required_lb = sum(outputs_lb[p] * self._ERS_COEFFICIENTS[p][0] for p in outputs_lb)
+        snf_required_lb = sum(outputs_lb[p] * self._ERS_COEFFICIENTS[p][1] for p in outputs_lb)
+        return {
+            "milk_fat_input_kg": fat_in_kg,
+            "skim_solids_input_kg": snf_in_kg,
+            "product_output_lb": outputs_lb,
+            "fat_required_lb": fat_required_lb,
+            "snf_required_lb": snf_required_lb,
+            "residual_fat_lb": fat_in_kg * lb_per_kg - fat_required_lb,
+            "residual_snf_lb": snf_in_kg * lb_per_kg - snf_required_lb,
+        }
+
     def tick(self, day: date) -> None:
         """Convert farm milk into products and route residuals when processing is enabled."""
         policy = self.ctx.state["policy"]
@@ -131,10 +164,14 @@ class DairyProcessorAgent(BaseAgent):
             self.ctx.state["loop_credit_sources"]["l4_feed_offset_kg"] += credit
         processor_revenue = product_revenue + farm_gate_milk_l * milk_price
         feed_return_total_l = whey_feed_l + waste_milk_feed_l + scotta_feed_l
-        byproduct_revenue = feed_return_total_l * require_nonnegative(
+        # Blueprint 4: internal feed-return loops earn no by-product revenue; their
+        # value appears as avoided purchased feed through the L4 credit.
+        internal_feed_return_value = feed_return_total_l * require_nonnegative(
             "dairy_processor.whey_liquid_price_per_l",
             float(value(self.ctx.calibration, "dairy_processor.whey_liquid_price_per_l")),
         )
+        byproduct_revenue = 0.0
+        component_ledger = self._component_ledger(processed_milk_l, product_streams_l, whey_l)
         self.ctx.publish(
             Packet(
                 source=self.name,
@@ -151,6 +188,11 @@ class DairyProcessorAgent(BaseAgent):
                     "processor_revenue": require_nonnegative("processor_revenue", processor_revenue),
                     "processing_energy_kwh": require_nonnegative("processing_energy_kwh", processing_energy),
                     "byproduct_revenue": byproduct_revenue,
+                    "internal_feed_return_value": internal_feed_return_value,
+                    "whey_feed_l": whey_feed_l,
+                    "waste_milk_feed_l": waste_milk_feed_l,
+                    "sludge_fertilizer_l": sludge_fertilizer_l,
+                    "usda_ers_component_ledger": component_ledger,
                     "whey_l": require_nonnegative("whey_l", whey_l),
                     "scotta_output_l": scotta_l,
                     "feed_return_whey_l": require_nonnegative("feed_return_whey_l", feed_return_whey_l),
@@ -161,9 +203,9 @@ class DairyProcessorAgent(BaseAgent):
                     "product_mix": product_mix,
                     "product_prices_per_l": product_prices,
                     "component_balance": {
-                        "fat_kg": processed_milk_l * float(self.ctx.scenario.get("milk_fat_fraction", 0.039)),
-                        "snf_kg": processed_milk_l * float(self.ctx.scenario.get("milk_snf_fraction", 0.087)),
-                        "protein_kg": processed_milk_l * float(self.ctx.scenario.get("milk_protein_fraction", 0.032)),
+                        "fat_kg": component_ledger["milk_fat_input_kg"],
+                        "snf_kg": component_ledger["skim_solids_input_kg"],
+                        "protein_kg": processed_milk_l * 1.03 * float(value(self.ctx.calibration, "herd.milk_protein_fraction")),
                     },
                     "route_tiers": {"whey": "feed" if feed_allowed else "disposal", "scotta": "feed" if scotta_feed_l else "disposal", "sludge": "energy" if sludge_energy_l else "materials", "waste_milk": "feed" if waste_milk_feed_l else "energy"},
                     "valorized_residual_l": feed_return_total_l + sludge_energy_l,

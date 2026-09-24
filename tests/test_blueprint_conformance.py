@@ -87,6 +87,9 @@ class BlueprintConformanceTest(unittest.TestCase):
                 enable_land_agent=True,
                 soil_carbon_sequestration_index=1.2,
                 circular_investment_schedule=[{"name": "digester", "cost": 1000.0}],
+                # Composite scores are null unless a scoring function is configured.
+                sustainability_score_weights={"circularity": 0.6, "avoided_fraction": 0.4},
+                soil_biodiversity_index_weights={"soil_index": 1.0, "tree_cover": 1.0},
             ),
             calibration,
         ).run()

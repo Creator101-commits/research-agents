@@ -53,7 +53,8 @@ class DiseaseAgent(BaseAgent):
 
     def tick(self, day: date) -> None:
         """Advance infection, recovery, vaccination, quarantine, and outbreak cost state."""
-        cows = self.ctx.state.get("cows", [])
+        # Adult cows only; calves and heifers are outside the herd disease model.
+        cows = [cow for cow in self.ctx.state.get("cows", []) if int(cow.get("parity", 1)) >= 1]
         for cow in cows:
             cow.setdefault(
                 "infection_state",
@@ -62,10 +63,6 @@ class DiseaseAgent(BaseAgent):
             cow.setdefault("days_infected", 0)
             cow.setdefault("quarantine_flag", False)
         self.ctx.state["disease_tick"] = int(self.ctx.state["disease_tick"]) + 1
-        mastitis_probability = require_fraction(
-            "disease.mastitis_daily_probability",
-            float(value(self.ctx.calibration, "disease.mastitis_daily_probability")),
-        )
         lameness_probability = require_fraction(
             "disease.lameness_daily_probability",
             float(value(self.ctx.calibration, "disease.lameness_daily_probability")),
@@ -192,15 +189,22 @@ class DiseaseAgent(BaseAgent):
                 resistance_modifier *= 1.0 - vaccination_effectiveness
             if health_trait > 1.0:
                 resistance_modifier *= 1.0 - (health_trait - 1.0) * inherited_resistance_effectiveness
+            # Clinical mastitis follows the herd life-cycle submodel (workbook
+            # incidence by parity); this compartment model covers lameness and
+            # transmissible outbreaks.
             infection_probability = (
-                min(1.0, mastitis_probability + lameness_probability + transmission_pressure)
+                min(1.0, lameness_probability + transmission_pressure)
                 * (stress_multiplier if cow_stress else 1.0)
                 * max(0.0, resistance_modifier)
             )
             if self.ctx.rng.random() < infection_probability:
                 cow["infection_state"] = "I"
                 cow["health_status"] = "sick"
-                cow["disease"] = "mastitis" if self.ctx.rng.random() < mastitis_probability else "lameness"
+                cow["disease"] = (
+                    str(self.ctx.scenario.get("disease_outbreak_label", "mastitis"))
+                    if transmission_pressure > 0.0 and self.ctx.rng.random() < transmission_pressure / infection_probability
+                    else "lameness"
+                )
                 cow["days_infected"] = 0
                 cow["quarantine_flag"] = quarantine_enabled
                 new_cases += 1

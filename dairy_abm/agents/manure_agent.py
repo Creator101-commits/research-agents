@@ -129,18 +129,29 @@ class ManureAgent(BaseAgent):
             "feed_crop.nitrogen_fraction_of_crude_protein",
             float(value(self.ctx.calibration, "feed_crop.nitrogen_fraction_of_crude_protein")),
         )
-        excess_protein_kg = max(0.0, ration_crude_protein - ration_metabolizable_protein)
+        # Blueprint 4.4 / 8.2: excess_N = (dietary CP% - MP requirement%) x DMI,
+        # clamped at zero before emission use.
+        herd_dmi_kg = float(cow_packet.payload.get("dmi_kg", 0.0)) if cow_packet is not None else 0.0
+        mp_requirement_fraction = require_fraction(
+            "feed_crop.mp_requirement_fraction_of_dm",
+            float(value(self.ctx.calibration, "feed_crop.mp_requirement_fraction_of_dm")),
+        )
+        dietary_cp_fraction = ration_crude_protein / herd_dmi_kg if herd_dmi_kg > 0.0 else 0.0
+        excess_protein_kg = max(0.0, (dietary_cp_fraction - mp_requirement_fraction) * herd_dmi_kg)
+        excess_n_kg = excess_protein_kg * nitrogen_fraction
+        # Manure N excludes the N secreted in milk (dietary N - milk N).
+        milk_n_kg = float(cow_packet.payload.get("milk_protein_nitrogen_kg", 0.0)) if cow_packet is not None else 0.0
+        manure_n_kg = max(0.0, ration_nitrogen - milk_n_kg)
         urinary_n_kg = min(
-            ration_nitrogen,
-            excess_protein_kg
-            * nitrogen_fraction
+            manure_n_kg,
+            excess_n_kg
             * require_fraction(
                 "manure.urinary_n_excess_fraction",
                 float(value(self.ctx.calibration, "manure.urinary_n_excess_fraction")),
             ),
         )
-        fecal_n_kg = ration_nitrogen - urinary_n_kg
-        collected_n_kg = ration_nitrogen * collection_efficiency
+        fecal_n_kg = manure_n_kg - urinary_n_kg
+        collected_n_kg = manure_n_kg * collection_efficiency
         digestate_n_kg = (
             collected_n_kg
             * (digester_kg / collected_kg if collected_kg else 0.0)
@@ -225,6 +236,8 @@ class ManureAgent(BaseAgent):
             "digester_kg": digester_kg,
             "thermochemical_manure_kg": thermochemical_kg,
             "compost_kg": compost_kg,
+            "compost_product_kg": compost_kg * float(value(self.ctx.calibration, "manure.compost_product_yield_fraction")) if l1_enabled else 0.0,
+            "digestate_kg": digester_feedstock_kg * float(value(self.ctx.calibration, "manure.digestate_yield_fraction")),
             "storage_kg": storage_input_kg,
             "storage_input_kg": storage_input_kg,
             "opening_storage_inventory_kg": opening_storage_kg,
@@ -240,8 +253,12 @@ class ManureAgent(BaseAgent):
             "compost_n2o_kg": compost_n2o_kg,
             "nutrient_return_kg": nutrient_return_kg,
             "soil_organic_carbon_delta_kg": soil_organic_carbon_delta_kg,
-            "manure_n_total_kg": ration_nitrogen,
+            "manure_n_total_kg": manure_n_kg,
+            "dietary_n_kg": ration_nitrogen,
             "urinary_n_kg": urinary_n_kg,
+            "excess_n_kg": excess_n_kg,
+            "manure_n_kg": manure_n_kg,
+            "milk_n_excluded_kg": milk_n_kg,
             "fecal_n_kg": fecal_n_kg,
             "field_n2o_precursor_kg_n": field_n2o_precursor,
             "digestate_n_kg": digestate_n_kg,

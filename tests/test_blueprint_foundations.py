@@ -236,9 +236,15 @@ class BlueprintFoundationsTest(unittest.TestCase):
 
     def test_cow_tracks_reproduction_state_with_daily_probability(self) -> None:
         calibration = load_calibration()
-        calibration["cow"]["pregnancy_rate_monthly"]["value"] = 1.0
+        calibration["herd"]["first_service_submission_probability"]["value"] = 1.0
+        calibration["herd"]["pr_conception_estrus_cows"]["value"] = 1.0
+        calibration["herd"]["conception_genetic_multiplier_cows"]["value"] = 1.0
+        for parity in ("parity1", "parity2", "parity3", "parity4plus"):
+            calibration["herd"][f"clinical_mastitis_incidence_{parity}"]["value"] = 0.0
+        calibration["herd"]["cow_death_rate_annual"]["value"] = 0.0
+        calibration["herd"]["cow_involuntary_cull_rate_annual"]["value"] = 0.0
         ctx = DairyFarmModel(
-            {"days": 2, "estrus_required_for_conception": False, "herd": [{"id": "cow-1", "days_in_milk": 100}]}, calibration
+            {"days": 2, "herd": [{"id": "cow-1", "days_in_milk": 100, "days_to_ovulation": 1}]}, calibration
         ).run()
         cow = ctx.state["cows"][0]
         packet = ctx.packets["cow_daily_packet"].payload
@@ -267,7 +273,7 @@ class BlueprintFoundationsTest(unittest.TestCase):
 
         agent.tick(date(2026, 1, 2))
         cow = ctx.packets["cow_daily_packet"].payload
-        expected_milk = value(calibration, "cow.base_milk_l_per_cow_day") * (
+        expected_milk = agent._peak_milk_l(ctx.state["cows"][0]) * (
             1.0 - 0.5 * value(calibration, "cow.ration_shortfall_milk_loss_fraction")
         )
         expected_milk *= agent._lactation_factor(
@@ -280,7 +286,7 @@ class BlueprintFoundationsTest(unittest.TestCase):
 
     def test_cow_lifecycle_applies_annual_mortality_as_daily_hazard(self) -> None:
         calibration = load_calibration()
-        calibration["cow"]["mortality_rate_annual"]["value"] = 1.0
+        calibration["herd"]["cow_death_rate_annual"]["value"] = 1.0
         ctx = DairyFarmModel({"days": 1, "herd_size": 1}, calibration).run()
 
         self.assertFalse(ctx.state["cows"][0]["alive"])
