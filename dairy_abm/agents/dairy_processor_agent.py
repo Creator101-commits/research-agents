@@ -8,6 +8,7 @@ from dairy_abm.core import BaseAgent, Packet, require_fraction, require_nonnegat
 
 class DairyProcessorAgent(BaseAgent):
     name = "dairy_processor"
+    _DENSITY_KG_PER_L = 1.03
 
     # USDA ERS TB-1961 component draws per lb of product (blueprint Processor section 4).
     _ERS_COEFFICIENTS = {
@@ -20,7 +21,7 @@ class DairyProcessorAgent(BaseAgent):
     def _component_ledger(self, processed_milk_l: float, streams_l: dict[str, float], whey_l: float) -> dict[str, float]:
         """Debit milk fat and skim solids for product outputs and report the residuals."""
         lb_per_kg = 2.20462
-        density = 1.03
+        density = self._DENSITY_KG_PER_L
         milk_kg = processed_milk_l * density
         fat_in_kg = milk_kg * float(value(self.ctx.calibration, "herd.milk_fat_fraction"))
         snf_in_kg = milk_kg * float(value(self.ctx.calibration, "dairy_processor.milk_snf_fraction"))
@@ -155,13 +156,17 @@ class DairyProcessorAgent(BaseAgent):
         waste_milk_energy_l = waste_milk_l - waste_milk_feed_l
         scotta_feed_l = scotta_l if feed_allowed else 0.0
         feed_return_whey_l = whey_feed_l + waste_milk_feed_l + scotta_feed_l
-        if whey_l > 0.0 and feed_allowed:
-            substitution_kg = float(
-                value(self.ctx.calibration, "dairy_processor.byproduct_loop_feed_substitution_kg_per_kg")
+        if feed_allowed:
+            # Feed value is the dry matter returned: whey solids (dry whey yield) and
+            # waste-milk solids (fat + SNF), charged later at the dry-matter feed price.
+            whey_solids = float(value(self.ctx.calibration, "dairy_processor.dry_whey_yield_kg_per_kg_whey"))
+            milk_solids = float(value(self.ctx.calibration, "herd.milk_fat_fraction")) + float(
+                value(self.ctx.calibration, "dairy_processor.milk_snf_fraction")
             )
-            credit = whey_feed_l * substitution_kg
-            self.ctx.state["loop_credits"]["feed_offset_kg"] += credit
-            self.ctx.state["loop_credit_sources"]["l4_feed_offset_kg"] += credit
+            credit = (whey_feed_l * whey_solids + waste_milk_feed_l * milk_solids) * self._DENSITY_KG_PER_L
+            if credit > 0.0:
+                self.ctx.state["loop_credits"]["feed_offset_kg"] += credit
+                self.ctx.state["loop_credit_sources"]["l4_feed_offset_kg"] += credit
         processor_revenue = product_revenue + farm_gate_milk_l * milk_price
         feed_return_total_l = whey_feed_l + waste_milk_feed_l + scotta_feed_l
         # Blueprint 4: internal feed-return loops earn no by-product revenue; their

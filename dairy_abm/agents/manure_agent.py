@@ -90,6 +90,21 @@ class ManureAgent(BaseAgent):
         collected_kg = manure_kg * collection_efficiency
         uncollected_kg = manure_kg - collected_kg
         digester_fraction, compost_fraction, storage_fraction = self._route_fractions()
+        l1_enabled = bool(
+            self.ctx.scenario.get("l1_nutrient_loop_enabled", value(self.ctx.calibration, "manure.l1_nutrient_loop_enabled"))
+        )
+        l3_enabled = bool(
+            self.ctx.scenario.get("l3_energy_loop_enabled", value(self.ctx.calibration, "energy.l3_energy_loop_enabled"))
+        )
+        # Blueprint Energy 2.6 (biogas_investment_active) and Manure 4.2 (policy-driven
+        # routing): a route whose loop is off is not operated, and its share joins
+        # the storage branch, as the digester-capacity residual already does.
+        if not l3_enabled:
+            storage_fraction += digester_fraction
+            digester_fraction = 0.0
+        if not l1_enabled:
+            storage_fraction += compost_fraction
+            compost_fraction = 0.0
         capacity_fraction = require_fraction(
             "scenario.digester_capacity_pct",
             float(self.ctx.scenario.get("digester_capacity_pct", 100.0)) / 100.0,
@@ -193,9 +208,6 @@ class ManureAgent(BaseAgent):
             value(self.ctx.calibration, "manure.uncollected_ch4_kg_per_kg_manure")
         )
         compost_n2o_kg = compost_kg * float(value(self.ctx.calibration, "manure.compost_n2o_kg_per_kg_manure"))
-        l1_enabled = bool(
-            self.ctx.scenario.get("l1_nutrient_loop_enabled", value(self.ctx.calibration, "manure.l1_nutrient_loop_enabled"))
-        )
         nutrient_return_kg = digestate_n_kg + compost_n_kg if l1_enabled else 0.0
         soil_organic_carbon_delta_kg = (
             compost_kg * float(self.ctx.scenario.get("compost_soil_carbon_fraction", 0.12))
@@ -204,12 +216,9 @@ class ManureAgent(BaseAgent):
             else 0.0
         )
         self.ctx.state["soil_organic_carbon"] = float(self.ctx.state.get("soil_organic_carbon", 0.0)) + soil_organic_carbon_delta_kg
-        if l1_enabled:
-            credit = compost_kg * float(
-                value(self.ctx.calibration, "feed_crop.nutrient_loop_feed_substitution_fraction")
-            )
-            self.ctx.state["loop_credits"]["feed_offset_kg"] += credit
-            self.ctx.state["loop_credit_sources"]["l1_feed_offset_kg"] += credit
+        # Blueprint Feed/Crop and Manure sections: the nutrient loop returns compost and
+        # digestate N/P/K to cropland and lowers the synthetic fertilizer need; it
+        # defines no feed offset, so L1 creates no feed credit.
 
         grass_cofeed_kg, food_waste_cofeed_kg, cofeed_feasible, route_alert = self._cofeed_assembly(digester_kg)
         processor_residual_energy_kg = (
@@ -228,6 +237,9 @@ class ManureAgent(BaseAgent):
             if processor_residual is not None
             else 0.0
         )
+        if not l3_enabled:
+            # No digester: processor residuals meant for energy are not digested.
+            processor_residual_energy_kg = 0.0
         digester_feedstock_kg = digester_kg + grass_cofeed_kg + food_waste_cofeed_kg + processor_residual_energy_kg
         payload = {
             "manure_kg": manure_kg,

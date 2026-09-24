@@ -120,6 +120,10 @@ class EnergyAgent(BaseAgent):
             "heat_demand_mj": heat_demand_mj,
             "heat_displaced_mj": heat_displaced_mj,
             "heat_value": heat_cost_saved,
+            # Blueprint Energy 8.5: heat is reported, but valued only against a configured demand.
+            "heat_value_status": (
+                "valued" if heat_demand_mj > 0.0 else "unmonetized_no_farm_heat_demand"
+            ) if heat_generated_mj else "no_heat",
             # Blueprint 3.2 / 8.1: electricity_generated_kwh = 85.73 x digester feedstock (t);
             # solar, syngas and parasitic load stay separate and meet only in the balance.
             "electricity_generated_kwh": require_nonnegative(

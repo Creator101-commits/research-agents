@@ -27,17 +27,16 @@ def l1_scenario(**overrides: object) -> dict[str, object]:
 
 
 class LoopClosureTest(unittest.TestCase):
-    def test_l1_credit_is_consumed_on_the_following_day(self) -> None:
+    def test_l1_returns_nutrients_to_cropland_without_a_feed_credit(self) -> None:
         calibration = load_calibration()
         ctx = DairyFarmModel(l1_scenario(), calibration).run()
 
         first_day, second_day = ctx.daily_records
-        expected_credit = first_day["compost_kg"] * calibration["feed_crop"][
-            "nutrient_loop_feed_substitution_fraction"
-        ]["value"]
-
-        self.assertEqual(first_day["feed_loop_offset_kg"], 0.0)
-        self.assertAlmostEqual(second_day["feed_loop_offset_kg"], expected_credit)
+        # The Blueprint nutrient loop returns N/P/K to cropland; it defines no feed offset.
+        self.assertEqual([row["feed_loop_offset_kg"] for row in ctx.daily_records], [0.0, 0.0])
+        self.assertEqual([row["l1_feed_offset_kg"] for row in ctx.daily_records], [0.0, 0.0])
+        self.assertGreater(first_day["compost_n_kg"], 0.0)
+        self.assertGreater(ctx.packets["feed_crop_packet"].payload["manure_n_return_kg"], 0.0)
         self.assertGreaterEqual(second_day["feed_cost"], 0.0)
 
     def test_l1_disabled_does_not_create_a_feed_credit(self) -> None:
@@ -275,18 +274,18 @@ class LoopClosureTest(unittest.TestCase):
         ).run()
 
         first_day, second_day = ctx.daily_records
-        expected_credit = (
-            ctx.daily_records[0]["milk_l"]
-            * (
-                calibration["dairy_processor"]["product_mix_cheese"]["value"]
-                * calibration["dairy_processor"]["whey_yield_cheese"]["value"]
-                + calibration["dairy_processor"]["product_mix_yogurt"]["value"]
-                * calibration["dairy_processor"]["whey_yield_yogurt"]["value"]
-                + calibration["dairy_processor"]["product_mix_functional"]["value"]
-                * calibration["dairy_processor"]["whey_yield_functional"]["value"]
-            )
-            * calibration["dairy_processor"]["byproduct_loop_feed_substitution_kg_per_kg"]["value"]
-            * calibration["dairy_processor"]["fraction_whey_to_feed"]["value"]
+        dp = calibration["dairy_processor"]
+        whey_l = ctx.daily_records[0]["milk_l"] * (
+            dp["product_mix_cheese"]["value"] * dp["whey_yield_cheese"]["value"]
+            + dp["product_mix_yogurt"]["value"] * dp["whey_yield_yogurt"]["value"]
+            + dp["product_mix_functional"]["value"] * dp["whey_yield_functional"]["value"]
+        )
+        waste_milk_l = ctx.daily_records[0]["milk_l"] * dp["fraction_waste_milk_of_milk"]["value"]
+        # Credit is the dry matter returned: whey solids plus waste-milk fat and SNF.
+        expected_credit = 1.03 * (
+            whey_l * dp["fraction_whey_to_feed"]["value"] * dp["dry_whey_yield_kg_per_kg_whey"]["value"]
+            + waste_milk_l * dp["fraction_waste_milk_to_feed"]["value"]
+            * (calibration["herd"]["milk_fat_fraction"]["value"] + dp["milk_snf_fraction"]["value"])
         )
 
         self.assertEqual(first_day["feed_loop_offset_kg"], 0.0)
@@ -344,13 +343,14 @@ class LoopClosureTest(unittest.TestCase):
 
     def test_oversized_credits_do_not_create_negative_feed_or_irrigation(self) -> None:
         calibration = deepcopy(load_calibration())
-        calibration["feed_crop"]["nutrient_loop_feed_substitution_fraction"]["value"] = 100.0
         calibration["water"]["water_saving_l_per_cow_day"]["value"] = 0.0
-        calibration["water"]["water_loop_fresh_water_offset_fraction"]["value"] = 100.0
-        ctx = DairyFarmModel(
-            l1_scenario(land_cropland_ha=1, l4_byproduct_loop_enabled=False),
+        model = DairyFarmModel(
+            l1_scenario(days=1, land_cropland_ha=1, l4_byproduct_loop_enabled=False),
             calibration,
-        ).run()
+        )
+        # Credits far larger than one day's feed and irrigation demand.
+        model.ctx.state["loop_credits"] = {"feed_offset_kg": 1.0e6, "water_offset_l": 1.0e9}
+        ctx = model.run()
         feed_packet = ctx.packets["feed_crop_packet"].payload
 
         self.assertEqual(feed_packet["purchased_feed_kg_dm"], 0.0)
