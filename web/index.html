@@ -1,102 +1,711 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dairy Farm - Research Dashboard</title>
-<link rel="stylesheet" href="/assets/styles/tokens.css">
-<link rel="stylesheet" href="/assets/styles/base.css">
-<link rel="stylesheet" href="/assets/styles/layout.css">
-<link rel="stylesheet" href="/assets/styles/components.css">
-<link rel="stylesheet" href="/assets/styles/pages.css">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dairy Bioeconomy Simulator v5.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<script src="/assets/vendor/chart.umd.js"></script>
+<link rel="stylesheet" href="/assets/styles/dashboard.css" />
+<link rel="stylesheet" href="/assets/styles/formulas.css" />
 </head>
 <body>
-<div class="app" id="app-shell" aria-busy="false">
-  <aside class="rail" id="sidebar">
-    <div class="brand"><i class="mark"></i>Dairy Farm ABM</div>
-    <nav class="railnav" id="main-nav" aria-label="Main navigation">
-      <button id="nav-overview" data-page="overview" type="button">Overview</button>
-      <button id="nav-simulation" data-page="simulation" type="button">Simulation</button>
-      <button id="nav-charts" data-page="charts" type="button">Charts</button>
-      <button id="nav-loops" data-page="loops" type="button">Circular Loops</button>
-      <button id="nav-comparison" data-page="comparison" type="button">Scenario Comparison</button>
-      <button id="nav-cows" data-page="cows" type="button">Cow Performance</button>
-      <button id="nav-environment" data-page="environment" type="button">Environment</button>
-      <button id="nav-economics" data-page="economics" type="button">Economics</button>
-      <button id="nav-roi" data-page="roi" type="button">Equipment ROI</button>
-      <button id="nav-parameters" data-page="parameters" type="button">Parameters</button>
-      <button id="nav-model-details" data-page="model-details" type="button">Model Details</button>
-      <button id="nav-exports" data-page="exports" type="button">Export</button>
-    </nav>
-    <div class="railfoot">Model status<br><b class="green" id="rail-status">Ready for a run</b><br><span class="mono" id="scenario-label">baseline / calibrated</span></div>
-  </aside>
+<div id="mainApp" style="display:block;width:100%;height:100%">
+<div class="app">
+<!-- TOPBAR -->
+<header class="topbar">
+  <a class="logo" href="#">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-label="Dairy Bioeconomy Logo">
+      <circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="1.8"/>
+      <path d="M8 16c1.5-4 3.5-6 6-6s4.5 2 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      <circle cx="10.5" cy="13" r="1.2" fill="currentColor"/>
+      <circle cx="17.5" cy="13" r="1.2" fill="currentColor"/>
+      <path d="M11 19h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+    Dairy Bioeconomy Simulator <sup style="font-size:.6em;opacity:.6;font-weight:400">v5</sup>
+  </a>
+  <div class="topbar-actions">
+    <button id="farmPill" class="farm-pill" style="background:#01696f" title="Conventional Farm" disabled> Conventional</button>
+    <span class="status-badge ready" id="statusBadge">Ready</span>
+    <button class="run-btn" id="runBtn" onclick="runSimulation()">
+      <span class="run-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </span>
+      <div class="spinner"></div>
+      Run Simulation
+    </button>
+    <div class="export-wrap"><button class="run-btn" id="exportBtn" onclick="exportRun()" disabled title="Run the simulation to export">Export</button><div id="exportMenu" class="export-menu" hidden><button onclick="downloadRun('zip')">Report ZIP</button><button onclick="downloadRun('daily.csv')">Daily CSV</button></div></div>
+    <button class="theme-btn" data-theme-toggle aria-label="Toggle theme">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    </button>
+  </div>
+</header>
 
-  <main id="workspace" class="workspace">
-    <header class="topbar">
-      <div>
-        <div class="eyebrow" id="page-kicker">SIMULATION</div>
-        <h1 id="page-title">Run a simulation</h1>
-        <p id="page-description">Run calibrated scenarios with the authoritative Python model.</p>
-      </div>
-      <div class="topactions">
-        <span class="status" id="run-status" aria-live="polite"><span id="stamp">READY</span></span>
-        <span class="scenario-chip" id="header-scenario">baseline</span>
-        <button class="ghost" id="rail-toggle" type="button" aria-controls="sidebar" aria-expanded="true">Hide navigation</button>
-        <button class="ghost" id="open-report" type="button">Export research report</button>
-      </div>
-    </header>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-section">Dashboard</div>
+  <div class="nav-item active" onclick="navigate('overview')" id="nav-overview">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    Overview
+  </div>
+  <div class="nav-item" onclick="navigate('charts')" id="nav-charts">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Time Series Charts
+  </div>
+  <div class="nav-item" onclick="navigate('loops')" id="nav-loops">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+    Circular Loops
+  </div>
+  <div class="nav-item" onclick="navigate('compare')" id="nav-compare">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+    Comparison
+  </div>
+  <div class="nav-item" onclick="navigate('roi')" id="nav-roi">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+    ROI Justification
+  </div>
+  <div class="nav-item" onclick="navigate('ranking')" id="nav-ranking">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 20 18 10"/><polyline points="12 20 12 4"/><polyline points="6 20 6 14"/></svg>
+    Cow Ranking
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">Settings</div>
+  <div class="nav-item" onclick="navigate('params')" id="nav-params">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+    Parameters
+  </div>
+  <div class="nav-item" onclick="navigate('animal')" id="nav-animal">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="14" rx="9" ry="6"/><path d="M7 10V7M17 10V7M4 12c-1.5 0-2.5 1-2.5 2.5M20 12c1.5 0 2.5 1 2.5 2.5"/></svg>
+    Animal Biology
+  </div>
+  <div class="nav-item" onclick="navigate('formulas')" id="nav-formulas">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16M7 3v18M13 3v18"/></svg>
+    Formulas &amp; Values
+  </div>
+</aside>
 
-    <div class="runmeta" id="active-run-meta" aria-live="polite">No run selected</div>
-    <div class="banner banner-loading" id="loading-state" role="status" aria-live="polite" hidden>Running the authoritative model...</div>
-    <div class="banner banner-error" id="error-banner" role="alert" aria-live="assertive" hidden><b>Run failed:</b> <span id="error-text"></span></div>
-    <div class="banner banner-warning" id="warning-banner" role="status" aria-live="polite" hidden><b>Warnings:</b> <span id="warning-text"></span></div>
+<!-- MAIN CONTENT -->
+<main class="main">
 
-    <div id="page-content">
-      <section id="page-overview" class="page-panel" data-page-panel="overview" hidden>
-        <div id="overview-content" class="overview-content"><div class="empty-state"><span class="eyebrow">OVERVIEW</span><h2>Farm outcomes at a glance.</h2><p>Run a simulation to populate the overview with authoritative model outputs.</p></div></div>
-      </section>
-
-      <section id="page-simulation" class="page-panel" data-page-panel="simulation">
-        <div class="workbench">
-          <aside class="config">
-            <div class="confighead"><h2>Run a simulation</h2><p>Configure, reproduce, and compare outcomes.</p></div>
-            <form id="run">
-              <div class="field"><label for="scenario"><span>Scenario</span><span>File</span></label><select id="scenario"></select></div>
-              <div class="field"><label for="days"><span>Duration</span><span>Days</span></label><input id="days" type="number" min="1" max="3650" step="1" required><div class="pills" id="presetbar"><button type="button" data-d="1">Day</button><button type="button" data-d="30">Month</button><button type="button" data-d="365">Year</button></div></div>
-              <div class="field"><label for="start-date"><span>Start date</span><span>ISO date</span></label><input id="start-date" type="date" required><div class="hint">The model clock starts on this date.</div></div>
-              <div class="field"><label for="seed"><span>Seed</span><span>Reproducible</span></label><input id="seed" type="number" step="1" required><div class="hint">Same seed gives identical output.</div></div>
-              <div class="field"><label for="herd"><span>Herd size</span><span>Animals</span></label><input id="herd" type="number" min="0" step="1" required></div>
-              <div class="field" role="group" aria-labelledby="systems-label"><div id="systems-label" class="label"><span>Active systems</span><span>7 available</span></div><div class="switches" id="switches"></div></div>
-              <button id="go" type="submit">Run simulation</button>
-            </form>
-          </aside>
-          <section class="result" id="results">
-            <div class="empty-state" id="empty"><h2>See what the farm can become.</h2><p>Choose a scenario, set the run length, seed, and herd size, then run the model. Your results will appear here as a ledger or as clean graphs for daily, monthly, and yearly analysis.</p></div>
-          </section>
-        </div>
-      </section>
-
-      <section id="page-charts" class="page-panel" data-page-panel="charts" hidden><div id="charts-content" class="charts-content"><div class="page-placeholder"><span class="eyebrow">CHARTS</span><h2>Backend-produced trends.</h2><p>This page will present the model series without recreating scientific calculations in the browser.</p></div></div></section>
-      <section id="page-loops" class="page-panel" data-page-panel="loops" hidden><div id="loops-content" class="loops-content"><div class="page-placeholder"><span class="eyebrow">CIRCULAR LOOPS</span><h2>Trace the farm's loops.</h2><p>Nutrient, water, energy, and byproduct pathways will use serialized packet and ledger outputs.</p></div></div></section>
-      <section id="page-comparison" class="page-panel" data-page-panel="comparison" hidden><div id="comparison-content" class="comparison-content"><div class="page-placeholder"><span class="eyebrow">SCENARIO COMPARISON</span><h2>Compare independent runs.</h2><p>Choose a comparison mode to send validated configurations to the Python comparison endpoint.</p></div></div></section>
-      <section id="page-cows" class="page-panel" data-page-panel="cows" hidden><div id="cows-content" class="cows-content"><div class="page-placeholder"><span class="eyebrow">COW PERFORMANCE</span><h2>Explore herd performance.</h2><p>Run a simulation to inspect the latest-day per-cow records from the authoritative model.</p></div></div></section>
-      <section id="page-environment" class="page-panel" data-page-panel="environment" hidden><div id="environment-content" class="environment-content"><div class="page-placeholder"><span class="eyebrow">ENVIRONMENT</span><h2>Audit environmental outcomes.</h2><p>Run a simulation to inspect authoritative emissions, soil, sustainability, and source-stream ledger values.</p></div></div></section>
-      <section id="page-economics" class="page-panel" data-page-panel="economics" hidden><div id="economics-content" class="economics-content"><div class="page-placeholder"><span class="eyebrow">ECONOMICS</span><h2>Review farm economics.</h2><p>Run a simulation to inspect authoritative revenue, cost, profit, cash, market, and NPV outputs.</p></div></div></section>
-      <section id="page-roi" class="page-panel" data-page-panel="roi" hidden><div id="equipment-content" class="equipment-content"><div class="page-placeholder"><span class="eyebrow">EQUIPMENT ROI</span><h2>Inspect equipment returns.</h2><p>Run a simulation to inspect manager-produced CapEx, benefit, ROI, payback, and NPV values.</p></div></div></section>
-      <section id="page-parameters" class="page-panel" data-page-panel="parameters" hidden><div id="parameters-content" class="parameters-content"><div class="page-placeholder"><span class="eyebrow">PARAMETERS</span><h2>Review calibration.</h2><p>Load the validated calibration inventory to search, filter, edit, and submit isolated per-run overrides.</p></div></div></section>
-      <section id="page-model-details" class="page-panel" data-page-panel="model-details" hidden><div id="model-details-content" class="model-details-content"><div class="page-placeholder"><span class="eyebrow">MODEL DETAILS</span><h2>Inspect provenance.</h2><p>Run a simulation to inspect actual configuration, scheduler records, policy outputs, warnings, and report-contract metadata.</p></div></div></section>
-      <section id="page-exports" class="page-panel" data-page-panel="exports" hidden><div id="exports-content" class="exports-content"><div class="page-placeholder"><span class="eyebrow">EXPORT</span><h2>Research outputs.</h2><p>Run a simulation to download official JSON, CSV, calibration inventory, and ZIP outputs.</p></div></div></section>
+  <!-- ── OVERVIEW ── -->
+  <section class="page-section active" id="section-overview">
+    <div class="page-header">
+      <h1>Farm Overview</h1>
+      <p>Run the simulation from the top bar to see results. Adjust parameters in the sidebar first.</p>
+      <span id="farmSubtitle" style="font-size:12px;font-weight:600;color:#01696f;display:block;margin-top:6px">Conventional Farm — Standard high-output dairy farm. All 4 circular loops active. TMR feeding, industry-standard inputs.</span>
     </div>
-  </main>
+
+    <!-- Farm Parameters Summary Card (shown after farm selection) -->
+    <div id="farmSummaryCard" style="margin-bottom:var(--space-5)"><div style="background:var(--color-surface);border:1.5px solid var(--color-primary-highlight);border-left:4px solid var(--color-primary);border-radius:var(--radius-lg);padding:var(--space-4) var(--space-5)"><div style="font-size:15px;font-weight:700;color:var(--color-primary)">Conventional Farm — Parameters Loaded</div><div style="font-size:13px;color:var(--color-text-muted);margin-top:2px">Standard high-output dairy farm. All 4 circular loops active. TMR feeding, industry-standard inputs.</div></div></div>
+
+    <div class="kpi-grid" id="kpiGrid">
+      <div class="empty-state" style="grid-column:1/-1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h18M3 9h18M3 15h18M3 21h18"/></svg>
+        <h3>No simulation data yet</h3>
+        <p>Click <strong>Run Simulation</strong> in the top bar to generate results.</p>
+      </div>
+    </div>
+    <!-- ── TOTAL REVENUE SUMMARY BANNER ── -->
+    <div id="revSummaryWrap" style="display:none;margin-bottom:var(--space-6)">
+    <div class="card" style="overflow:hidden">
+
+      <!-- ── Header banner ── -->
+      <div style="background:var(--color-primary);padding:var(--space-5) var(--space-6);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-4)">
+        <div>
+          <div style="font-size:var(--text-base);font-weight:700;color:#fff;letter-spacing:.01em">Revenue Summary — Simulation Period</div>
+          <div style="font-size:var(--text-sm);color:rgba(255,255,255,0.75);margin-top:var(--space-1)" id="revPeriodLabel">—</div>
+        </div>
+        <div style="display:flex;gap:var(--space-6);align-items:flex-start;flex-wrap:wrap">
+          <div style="text-align:right">
+            <div style="font-size:var(--text-xs);font-weight:600;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Gross Revenue</div>
+            <div style="font-size:var(--text-lg);font-weight:800;color:rgba(255,255,255,0.9);font-variant-numeric:tabular-nums lining-nums;line-height:1" id="revGrossTotalHeader">—</div>
+            <div style="font-size:var(--text-xs);color:rgba(255,255,255,0.55);margin-top:3px">before input costs</div>
+          </div>
+          <div style="width:1px;background:rgba(255,255,255,0.25);align-self:stretch;min-height:40px"></div>
+          <div style="text-align:right">
+            <div style="font-size:var(--text-xs);font-weight:600;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Net Profit</div>
+            <div style="font-size:var(--text-xl);font-weight:900;color:#fff;font-variant-numeric:tabular-nums lining-nums;line-height:1" id="revGrandTotal">—</div>
+            <div style="font-size:var(--text-xs);color:rgba(255,255,255,0.55);margin-top:3px">revenue − all costs</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Body: 4 stream cards + donut ── -->
+      <div style="padding:var(--space-5) var(--space-6);display:grid;grid-template-columns:1fr auto;gap:var(--space-6);align-items:start">
+
+        <!-- Left: 4 revenue stream cards + costs -->
+        <div style="display:flex;flex-direction:column;gap:var(--space-4)">
+
+          <!-- Top row: 4 revenue streams -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
+
+            <!-- Milk Revenue -->
+            <div style="border:2px solid var(--color-primary);border-radius:var(--radius-lg);padding:var(--space-4);background:var(--color-surface)">
+              <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-3)">
+                <span style="font-size:1.1rem"></span>
+                <span style="font-size:var(--text-sm);font-weight:700;color:var(--color-primary);text-transform:uppercase;letter-spacing:.05em">Milk Revenue</span>
+              </div>
+              <div style="font-size:var(--text-xl);font-weight:800;color:var(--color-text);font-variant-numeric:tabular-nums;line-height:1.1;margin-bottom:var(--space-2)" id="revTotalMilk">—</div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:var(--text-sm);font-weight:600;color:var(--color-primary)" id="revPctMilk">—</span>
+                <span style="font-size:var(--text-xs);font-weight:500;color:var(--color-text-muted)" id="revDailyMilk">—</span>
+              </div>
+            </div>
+
+            <!-- Energy Revenue -->
+            <div style="border:2px solid var(--color-orange);border-radius:var(--radius-lg);padding:var(--space-4);background:var(--color-surface)">
+              <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-3)">
+                <span style="font-size:1.1rem"></span>
+                <span style="font-size:var(--text-sm);font-weight:700;color:var(--color-orange);text-transform:uppercase;letter-spacing:.05em">Energy Revenue</span>
+              </div>
+              <div style="font-size:var(--text-xl);font-weight:800;color:var(--color-text);font-variant-numeric:tabular-nums;line-height:1.1;margin-bottom:var(--space-2)" id="revTotalEnergy">—</div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:var(--text-sm);font-weight:600;color:var(--color-orange)" id="revPctEnergy">—</span>
+                <span style="font-size:var(--text-xs);font-weight:500;color:var(--color-text-muted)" id="revDailyEnergy">—</span>
+              </div>
+            </div>
+
+            <!-- Heat Value -->
+            <div style="border:2px solid var(--color-gold);border-radius:var(--radius-lg);padding:var(--space-4);background:var(--color-surface)">
+              <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-3)">
+                <span style="font-size:1.1rem"></span>
+                <span style="font-size:var(--text-sm);font-weight:700;color:var(--color-gold);text-transform:uppercase;letter-spacing:.05em">Heat Value</span>
+              </div>
+              <div style="font-size:var(--text-xl);font-weight:800;color:var(--color-text);font-variant-numeric:tabular-nums;line-height:1.1;margin-bottom:var(--space-2)" id="revTotalHeat">—</div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:var(--text-sm);font-weight:600;color:var(--color-gold)" id="revPctHeat">—</span>
+                <span style="font-size:var(--text-xs);font-weight:500;color:var(--color-text-muted)" id="revDailyHeat">—</span>
+              </div>
+            </div>
+
+            <!-- Compost Revenue -->
+            <div style="border:2px solid var(--color-success);border-radius:var(--radius-lg);padding:var(--space-4);background:var(--color-surface)">
+              <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-3)">
+                <span style="font-size:1.1rem"></span>
+                <span style="font-size:var(--text-sm);font-weight:700;color:var(--color-success);text-transform:uppercase;letter-spacing:.05em">Compost Revenue</span>
+              </div>
+              <div style="font-size:var(--text-xl);font-weight:800;color:var(--color-text);font-variant-numeric:tabular-nums;line-height:1.1;margin-bottom:var(--space-2)" id="revTotalCompost">—</div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:var(--text-sm);font-weight:600;color:var(--color-success)" id="revPctCompost">—</span>
+                <span style="font-size:var(--text-xs);font-weight:500;color:var(--color-text-muted)" id="revDailyCompost">—</span>
+              </div>
+            </div>
+
+          </div><!-- /stream grid -->
+
+          <!-- Input costs row -->
+          <div style="border:2px solid var(--color-error);border-radius:var(--radius-lg);padding:var(--space-4);background:var(--color-surface)">
+            <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-3)">
+              <span style="font-size:1.1rem"></span>
+              <span style="font-size:var(--text-sm);font-weight:700;color:var(--color-error);text-transform:uppercase;letter-spacing:.05em">Input Costs Deducted</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4)">
+              <div>
+                <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:4px">Feed Cost</div>
+                <div style="font-size:var(--text-lg);font-weight:800;color:var(--color-error);font-variant-numeric:tabular-nums" id="revTotalFeedCost">—</div>
+                <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:2px" id="revDailyFeedCost">— avg/day</div>
+              </div>
+              <div>
+                <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:4px">Water Cost</div>
+                <div style="font-size:var(--text-lg);font-weight:800;color:var(--color-error);font-variant-numeric:tabular-nums" id="revTotalWaterCost">—</div>
+                <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:2px" id="revDailyWaterCost">— avg/day</div>
+              </div>
+              <div><div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:4px">Other herd costs/revenue (workbook)</div><div style="font-size:var(--text-lg);font-weight:800;color:var(--color-error)" id="revOtherHerdNet">—</div></div>
+            </div>
+          </div>
+
+        </div><!-- /left -->
+
+        <!-- Right: donut chart + legend -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-4);min-width:220px">
+          <div style="position:relative;width:200px;height:200px">
+            <canvas id="chartRevDonut" width="200" height="200"></canvas>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;gap:2px">
+              <div style="font-size:var(--text-xs);font-weight:700;color:var(--color-text);text-transform:uppercase;letter-spacing:.06em">Gross</div>
+              <div style="font-size:var(--text-xs);font-weight:500;color:var(--color-text-muted)">Revenue</div>
+            </div>
+          </div>
+          <!-- Donut legend — 4 segments matching the 4 streams -->
+          <div style="display:flex;flex-direction:column;gap:var(--space-2);width:100%">
+            <div style="display:flex;align-items:center;gap:var(--space-2)">
+              <span style="width:12px;height:12px;border-radius:3px;background:var(--color-primary);flex-shrink:0"></span>
+              <span style="font-size:var(--text-xs);font-weight:600;color:var(--color-text);flex:1">Milk</span>
+              <span style="font-size:var(--text-xs);color:var(--color-text-muted)" id="legendPctMilk">—</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--space-2)">
+              <span style="width:12px;height:12px;border-radius:3px;background:var(--color-orange);flex-shrink:0"></span>
+              <span style="font-size:var(--text-xs);font-weight:600;color:var(--color-text);flex:1">Energy</span>
+              <span style="font-size:var(--text-xs);color:var(--color-text-muted)" id="legendPctEnergy">—</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--space-2)">
+              <span style="width:12px;height:12px;border-radius:3px;background:var(--color-gold);flex-shrink:0"></span>
+              <span style="font-size:var(--text-xs);font-weight:600;color:var(--color-text);flex:1">Heat</span>
+              <span style="font-size:var(--text-xs);color:var(--color-text-muted)" id="legendPctHeat">—</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--space-2)">
+              <span style="width:12px;height:12px;border-radius:3px;background:var(--color-success);flex-shrink:0"></span>
+              <span style="font-size:var(--text-xs);font-weight:600;color:var(--color-text);flex:1">Compost</span>
+              <span style="font-size:var(--text-xs);color:var(--color-text-muted)" id="legendPctCompost">—</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--space-2)">
+              <span style="width:12px;height:12px;border-radius:3px;background:var(--color-blue);flex-shrink:0"></span>
+              <span style="font-size:var(--text-xs);font-weight:600;color:var(--color-text);flex:1">Other revenue</span>
+              <span style="font-size:var(--text-xs);color:var(--color-text-muted)" id="legendPctOther">—</span>
+            </div>
+          </div>
+        </div><!-- /right -->
+
+      </div><!-- /body grid -->
+    </div>
+  </div>
+
+<div id="overviewCharts" style="display:none">
+      <div class="charts-grid">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Daily Milk Production</div><div class="card-subtitle">Litres per day over simulation period</div></div></div>
+          <div class="card-body"><div class="chart-wrap"><canvas id="chartMilk"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Daily Revenue</div><div class="card-subtitle">Milk, energy, heat &amp; compost — separate streams</div></div></div>
+          <div class="card-body"><div class="chart-wrap"><canvas id="chartRevenue"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">GHG Emissions</div><div class="card-subtitle">Gross vs Net kg CO₂e per day</div></div></div>
+          <div class="card-body"><div class="chart-wrap"><canvas id="chartGHG"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Energy Generation</div><div class="card-subtitle">Biogas + solar electricity kWh/day</div></div></div>
+          <div class="card-body"><div class="chart-wrap"><canvas id="chartEnergy"></canvas></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── TIME SERIES ── -->
+  <section class="page-section" id="section-charts">
+    <div class="page-header"><h1>Time Series Charts</h1><p>Daily trends across all major flow and stock metrics.</p></div>
+    <div class="stale-banner" style="display:none;align-items:center;gap:var(--space-3);background:color-mix(in oklch,var(--color-gold) 12%,var(--color-surface));border:1px solid color-mix(in oklch,var(--color-gold) 30%,var(--color-border));border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);margin-bottom:var(--space-4);">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--color-gold);flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span style="font-size:var(--text-sm);color:var(--color-text)">Parameters changed — <button onclick="runSimulation()" style="background:none;border:none;color:var(--color-primary);font-weight:600;cursor:pointer;font-size:var(--text-sm);padding:0;text-decoration:underline">click Run Simulation to update charts</button></span>
+    </div>
+    <div id="chartsEmpty" class="card"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><h3>No data</h3><p>Run simulation to see charts.</p></div></div>
+    <div id="chartsContent" style="display:none;flex-direction:column;gap:var(--space-5)">
+      <div class="charts-grid" id="allChartsGrid"></div>
+    </div>
+  </section>
+
+  <!-- ── CIRCULAR LOOPS ── -->
+  <section class="page-section" id="section-loops">
+    <div class="page-header">
+      <h1>Circular Bioeconomy Loops</h1>
+      <p>Average daily resource flows through the four circular loops of the dairy bioeconomy system.</p>
+    </div>
+
+    <!-- Empty state -->
+    <div id="loopsEmpty" class="card">
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+        <h3>No data yet</h3><p>Run the simulation to see loop metrics.</p>
+      </div>
+    </div>
+
+    <div id="loopsContent" style="display:none;flex-direction:column;gap:var(--space-6)">
+
+      <!-- ── Loop cards row ── -->
+      <div id="loopGrid" class="loops-hero-grid"></div>
+
+      <!-- ── Nutrient pool chart ── -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Nutrient Pool Over Time</div>
+            <div class="card-subtitle">Soil nutrient pool builds over 90-day lag, then depletes seasonally — high uptake in summer, near-zero in winter</div>
+          </div>
+        </div>
+        <div class="card-body"><div class="chart-wrap"><canvas id="chartNutrient"></canvas></div></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── COMPARISON ── -->
+  <section class="page-section" id="section-compare">
+    <div class="page-header">
+      <h1>Circular Loop Comparison</h1>
+      <p>Simulate all 16 loop combinations and compare their economic and environmental outcomes.</p>
+    </div>
+
+    <!-- Compact loop key -->
+    <div class="cmp-loop-key">
+      <span class="loop-key-item"><span class="loop-chip" style="background:var(--color-success-highlight);color:var(--color-success)">L1</span> Manure Separator</span>
+      <span class="loop-key-item"><span class="loop-chip" style="background:var(--color-blue-highlight);color:var(--color-blue)">L2</span> Water Cycle</span>
+      <span class="loop-key-item"><span class="loop-chip" style="background:var(--color-orange-highlight);color:var(--color-orange)">L3</span> Energy / Biogas</span>
+      <span class="loop-key-item"><span class="loop-chip" style="background:var(--color-purple-highlight,#dacfde);color:var(--color-purple,#7a39bb)">L4</span> Dairy Byproduct</span>
+      <button class="run-btn" onclick="runLoopComparison()" id="loopCmpBtn" style="margin-left:auto">
+        <svg class="run-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <div class="spinner"></div>
+        Run Analysis
+      </button>
+    </div>
+
+    <!-- Results (hidden until run) -->
+    <div class="card" style="margin-bottom:var(--space-5);padding:var(--space-4)" id="excelParityCard"><div class="card-title">Excel parity</div><p id="excelParitySummary">Loading the eight-seed AIRAND comparison.</p></div>
+    <div id="loopCmpResults" style="display:none;flex-direction:column;gap:var(--space-5)">
+
+      <!-- Summary strip -->
+      <div id="loopCmpSummaryStrip" class="cmp-summary-strip"></div>
+
+      <!-- Mode switcher + table -->
+      <div class="card" style="overflow:hidden">
+
+        <!-- Mode tabs row -->
+        <div class="cmp-mode-tabs">
+          <button id="modeTabA" class="cmp-mode-tab active-mode-tab" onclick="switchCmpMode('A')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Baseline + Selected
+          </button>
+          <button id="modeTabB" class="cmp-mode-tab" onclick="switchCmpMode('B')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="18"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+            Pairwise A vs B
+          </button>
+        </div>
+
+        <!-- Mode A controls panel -->
+        <div id="modePanelA" style="padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--color-divider);background:var(--color-surface-offset)">
+          <div style="display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap">
+            <span class="cmp-ctrl-label">Scenarios:</span>
+            <div id="modeACheckboxes" style="display:flex;flex-wrap:wrap;gap:var(--space-2);flex:1"></div>
+            <span class="cmp-ctrl-divider"></span>
+            <span class="cmp-ctrl-label">Show:</span>
+            <button class="rank-filter-btn active" onclick="loopHighlight('all',this)">All</button>
+            <button class="rank-filter-btn" onclick="loopHighlight('gains',this)">Gains</button>
+            <button class="rank-filter-btn" onclick="loopHighlight('savings',this)">Savings</button>
+          </div>
+        </div>
+
+        <!-- Mode B controls panel -->
+        <div id="modePanelB" style="display:none;padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--color-divider);background:var(--color-surface-offset)">
+          <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap">
+            <span class="cmp-ctrl-label">Scenario A:</span>
+            <select id="pairPickerA" onchange="renderPairTable()" class="cmp-select"></select>
+            <span style="font-size:var(--text-sm);color:var(--color-text-muted);font-weight:600">vs</span>
+            <span class="cmp-ctrl-label">Scenario B:</span>
+            <select id="pairPickerB" onchange="renderPairTable()" class="cmp-select"></select>
+          </div>
+        </div>
+
+        <!-- Table header + table -->
+        <div style="padding:var(--space-3) var(--space-4);border-top:1px solid var(--color-divider);display:flex;align-items:baseline;gap:var(--space-3)">
+          <div class="card-title" id="cmpTableTitle" style="flex:1">Economic Comparison</div>
+          <div class="card-subtitle" id="cmpTableSubtitle">Baseline pinned · Δ = change vs Baseline</div>
+        </div>
+        <div style="overflow-x:auto">
+          <table id="loopCmpTable" class="loop-cmp-table"></table>
+        </div>
+      </div>
+
+      <!-- Charts: tabbed single card -->
+      <div class="card">
+        <div class="card-header" style="padding-bottom:0;border-bottom:none">
+          <div class="card-title" id="cmpChartTitle">Net Profit vs Baseline</div>
+          <div class="cmp-chart-tabs" id="cmpChartTabs">
+            <button class="cmp-chart-tab active" onclick="switchChart('profit',this)">Profit</button>
+            <button class="cmp-chart-tab" onclick="switchChart('revenue',this)">Revenue</button>
+            <button class="cmp-chart-tab" onclick="switchChart('feed',this)">Feed Savings</button>
+            <button class="cmp-chart-tab" onclick="switchChart('water',this)">Water Savings</button>
+            <button class="cmp-chart-tab" onclick="switchChart('ghg',this)">GHG</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="cmpChartWrap" class="chart-wrap" style="height:280px">
+            <canvas id="chartLcActive"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Radar + Group avg side by side -->
+      <div class="charts-grid" style="grid-template-columns:1fr 1fr">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Performance Radar</div><div class="card-subtitle">Normalised across 5 dimensions</div></div>
+          <div class="card-body" style="display:flex;justify-content:center"><div style="width:100%"><div class="chart-wrap" style="height:300px"><canvas id="chartLcRadar"></canvas></div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Avg Profit Gain by Group</div><div class="card-subtitle">Mean gain vs Baseline per loop group</div></div>
+          <div class="card-body"><div class="chart-wrap" style="height:300px"><canvas id="chartLcGroupRev"></canvas></div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+
+<!-- ── EQUIPMENT ROI ANALYSIS ── -->
+  <section class="page-section" id="section-roi">
+    <div class="page-header">
+      <h1> Equipment ROI Justification</h1>
+      <p>Per-equipment financial defence for every capital addition in the dairy bioeconomy project. Each card shows the economic benefit that justifies purchasing that piece of equipment.</p>
+      <div id="roiFarmBanner" class="farm-roi-banner"> <strong>Conventional Farm</strong> — Standard high-output dairy farm. All 4 loops active.</div>
+    </div>
+
+    <!-- Global assumption inputs -->
+    <div class="roi-eq-inputs">
+      <div class="roi-eq-group">
+        <label for="roiDiscountRate">Discount Rate (%)</label>
+        <input type="number" id="roiDiscountRate" value="7" min="0" max="30" step="0.5" oninput="recalcEquipROI()" />
+      </div>
+      <div class="roi-eq-group">
+        <label for="roiLifespan">Equipment Lifespan (yrs)</label>
+        <input type="number" id="roiLifespan" value="15" min="1" max="40" step="1" oninput="recalcEquipROI()" />
+      </div>
+      <div class="roi-eq-group">
+        <label for="roiInstallPct">Install &amp; Commissioning (%)</label>
+        <input type="number" id="roiInstallPct" value="15" min="0" max="50" step="1" oninput="recalcEquipROI()" />
+      </div>
+      <div class="roi-eq-group">
+        <label for="roiMaintenancePct">Annual Maintenance (%)</label>
+        <input type="number" id="roiMaintenancePct" value="2" min="0" max="10" step="0.5" oninput="recalcEquipROI()" />
+      </div>
+      <button class="roi-eq-recalc" onclick="recalcEquipROI()">↻ Recalculate</button>
+    </div>
+
+    <!-- Empty state -->
+    <div id="roiEquipEmpty" class="card" style="margin-bottom:var(--space-5)">
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <h3>No simulation data yet</h3>
+        <p>Run the simulation first — ROI cards auto-populate with values from your simulation results.</p>
+      </div>
+    </div>
+
+    <!-- Results body -->
+    <div id="roiEquipBody" style="display:none">
+
+      <!-- Portfolio summary banner -->
+      <div class="roi-summary-banner">
+        <div class="roi-summary-title">
+          <h2>Total Equipment Portfolio</h2>
+          <p id="roiPortfolioDesc">— equipment items · scenario estimates</p>
+        </div>
+        <div class="roi-summary-kpis">
+          <div class="roi-sum-kpi">
+            <div class="roi-sum-kpi-label">Total CapEx</div>
+            <div class="roi-sum-kpi-val" id="roiTotalCapex">—</div>
+            <div class="roi-sum-kpi-sub">incl. install</div>
+          </div>
+          <div style="width:1px;background:rgba(255,255,255,.2);align-self:stretch"></div>
+          <div class="roi-sum-kpi">
+            <div class="roi-sum-kpi-label">Total Annual Benefit</div>
+            <div class="roi-sum-kpi-val" id="roiTotalBenefit">—</div>
+            <div class="roi-sum-kpi-sub">$/year across all equipment</div>
+          </div>
+          <div style="width:1px;background:rgba(255,255,255,.2);align-self:stretch"></div>
+          <div class="roi-sum-kpi">
+            <div class="roi-sum-kpi-label">Blended Payback</div>
+            <div class="roi-sum-kpi-val" id="roiBlendedPayback">—</div>
+            <div class="roi-sum-kpi-sub">simple recovery</div>
+          </div>
+          <div style="width:1px;background:rgba(255,255,255,.2);align-self:stretch"></div>
+          <div class="roi-sum-kpi">
+            <div class="roi-sum-kpi-label">Portfolio NPV</div>
+            <div class="roi-sum-kpi-val" id="roiPortfolioNPV">—</div>
+            <div class="roi-sum-kpi-sub" id="roiNPVSub">at 7% discount</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Portfolio chart + waterfall -->
+      <div class="roi-portfolio-wrap">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Payback Timeline by Equipment</div>
+            <div class="card-subtitle">Cumulative net benefit vs capital cost over lifespan</div>
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap" style="height:280px"><canvas id="chartEquipPayback"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Annual Benefit Breakdown</div>
+            <div class="card-subtitle">$/year contribution per equipment item</div>
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap" style="height:280px"><canvas id="chartEquipBenefit"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Equipment ROI cards grid -->
+      <div class="equip-roi-grid" id="equipRoiGrid"></div>
+
+      <div class="roi-methodology-note">
+        <strong style="color:var(--color-text)">How values are calculated:</strong>
+        Equipment capital costs and benefit assumptions are catalogue estimates scaled to your herd size and modeled flows. The inputs include <code>energyVal</code>, <code>feedOffset</code>, <code>waterCredit</code>, <code>compostRev</code>, and <code>milkRev</code>. ROI = (Lifetime Benefit − Total CapEx) / Total CapEx × 100. NPV discounts annual net benefit at the selected rate. Payback = Total CapEx ÷ Annual Net Benefit. These scenario estimates are not farm quotes.
+      </div>
+
+    </div>
+  </section>
+
+<!-- ── COW RANKING ── -->
+  <section class="page-section" id="section-ranking">
+    <div class="page-header">
+      <h1> Cow Efficiency Ranking</h1>
+      <p id="rankFcrDesc">Every cow in the herd ranked by Feed Conversion Ratio (FCR) — kg of feed per kg of milk produced. Lower FCR = more efficient cow. Efficiency % is scored within the herd's actual FCR spread (1–99%). Tiers are assigned from that score: Elite ≥ 80% · Good 60–79% · Average 35–59% · Poor < 35%.</p>
+    </div>
+
+    <div class="card" style="margin-bottom:var(--space-5)">
+      <div class="card-body" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-4)">
+        <div>
+          <div style="font-size:var(--text-sm);font-weight:700;color:var(--color-text)">Generate Individual Cow Rankings</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:2px" id="rankSubtitle">Ranks cows from the current Python model run</div>
+        </div>
+        <label style="display:inline-flex;align-items:center;gap:var(--space-2);font-size:var(--text-sm);color:var(--color-text-muted);cursor:pointer;margin-bottom:var(--space-3);">
+          <input type="checkbox" id="rankToggleAll" style="width:15px;height:15px;accent-color:var(--color-primary);">
+          Show all lifetime cows (including replaced)
+        </label>
+        <button class="run-btn" onclick="generateRanking()" id="rankBtn">
+          <svg class="run-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <div class="spinner"></div>
+          Generate Rankings
+        </button>
+      </div>
+    </div>
+
+    <div id="rankResults" style="display:none">
+      <div class="kpi-grid" style="margin-bottom:var(--space-5)" id="rankKpiRow"></div>
+
+      <div class="rank-filters">
+        <span style="font-size:var(--text-xs);font-weight:600;color:var(--color-text-muted)">Filter by tier:</span>
+        <button class="rank-filter-btn active" onclick="filterRank('all',this)">All Cows</button>
+        <button class="rank-filter-btn" onclick="filterRank('elite',this)"> Elite</button>
+        <button class="rank-filter-btn" onclick="filterRank('good',this)"> Good</button>
+        <button class="rank-filter-btn" onclick="filterRank('avg',this)"> Average</button>
+        <button class="rank-filter-btn" onclick="filterRank('poor',this)"> Poor</button>
+        <span style="margin-left:auto;font-size:var(--text-xs);color:var(--color-text-muted)">Click column headers to sort</span>
+      </div>
+
+      <div class="card">
+        <div class="card-body rank-table-wrap" style="padding:0">
+          <table class="rank-table" id="rankTable">
+            <thead>
+              <tr>
+                <th onclick="sortRank('rank')" id="th-rank">Rank <span class="sort-icon">▲</span></th>
+                <th onclick="sortRank('id')">Cow ID <span class="sort-icon">⇅</span></th>
+                <th onclick="sortRank('parity')">Parity <span class="sort-icon">⇅</span></th>
+                <th onclick="sortRank('bw')">Body Wt (kg) <span class="sort-icon">⇅</span></th>
+                <th onclick="sortRank('milk')" id="th-milk" title="Average L per milking day (dry days excluded)">Avg Milk L/day <span class="sort-icon">⇅</span></th>
+                <th onclick="sortRank('feed')">Avg Feed (kg/day) <span class="sort-icon">⇅</span></th>
+                <th onclick="sortRank('water')">Avg Water (L/day) <span class="sort-icon">⇅</span></th>
+                <th onclick="sortRank('manure')">Avg Manure (kg/day) <span class="sort-icon">⇅</span></th>
+                <th onclick="sortRank('fcr')" id="th-fcr">FCR (kg/kg) <span class="sort-icon">▲</span></th>
+                <th onclick="sortRank('milkRev')">Dairy Rev ($/day) <span class="sort-icon">⇅</span></th>
+                <th onclick="sortRank('ghg')">GHG (kgCO₂e/day) <span class="sort-icon">⇅</span></th>
+                <th onclick="sortRank('efficiency')" title="Score 1–99% within actual herd FCR range. 100% is physically impossible — energy is always lost to heat, maintenance & digestion.">Efficiency (1–99%) <span class="sort-icon">⇅</span></th>
+                <th onclick="sortRank('tier')" title="Based on Efficiency %: Elite ≥80% | Good 60–79% | Average 35–59% | Poor <35%">Tier <span class="sort-icon">⇅</span></th>
+              </tr>
+            </thead>
+            <tbody id="rankTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="charts-grid" style="margin-top:var(--space-5)">
+        <div class="card">
+          <div class="card-header"><div class="card-title">FCR vs Milk Yield per Cow</div><div class="card-subtitle">Lower FCR + higher milk = top performer</div></div>
+          <div class="card-body"><div class="chart-wrap"><canvas id="chartRankScatter"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Top 20 — Daily Milk Revenue</div><div class="card-subtitle">Highest revenue cows, coloured by tier</div></div>
+          <div class="card-body"><div class="chart-wrap"><canvas id="chartRankBar"></canvas></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── PARAMETERS ── -->
+  <section class="page-section" id="section-params">
+    <div class="page-header"><h1>Simulation Parameters</h1><p>Adjust all bioeconomy model parameters. Changes take effect on the next simulation run.</p></div>
+    <!-- Quick-jump param group navigator -->
+    <div id="paramGroupNav" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;padding:10px 14px;background:var(--color-surface-offset);border-radius:var(--radius-md);border:1px solid var(--color-divider)">
+      <span style="font-size:11px;font-weight:700;color:var(--color-text-muted);width:100%;margin-bottom:4px">JUMP TO SECTION</span>
+    </div>
+    <div class="params-layout" id="paramGroups"></div>
+    <details class="card" style="margin-top:var(--space-5);padding:var(--space-4)"><summary>Model details</summary><p id="modelDetailsContent">The Python farm model supplies every simulation result. Controls without a Python equivalent are disabled.</p></details>
+    <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-2)">
+      <button class="run-btn" onclick="runSimulation()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Run with These Parameters
+      </button>
+      <button onclick="resetParams()" style="padding:var(--space-2) var(--space-5);border-radius:var(--radius-md);border:1px solid var(--color-border);font-size:var(--text-sm);font-weight:500;color:var(--color-text-muted)">Reset to Defaults</button>
+    </div>
+  </section>
+
+  <!-- ── ANIMAL BIOLOGY ── -->
+  <section class="page-section" id="section-animal">
+    <div class="page-header"><h1>Animal Biology Parameters</h1><p>Configure individual cow lactation, health, reproduction, and body-weight assumptions (Wood's curve model).</p></div>
+    <div class="params-layout" id="animalParamGroups"></div>
+    <div style="margin-top:var(--space-2)">
+      <button class="run-btn" onclick="runSimulation()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Run with These Parameters
+      </button>
+    </div>
+  </section>
+
+  <section class="page-section" id="section-formulas">
+    <div class="page-header">
+      <h1>Formulas &amp; Values</h1>
+      <p>A read-only reference for the model's process order, calculations, configured values, and exact implementation source.</p>
+    </div>
+    <div class="fv-summary card">
+      <div>
+        <div class="fv-eyebrow">CURRENT MODEL REFERENCE</div>
+        <h2>Trace every value back to its source.</h2>
+        <p>The calibration registry supplies parameter values and units. Calculation and code-number indexes cover the Python model and active dashboard script. Complete source files are included for rules embedded in larger processes.</p>
+      </div>
+      <div class="fv-stats" id="fvStats" aria-live="polite">Loading reference...</div>
+    </div>
+    <div class="fv-tabs" role="tablist" aria-label="Formula reference sections">
+      <button type="button" class="fv-tab active" role="tab" aria-selected="true" data-fv-tab="process">Process order</button>
+      <button type="button" class="fv-tab" role="tab" aria-selected="false" data-fv-tab="calculations">Calculations</button>
+      <button type="button" class="fv-tab" role="tab" aria-selected="false" data-fv-tab="values">Values</button>
+      <button type="button" class="fv-tab" role="tab" aria-selected="false" data-fv-tab="source">Exact source</button>
+    </div>
+    <div class="fv-panel" id="fv-process" role="tabpanel">
+      <div class="fv-section-head"><h2>What happens on each day</h2><p>The order below comes from <code>dairy_abm/model.py</code>. Each stage can use packets produced earlier that day or credits carried from a previous day.</p></div>
+      <div class="fv-process-grid" id="fvDailyProcess"></div>
+      <div class="fv-section-head"><h2>Calendar and run-end hooks</h2></div>
+      <div class="fv-calendar" id="fvCalendarProcess"></div>
+    </div>
+    <div class="fv-panel" id="fv-calculations" role="tabpanel" hidden>
+      <div class="fv-section-head"><h2>Calculation index</h2><p>Python assignments and returns containing arithmetic or comparisons, plus expression lines from the active dashboard script. Open a source file for surrounding conditions, guards, and units.</p></div>
+      <div class="fv-controls"><label>Search calculations<input id="fvCalcSearch" type="search" placeholder="Milk, profit, methane, NASEM..." /></label><label>Source file<select id="fvCalcFile"><option value="">All files</option></select></label></div>
+      <div class="fv-result-count" id="fvCalcCount"></div>
+      <div class="fv-results" id="fvCalcResults"></div>
+      <button type="button" class="fv-more" id="fvCalcMore" hidden>Show more calculations</button>
+    </div>
+    <div class="fv-panel" id="fv-values" role="tabpanel" hidden>
+      <div class="fv-section-head"><h2>Values and constants</h2><p>Calibration entries include source, range, units, and assumption status. Scenario and genetics values, Python literals, and dashboard script numbers are indexed separately. Dashboard numbers can describe presentation or ROI estimates; the calibration registry controls model coefficients.</p></div>
+      <div class="fv-controls"><label>Value set<select id="fvValueSet"><option value="calibration">Calibration registry</option><option value="configuration">Scenario and genetics files</option><option value="literals">Python code literals</option><option value="frontend_literals">Dashboard code numbers</option></select></label><label>Search values<input id="fvValueSearch" type="search" placeholder="Key, value, source, unit..." /></label></div>
+      <div class="fv-result-count" id="fvValueCount"></div>
+      <div class="fv-value-list" id="fvValueResults"></div>
+      <button type="button" class="fv-more" id="fvValueMore" hidden>Show more values</button>
+    </div>
+    <div class="fv-panel" id="fv-source" role="tabpanel" hidden>
+      <div class="fv-section-head"><h2>Exact implementation source</h2><p>This static snapshot includes the model, agents, analysis, dashboard adapter, server, active dashboard script, calibration, and scenario files. The hash beside each file identifies the captured version.</p></div>
+      <div class="fv-controls"><label>Source file<select id="fvSourceFile"></select></label></div>
+      <div class="fv-source-meta" id="fvSourceMeta"></div>
+      <pre class="fv-source-preview" id="fvSourcePreview" hidden></pre>
+      <pre class="fv-source-code" id="fvSourceCode"></pre>
+    </div>
+  </section>
+
+</main>
 </div>
 
-<section id="report" class="report" aria-label="Research report export">
-  <div class="reporttop"><h2>Dairy Farm ABM / Research report</h2><span class="mono" id="report-meta">READY FOR A RUN</span></div>
-  <div id="report-content"><div class="empty-state"><h2>No report yet.</h2><p>Run a simulation first, then export the research report from the workbench.</p></div></div>
-  <div class="back"><button id="back-workspace" type="button">Back to workbench</button></div>
-</section>
-<footer>Simulation output only - not validated scientific or financial results.<br>Same engine and seed rules as <code>python3 -m dairy_abm run</code>.</footer>
-
-<script type="module" src="/assets/js/app.js"></script>
+<script src="/assets/js/formulas.js"></script>
+<script src="/assets/js/dashboard.js"></script>
 </body>
 </html>

@@ -41,7 +41,7 @@ This produces six output files:
 
 ### Source-reference comparison
 
-`scenarios/cdairy_airand_reference.json` compares the model's directly equivalent milk-output measure against the AIRAND year-15 target transcribed from the supplied Cdairy workbook. Set `reference_benchmark` to `"cdairy_airand_year15"` in any scenario to add `reference_benchmark` to `summary.json`. Run it with `--calibration configs/reference_targets/cdairy_airand_milk_calibration.json` to apply the single-point milk calibration. The comparison preserves source-cell provenance and deliberately leaves pregnancy, days-open, culling, clinical-mastitis, antibiotic, component-sales, and NPV targets unavailable until the model represents the same measure. It does not overwrite model outputs or treat one seeded run as equivalent to the workbook's 1,000-replication result.
+`scenarios/cdairy_airand_reference.json` compares directly equivalent measures with the supplied Cdairy workbook. Run `python3 -m dairy_abm parity --seeds 1,2,3,4,5,6,7,8` for the AIRAND year-15, eight-seed comparison. The extracted workbook reference is `configs/reference_targets/cdairy_stats_mast.json`; `docs/parity/parity_report.md` records the results, definitions, and remaining gaps. The workbook's external Java simulator is unavailable, so matching summary statistics does not establish identical herd events or scientific validity.
 
 ```sh
 ls output/
@@ -84,15 +84,18 @@ python3 -m dairy_abm run \
 ```
 Use `--enable-l1-loop` / `--disable-l1-loop`, `--enable-l2-loop` / `--disable-l2-loop`, `--enable-l3-loop` / `--disable-l3-loop`, or `--enable-l4-loop` / `--disable-l4-loop` to override a loop setting in a scenario file for a single run.
 
-### Run from the web (run desk)
+### Run from the web
 
-A zero-dependency local server drives the same model from a browser page. The run desk supports scenario selection, duration from 1 to 3650 days, start date, Day / Month / Year presets, seed, herd size, four L1-L4 loop switches, Processor, Whey processing, and Land agent switches.
-The desktop workbench keeps simulation controls in a clean left-side panel and shows full-width results beside it. The client-side shell provides routes for Overview, Simulation, Charts, Circular Loops, Scenario Comparison, Cow Performance, Environment, Economics, Equipment ROI, Parameters, Model Details, and Export. The Overview route presents the Python-produced run KPIs and four daily summary charts. The Charts route presents the registry of daily, monthly, and annual model series; period roll-ups are produced by Python, not the browser. The Circular Loops route presents L1 nutrient, L2 water, L3 energy, and L4 byproduct histories plus a backend-driven flow topology with active, inactive, and unavailable states. The Scenario Comparison route supports Baseline vs Current, individual loop toggles, user-selected scenarios, and an optional 16-run L1-L4 matrix. It displays Python-provided absolute and percentage deltas, run metadata, setting-difference warnings, and metric-aware directional coloring without rebuilding model calculations in JavaScript. The Cow Performance route presents the latest-day packet records merged with final lifecycle and genetic state, direct-metric rankings, health states, scatter views, and trait distributions; historical per-cow records remain unavailable because the model does not retain dated cow histories. The Environment route presents Python-produced GHG, soil, NUE, circularity, sustainability, monthly report, and source-stream ledger data with packet quality and confidence metadata; it never reverse-engineers source emissions from totals. The Economics route presents Python-produced revenue, cost, profit, cash, market, monthly manager, and farm-NPV outputs, retains unavailable historical categories as N/A, and shows latest manager fields without treating snapshots as time series. The workbench also provides Ledger and Graphs views with Daily, Monthly, or Yearly compatibility roll-ups.
-The Equipment ROI route retains the legacy user-supplied asset view. The run summary additionally exposes a four-loop investment analysis with sourced screening CapEx, annual net benefit, simple payback, 15-year ROI, NPV, discounted ROI, and discounted payback. These meanings are not merged because the legacy asset fields and the new loop-level fields have different cost bases.
-The Parameters route is generated from `GET /api/calibration`: it provides searchable, grouped, assumption-aware metadata, typed controls, valid-range messages, field/group/all reset actions, and isolated `calibration_overrides` for the next run. Backend validation remains authoritative.
-The Model Details route is read-only and uses the serialized `model_details` payload for actual scenario metadata, enabled systems, loop states, scheduler records, policy summary, warnings, calibration counts, event count, and official report-contract metadata; it does not hard-code an agent count or recalculate model values.
-The Export route uses the backend `dairy_abm.reports.write_reports` contract to download Summary JSON, Daily/Schedule/Monthly/Annual CSV, Calibration Inventory, and the complete ZIP from the cached run. Chart PNG remains an optional presentation download; unsupported comparison exports stay N/A rather than being fabricated in the browser.
-The final shell is laptop-first and responsive: the sidebar can collapse, focus rings and accessible labels are preserved, large tables/charts scroll instead of clipping, loading/empty states are explicit, units stay attached to values, and reduced-motion users do not receive unnecessary animation.
+The local server opens the Conventional Farm dashboard directly. Its nine pages are Overview, Time Series Charts, Circular Loops, Comparison, ROI Justification, Cow Ranking, Parameters, Animal Biology, and Formulas & Values. The page uses the Python `DairyFarmModel` for numerical results, and Chart.js is vendored under `web/vendor/`. The browser does not run a second farm simulation. The default dashboard run is 100 cows, five years, seed 42, with all four loops enabled. The top bar offers official ZIP and CSV exports from the cached run.
+
+The controls mapped to Python inputs can change herd size, duration, seed, and supported biological or loop parameters. Target controls without an equivalent model input stay visible and disabled. The Comparison page runs the 16 loop combinations on the server and displays the saved eight-seed Excel parity results. The ROI page presents a fixed equipment catalogue as scenario estimates; it is not a farm quote. Cow Ranking uses retained model cow histories. Parameters includes read-only model details. Net profit is revenue minus all costs, with other workbook herd costs and revenues shown in the cost reconciliation. Water, nutrient, and byproduct labels retain their source units; unavailable values are shown as unavailable rather than converted without a coefficient.
+
+Formulas & Values is a static, read-only reference. It shows the scheduler order, all 315 current calibration entries with their metadata, scenario and genetics values, 779 indexed Python calculations, 505 dashboard expression lines, 2,039 Python numeric/Boolean literals, 969 dashboard code-number occurrences, and the exact source text of 39 model, dashboard, server, and configuration files. The source view is the complete reference when a calculation spans several statements. Regenerate the checked-in snapshot after changing those files:
+
+```sh
+python3 scripts/generate_formula_reference.py
+python3 scripts/generate_formula_reference.py --check
+```
 
 ```sh
 python3 webapp.py
@@ -105,7 +108,11 @@ Available web routes:
 
 | Method | Route | Purpose |
 |--------|-------|---------|
-| `GET` | `/` or `/index.html` | Serve the run desk |
+| `GET` | `/` or `/index.html` | Serve the Conventional dashboard |
+| `GET` | `/api/conventional/params` | Return supported controls and Python defaults |
+| `POST` | `/api/conventional/run` | Run the Python model and return Conventional dashboard data |
+| `POST` | `/api/conventional/compare` | Run all 16 circular-loop combinations |
+| `GET` | `/api/conventional/parity` | Return the saved eight-seed Excel comparison |
 | `GET` | `/api/scenario` | Return scenario names and baseline defaults |
 | `GET` | `/api/config` | Return UI-safe runtime limits, feature flags, and report metadata |
 | `GET` | `/api/calibration` | Return the flat calibration inventory |
@@ -116,7 +123,7 @@ Available web routes:
 | `GET` | `/api/export/<run_id>/<artifact>` | Download one official JSON or CSV report artifact |
 
 
-The output ZIP contains `daily.csv`, `monthly.csv`, `annual.csv`, `schedule.csv`, `summary.json`, and `calibration_inventory.json`. The individual artifact route accepts those filenames (plus short aliases such as `daily` and `summary`). The server keeps the ten most recent completed runs available for export and dashboard retrieval. The Download graphs (PNG) control creates a browser download from the currently selected graph view.
+The output ZIP contains `daily.csv`, `monthly.csv`, `annual.csv`, `schedule.csv`, `summary.json`, and `calibration_inventory.json`. The individual artifact route accepts those filenames (plus short aliases such as `daily` and `summary`). The server keeps the ten most recent completed runs available for export. Existing `/api/run` and `/api/compare` routes remain available for clients using the earlier normalized payload.
 
 `POST /api/run` accepts typed `scenario_overrides` and dotted-key `calibration_overrides`. Calibration values are applied to a validated private copy for that run; the process-wide defaults are never changed.
 
@@ -249,7 +256,7 @@ Observed market CSVs can provide a `date` column for daily selection, `year` plu
 
 - **Execution order is enforced.** Market and sensor observations are published first, followed by land context, feed rations, and management policy dispatch, then disease, water delivery, cow production, processor, manure, energy, water balance, environment accounting, and farm manager reporting. Genetics intake recording runs last. This ensures all downstream agents see the upstream state they depend on.
 - **Land is optional**, but when enabled it supplies seasonal allocation, rotational grazing with paddock recovery, silvopastoral tree cover, and scenario-calibrated soil-carbon context. Land-specific scenario overrides require `enable_land_agent` or configuration will be rejected.
-- **Environment retains a full stream-level GHG ledger**, tracking each emission and offset source (enteric CH4, storage CH4, unmanaged CH4, compost N2O, field N2O, energy grid displacement, fertiliser substitution, soil carbon) with direction (positive/avoided), period, and confidence. It reports signed net-carbon results, sustainability score (0-100), circularity indicators (Icirc/Ocirc), and cumulative KPIs across the run. Factors marked as assumptions still require scientific calibration.
+- **Environment retains a full stream-level GHG ledger**, tracking each emission and offset source (enteric CH4, storage CH4, unmanaged CH4, compost N2O, field N2O, energy grid displacement, fertiliser substitution, soil carbon) with direction (positive/avoided), period, and confidence. It reports signed net-carbon results, circularity indicators (Icirc/Ocirc), and cumulative KPIs. Sustainability is unavailable unless scenario weights are supplied. Factors marked as assumptions still require scientific calibration.
 - **Per-cow lifecycle** tracks age, parity, days in milk, body condition, body weight, rumen pH, SARA, pregnancy, calving, mortality, and per-cow trait vectors inherited from genetics. Heat stress (THI bands at 68 and 72) and SARA (sustained low rumen pH) reduce DMI and milk yield.
 - **Disease uses a full SIR model** with outbreak seeding, transmission pressure (density-modulated), biosecurity, quarantine, vaccination rollout, inherited genetic resistance, and stress-susceptibility amplification. Herd immunity and cumulative outbreak economics are tracked.
 - **Manure management** includes collection efficiency, storage inventory with overflow, NPK accounting per route (digester/compost/storage), digester co-feed assembly (manure + grass + food waste), thermochemical valorisation, and processor residue integration.
@@ -392,7 +399,7 @@ Or via Bun (if installed):
 bun test
 ```
 
-Tests cover deterministic replay, agent contracts, calibration inventory, CLI integration, phase scheduling, loop timing, market replay, report contracts, energy balances, environment ledger, manure pathways, market-land integration, sensors-disease integration, water treatment, blueprint conformance, mass/energy/economic conservation, and the web run desk API, ZIP exports, validation, cache limits, client aggregation, SVG charts, controls, error handling, and downloads.
+Tests cover deterministic replay, agent contracts, calibration inventory, CLI integration, phase scheduling, loop timing, market replay, report contracts, energy balances, environment ledger, manure pathways, market-land integration, sensors-disease integration, water treatment, Blueprint conformance, mass/energy/economic conservation, and the Conventional dashboard adapter and API. Browser screenshots for all eight pages in light and dark mode are in `docs/parity/screenshots/`.
 
 The browser client harness can be run directly with Node:
 

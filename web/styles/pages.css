@@ -256,6 +256,10 @@
 .economics-chart-panel > header, .economics-period-panel > header, .economics-breakdown article > header, .economics-market > header, .economics-decisions > header { display: flex; justify-content: space-between; align-items: end; gap: 18px; }
 .economics-chart-panel h3, .economics-period-panel h3, .economics-breakdown h3, .economics-market h3, .economics-decisions h3 { margin: 5px 0 0; font-size: 20px; letter-spacing: -.04em; }
 .economics-chart-panel p, .economics-period-panel p, .economics-market p, .economics-decisions p { margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.economics-conflicts { display: grid; gap: 7px; margin-top: 12px; font-size: 11px; }
+.economics-conflicts ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.economics-conflicts li { display: grid; gap: 3px; padding: 8px; border-left: 3px solid var(--accent); background: #fff8f5; }
+.economics-conflicts li span, .economics-conflicts li small { color: var(--muted); }
 .economics-chart-panel .chart { margin-top: 16px; }
 .economics-breakdown, .economics-lower { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .economics-breakdown article { min-width: 0; }

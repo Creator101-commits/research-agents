@@ -3,6 +3,7 @@ export const state = {
   railCollapsed: false,
   config: null,
   calibration: null,
+  calibrationScenario: null,
   currentRun: null,
   currentRunId: null,
   comparison: null,

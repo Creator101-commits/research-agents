@@ -17,10 +17,11 @@ import tempfile
 import time
 import uuid
 import zipfile
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from dairy_abm.config import apply_calibration_overrides, calibration_inventory, load_calibration
 from dairy_abm.core import read_json
@@ -28,6 +29,13 @@ from dairy_abm.dashboard import (
     serialize_comparison,
     serialize_dashboard_config,
     serialize_dashboard_run,
+)
+from dairy_abm.dashboard_conventional import (
+    PARAMETERS as CONVENTIONAL_PARAMETERS,
+    compare_one as conventional_compare_one,
+    comparison_keys as conventional_comparison_keys,
+    default_config as conventional_default_config,
+    run_model as conventional_run_model,
 )
 from dairy_abm.model import DairyFarmModel
 from dairy_abm.reports import REPORT_CONTRACT, write_reports
@@ -105,6 +113,21 @@ def _scenario_calibration(scenario: dict) -> dict:
     return load_calibration(str(path))
 
 
+def _load_scenario(filename: str | None) -> dict:
+    """Read one allowed scenario file, or return the default scenario."""
+    if not filename:
+        return dict(DEFAULT_SCENARIO)
+    scenario_root = SCENARIO_DIR.resolve()
+    path = (scenario_root / filename).resolve()
+    try:
+        path.relative_to(scenario_root)
+    except ValueError as exc:
+        raise ValueError(f"scenario file must live under {SCENARIO_DIR.name}/") from exc
+    if not path.is_file():
+        raise ValueError(f"scenario file not found: {filename}")
+    return read_json(path)
+
+
 def _run_simulation(params: dict) -> dict:
     if not isinstance(params, dict):
         raise ValueError("request body must be a JSON object")
@@ -112,17 +135,7 @@ def _run_simulation(params: dict) -> dict:
     suspected = params.get("scenario")
     if suspected is not None and not isinstance(suspected, str):
         raise ValueError("scenario must be a file name")
-    scenario = dict(DEFAULT_SCENARIO)
-    if suspected:
-        scenario_root = SCENARIO_DIR.resolve()
-        path = (scenario_root / suspected).resolve()
-        try:
-            path.relative_to(scenario_root)
-        except ValueError as exc:
-            raise ValueError(f"scenario file must live under {SCENARIO_DIR.name}/") from exc
-        if not path.is_file():
-            raise ValueError(f"scenario file not found: {suspected}")
-        scenario = read_json(path)
+    scenario = _load_scenario(suspected)
 
     override_keys = (
         "days",
@@ -201,6 +214,28 @@ def _run_simulation(params: dict) -> dict:
     while len(RUN_CACHE) > 10:  # keep the last ten runs downloadable
         RUN_CACHE.pop(next(iter(RUN_CACHE)))
     return result
+
+
+def _run_conventional(params: dict) -> dict:
+    result, ctx = conventional_run_model(params, DEFAULT_SCENARIO, CALIBRATION)
+    run_id = uuid.uuid4().hex[:8]
+    result["runId"] = run_id
+    RUN_CACHE[run_id] = CachedRun(ctx=ctx, duration_s=0.0, calibration_overrides={})
+    while len(RUN_CACHE) > 10:
+        RUN_CACHE.pop(next(iter(RUN_CACHE)))
+    return result
+
+
+def _compare_conventional(params: dict) -> dict:
+    if not isinstance(params, dict):
+        raise ValueError("request body must be a JSON object")
+    # Validate once before starting sixteen model runs.
+    from dairy_abm.dashboard_conventional import resolve_inputs
+    resolve_inputs(params, DEFAULT_SCENARIO, CALIBRATION)
+    jobs = [(key, params, DEFAULT_SCENARIO, CALIBRATION) for key in conventional_comparison_keys()]
+    with ProcessPoolExecutor(max_workers=4) as pool:
+        results = dict(pool.map(conventional_compare_one, jobs))
+    return {"results": results}
 
 
 
@@ -436,8 +471,39 @@ class Handler(BaseHTTPRequestHandler):
                 200,
                 serialize_dashboard_config(DEFAULT_SCENARIO, CALIBRATION, names, REPORT_CONTRACT),
             )
+        elif path == "/api/conventional/params":
+            self._send(200, {
+                "cfg": conventional_default_config(
+                    {**DEFAULT_SCENARIO, "days": 5 * 365, "herd_size": 100, "seed": 42}, CALIBRATION
+                ),
+                "supported": sorted(CONVENTIONAL_PARAMETERS),
+            })
+        elif path == "/api/conventional/parity":
+            report = ROOT / "docs" / "parity" / "parity_results_8_seeds.json"
+            if not report.is_file():
+                self._send(404, {"error": "parity report is not available"})
+                return
+            aggregate = read_json(report)["aggregate"]
+            selected = {row["key"]: row for row in aggregate["comparison"]["rows"]
+                        if row["key"] in ("milk_yield_kg_per_cow_year", "profit")}
+            self._send(200, {
+                "seeds": aggregate["seeds"],
+                "status_counts": aggregate["comparison"]["status_counts"],
+                "selected": selected,
+                "reference": "Cdairy Stats_MAST AIRAND year 15",
+            })
         elif path == "/api/calibration":
-            self._send(200, {"parameters": calibration_inventory(CALIBRATION)})
+            query = parse_qs(urlparse(self.path).query)
+            scenario_name = query.get("scenario", [None])[-1]
+            if scenario_name is not None and not isinstance(scenario_name, str):
+                self._send(400, {"error": "scenario must be a file name"})
+                return
+            try:
+                calibration = _scenario_calibration(_load_scenario(scenario_name))
+            except ValueError as exc:
+                self._send(400, {"error": str(exc)})
+                return
+            self._send(200, {"parameters": calibration_inventory(calibration)})
         elif path.startswith("/api/run/"):
             run_id = path.removeprefix("/api/run/")
             entry = RUN_CACHE.get(run_id)
@@ -478,7 +544,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
-        if path not in ("/api/run", "/api/compare"):
+        if path not in ("/api/run", "/api/compare", "/api/conventional/run", "/api/conventional/compare"):
             self._send(404, {"error": "not found"})
             return
         try:
@@ -488,7 +554,14 @@ class Handler(BaseHTTPRequestHandler):
             self._send(400, {"error": f"bad request: {exc}"})
             return
         try:
-            result = _run_simulation(body) if path == "/api/run" else _compare_runs(body)
+            if path == "/api/run":
+                result = _run_simulation(body)
+            elif path == "/api/compare":
+                result = _compare_runs(body)
+            elif path == "/api/conventional/run":
+                result = _run_conventional(body)
+            else:
+                result = _compare_conventional(body)
             self._send(200, {"ok": True, **result})
         except (TypeError, ValueError) as exc:
             self._send(400, {"error": str(exc)})

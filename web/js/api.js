@@ -2,8 +2,9 @@ export async function loadDefaults() {
   const response = await fetch("/api/scenario");
   return response.json();
 }
-export async function loadCalibration() {
-  const response = await fetch("/api/calibration");
+export async function loadCalibration(scenario) {
+  const query = scenario ? "?scenario=" + encodeURIComponent(scenario) : "";
+  const response = await fetch("/api/calibration" + query);
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || ("HTTP " + response.status));
   return data;

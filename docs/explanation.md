@@ -22,6 +22,8 @@ The model is designed to explore how biological, operational, environmental, and
 
 The project is primarily a **research, policy-analysis, and education simulation framework**. It is not yet a validated scientific or financial forecasting product: many values in the calibration file are explicitly marked as implementation assumptions and require domain-specific calibration before real-world decisions are based on them.
 
+The workbook parity branch also contains a herd lifecycle model and a port of the Cdairy `Stats_MAST` economics formulas. The spreadsheet supplies aggregated results from an external Java simulator, not that simulator's source. The eight-seed AIRAND year-15 comparison is documented in `docs/parity/parity_report.md`.
+
 ## 2. Technology and dependencies
 
 The runtime is written in Python and uses only the standard library. The package is intended for Python 3.10 or newer.
@@ -58,6 +60,8 @@ research-agents/
 │   ├── core.py                       Packets, events, context, clock, and utilities
 │   ├── model.py                      Top-level model and scheduler
 │   ├── reports.py                    JSON/CSV report generation
+│   ├── dashboard_conventional.py     Conventional dashboard adapter
+│   ├── herd_lifecycle.py             Cow reproduction and replacement model
 │   └── agents/
 │       ├── cow_agent.py
 │       ├── dairy_processor_agent.py
@@ -74,7 +78,10 @@ research-agents/
 │       └── water_agent.py
 ├── docs/
 │   ├── plan.md                       Implementation roadmap and completion history
-│   └── calibration_review.md         Assumption and scientific-calibration checklist
+│   ├── calibration_review.md         Assumption and scientific-calibration checklist
+│   └── parity/                       Workbook, Blueprint, and dashboard verification
+├── web/                               Conventional dashboard HTML, CSS, and JS
+├── webapp.py                          Local dashboard server
 └── tests/
     ├── python_unittest.test.ts       Bun wrapper around Python unittest
     └── test_*.py                     Unit, integration, and contract tests
@@ -317,21 +324,13 @@ The CLI accepts a scenario file, an optional calibration override, output direct
 
 The tests are broader than simple unit tests. They verify agent contracts, phase order, data conservation, report shapes, deterministic replay, feature gates, configuration validation, and cross-agent integration.
 
-Current validation performed while preparing this explanation:
+Run these checks after changes:
 
 ```text
-python3 -m unittest discover -s tests -p 'test_*.py'
-Ran 135 tests ... OK
-
+python3 -B -m unittest discover -s tests -p 'test_*.py'
 bun test
-1 pass, 0 fail
-
 python3 -m dairy_abm validate-config
-success
-
-python3 -m dairy_abm run --scenario scenarios/baseline.json --output ...
-created summary.json, calibration_inventory.json, daily.csv,
-schedule.csv, monthly.csv, and annual.csv
+python3 -m dairy_abm parity --seeds 1,2,3,4,5,6,7,8
 ```
 
 The test modules cover areas including:
@@ -358,6 +357,9 @@ The test modules cover areas including:
 3. **Circular effects are lagged.** L1, L2, and L4 do not affect the same day's upstream ration; they become next-day credits.
 4. **The model is deterministic only for a fixed input and seed.** Changing the seed, scenario, calibration, or observed market data can change outputs.
 5. **Observed market quality is explicit.** Missing or carried-forward values are flagged rather than being presented as equally reliable observations.
+6. **The Conventional dashboard is a view of Python results.** `dairy_abm/dashboard_conventional.py` maps daily model records and retained cow histories into the eight target pages. Charts use local Chart.js. Controls without Python equivalents are disabled. The equipment ROI catalogue uses fixed scenario assumptions and is not a farm quote.
+7. **Workbook parity is aggregate parity.** The `Stats_MAST` economics port was checked against all five strategies, but the Python herd model is calibrated primarily to AIRAND year 15. The external Java event engine is unavailable. Profit from the live formula differs from the pasted published table value; the report states which is compared.
+8. **Formulas & Values is a source snapshot.** The ninth dashboard page lists daily and calendar processes, every calibration entry with provenance and range, scenario and genetics values, indexed Python calculations and literals, and full current source files. Run `python3 scripts/generate_formula_reference.py` after changing model or dashboard calculations. The test suite checks that the static snapshot matches the source. The index is a navigation aid; full source is the exact implementation when a rule spans multiple lines.
 6. **The project does not use a third-party ABM framework.** Scheduling, state management, packets, persistence, and reporting are implemented in the repository itself.
 7. **Generated simulation output is intentionally ignored.** The `.gitignore` excludes `output/`, caches, virtual environments, and dependency/build artifacts.
 

@@ -201,9 +201,9 @@ class WebAppHTTPTests(unittest.TestCase):
         status, headers, body = self.request("GET", "/")
         self.assertEqual(status, 200)
         self.assertIn("text/html", headers["Content-Type"])
-        self.assertIn(b"Dairy Farm ABM", body)
-        self.assertIn(b"/assets/styles/tokens.css", body)
-        self.assertIn(b"/assets/js/app.js", body)
+        self.assertIn(b"Dairy Bioeconomy Simulator", body)
+        self.assertIn(b"/assets/styles/dashboard.css", body)
+        self.assertIn(b"/assets/js/dashboard.js", body)
 
         status, _, body = self.request("GET", "/api/scenario")
         data = json.loads(body)
@@ -212,13 +212,21 @@ class WebAppHTTPTests(unittest.TestCase):
         self.assertEqual(data["defaults"]["name"], "baseline")
         self.assertEqual(data["scenario_defaults"]["baseline.json"]["herd_size"], 100)
         reference = data["scenario_defaults"]["cdairy_airand_reference.json"]
-        self.assertEqual(reference["days"], 365)
+        self.assertEqual(reference["days"], 1095)
         self.assertEqual(reference["herd_size"], 400)
         self.assertFalse(reference["l1_nutrient_loop_enabled"])
-        self.assertEqual(
-            reference["reference_calibration"],
-            "configs/reference_targets/cdairy_airand_milk_calibration.json",
+        self.assertIsNone(reference["reference_calibration"])
+
+        status, _, body = self.request(
+            "GET", "/api/calibration?scenario=cdairy_airand_reference.json"
         )
+        calibration = json.loads(body)
+        self.assertEqual(status, 200)
+        milk = next(
+            row for row in calibration["parameters"]
+            if row["key"] == "herd.peak_milk_l_mature"
+        )
+        self.assertGreater(milk["default"], 0)
 
     def test_static_assets_are_served_and_traversal_is_rejected(self):
         status, headers, body = self.request("GET", "/assets/js/app.js")
@@ -355,28 +363,17 @@ class WebAppClientTests(unittest.TestCase):
 
 class WebAppVisualContractTests(unittest.TestCase):
     def test_static_frontend_contains_chart_layout_and_controls(self):
-        charts = (WEB_ROOT / "js" / "charts.js").read_text(encoding="utf-8")
-        app = (WEB_ROOT / "js" / "app.js").read_text(encoding="utf-8")
-        self.assertIn("const CH = { W:520, H:244, L:76, R:18, T:48, B:40 };", charts)
-        self.assertIn('<text x="10" y="21" class="ttl">', charts)
-        self.assertIn('class="axislabel"', charts)
-        self.assertIn("const barX = i => L + ((i + 0.5)/n)*plotW;", charts)
-        self.assertIn("Math.min(48, Math.max(2, plotW/n*0.62))", charts)
-        self.assertIn('data-d="30"', STATIC_HTML)
-        self.assertIn('data-d="365"', STATIC_HTML)
-        self.assertIn('const TABS = [["ledger","Ledger"],["graphs","Graphs"]];', app)
-        self.assertIn('const PERIODS = [["daily","Daily"],["monthly","Monthly"],["yearly","Yearly"]];', app)
-        self.assertIn('const dl = state.view==="graphs" && state.data', app)
-        self.assertIn('id="dlgraphs"', app)
-        self.assertIn('id="report-content"', STATIC_HTML)
-        self.assertIn('id="back-workspace"', STATIC_HTML)
-        self.assertIn('position: static; align-self: start', STATIC_CSS)
-        self.assertIn('grid-template-columns: 260px minmax(0, 1fr)', STATIC_CSS)
-        self.assertIn('class="confighead"', STATIC_HTML)
-        self.assertIn('class="empty-state"', STATIC_HTML)
-        self.assertIn('class="graph-lead"', app)
-        self.assertIn('button#go { width: 100%', STATIC_CSS)
-        self.assertIn('grid-template-columns: repeat(2, minmax(0, 1fr))', STATIC_CSS)
+        ui = (WEB_ROOT / "js" / "dashboard.js").read_text(encoding="utf-8")
+        self.assertIn('id="section-overview"', STATIC_HTML)
+        self.assertIn('id="section-compare"', STATIC_HTML)
+        self.assertIn('id="section-ranking"', STATIC_HTML)
+        self.assertIn('/assets/vendor/chart.umd.js', STATIC_HTML)
+        self.assertIn('data-theme-toggle', STATIC_HTML)
+        self.assertIn('id="exportBtn"', STATIC_HTML)
+        self.assertIn('id="revOtherHerdNet"', STATIC_HTML)
+        self.assertIn('function runSimulation()', ui)
+        self.assertIn('function runLoopComparison()', ui)
+        self.assertIn('--color-primary:#01696f', STATIC_CSS)
 
     def test_static_palette_has_no_cream_tones(self):
         for color in ("#d7cdb4", "#c3b795", "#6f6756", "#fffef8", "#23201a"):

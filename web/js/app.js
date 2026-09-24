@@ -131,6 +131,9 @@ function applyScenarioDefaults(filename) {
   });
   state.parameterDraft = {};
   state.parameterErrors = {};
+  state.calibration = null;
+  state.calibrationScenario = null;
+  state.parameterLoading = false;
   updateScenarioLabel(def.name || filename.replace(/\.json$/, ""), def.reference_calibration);
   if (state.activePage === "parameters") renderParameters();
 }
@@ -870,7 +873,10 @@ function renderEconomics() {
   const marketMarkup = marketRows.map(([label, key, decimals, unit]) => `<div class="economics-market-row"><span>${esc(label)}</span><b>${typeof market[key] === "string" ? esc(market[key]) : economicsValue(market[key], decimals, unit)}</b></div>`).join("");
   const warnings = (audit.warnings || []).map(warning => `<li>${esc(warning.message || warning.detail || "Economics warning")}</li>`).join("");
   const recommendation = latest && latest.recommendation ? `<p><b>Recommendation:</b> ${esc(latest.recommendation)}</p>` : `<p><b>Recommendation:</b> N/A</p>`;
-  const conflicts = latest && Array.isArray(latest.policy_conflicts) && latest.policy_conflicts.length ? `<p><b>Policy conflicts:</b> ${esc(JSON.stringify(latest.policy_conflicts))}</p>` : `<p><b>Policy conflicts:</b> none reported</p>`;
+  const policyConflicts = latest && Array.isArray(latest.policy_conflicts) ? latest.policy_conflicts : [];
+  const conflicts = policyConflicts.length
+    ? `<div class="economics-conflicts"><b>Policy conflicts</b><ul>${policyConflicts.map(conflict => `<li><strong>${esc(conflict.objectives || "Model objectives")}</strong><span>${esc(conflict.reason || "No reason supplied")}</span><small>${esc(conflict.resolution || "No resolution supplied")}</small></li>`).join("")}</ul></div>`
+    : `<p><b>Policy conflicts:</b> none reported</p>`;
   target.innerHTML = `<div class="economics-audit"><header class="economics-head"><div><span class="eyebrow">ECONOMICS</span><h2>Trace reported money flows.</h2><p>Revenue, cost, cash, market, and NPV values come from manager, daily report, market, disease, and existing analysis outputs. Unretained categories remain N/A.</p></div><span class="overview-source">${esc(audit.source || "ctx.daily_records")}</span></header>${warnings ? `<div class="economics-warnings"><b>Model warnings</b><ul>${warnings}</ul></div>` : ""}<section class="economics-kpis">${cards}</section><section class="economics-chart-panel"><header><div><span class="eyebrow">DAILY SERIES</span><h3>Revenue, cost, and profit</h3><p>Daily rows are serialized by Python; the browser does not roll them up.</p></div></header>${chart}</section><section class="economics-breakdown"><article><header><span class="eyebrow">REVENUE</span><h3>Latest manager revenue fields</h3></header>${economicsLatestTable(latest, revenueFields)}</article><article><header><span class="eyebrow">COSTS</span><h3>Latest manager cost fields</h3></header>${economicsLatestTable(latest, costFields)}</article></section><section class="economics-period-panel"><header><div><span class="eyebrow">MONTHLY REPORTS</span><h3>Farm-manager calendar records</h3><p>Monthly values are official manager rows, not frontend aggregates.</p></div></header>${economicsSeriesTable(monthly, "month", [["total_revenue", "Total revenue"], ["total_cost", "Total cost"], ["profit", "Profit"]])}</section><section class="economics-lower"><article class="economics-market"><header><span class="eyebrow">MARKET SNAPSHOT</span><h3>Latest price context</h3></header>${marketMarkup || `<div class="economics-unavailable">N/A</div>`}</article><article class="economics-decisions"><header><span class="eyebrow">MANAGER OUTPUT</span><h3>Policy context</h3></header>${recommendation}${conflicts}<p><b>NPV discount rate:</b> ${economicsValue(audit.discount_rate, 3)}</p></article></section></div>`;
 }
 
@@ -984,12 +990,16 @@ function renderParameters() {
   if (!Array.isArray(state.calibration)) {
     target.innerHTML = `<div class="empty-state"><span class="eyebrow">PARAMETERS</span><h2>Loading calibration inventory.</h2><p>Fetching parameter metadata from <code>/api/calibration</code>.</p></div>`;
     if (!state.parameterLoading) {
+      const scenario = $("scenario").value;
       state.parameterLoading = true;
-      loadCalibration().then(data => {
+      loadCalibration(scenario).then(data => {
+        if ($("scenario").value !== scenario) return;
         state.calibration = Array.isArray(data.parameters) ? data.parameters : [];
+        state.calibrationScenario = scenario;
         state.parameterLoading = false;
         renderParameters();
       }).catch(error => {
+        if ($("scenario").value !== scenario) return;
         state.parameterLoading = false;
         setError(error.message || "Unable to load calibration inventory");
         target.innerHTML = `<div class="empty-state"><span class="eyebrow">PARAMETERS</span><h2>Calibration unavailable.</h2><p>${esc(error.message || "Unable to load calibration inventory")}</p></div>`;
@@ -1097,7 +1107,14 @@ function renderEquipment() {
     return;
   }
   const assets = Array.isArray(equipment.assets) ? equipment.assets : [];
-  const warnings = (equipment.warnings || []).map(warning => `<li>${esc(warning.message || "Equipment warning")}</li>`).join("");
+  const warningCounts = new Map();
+  (equipment.warnings || []).forEach(warning => {
+    const message = warning.message || "Equipment warning";
+    warningCounts.set(message, (warningCounts.get(message) || 0) + 1);
+  });
+  const warnings = Array.from(warningCounts, ([message, count]) =>
+    `<li>${esc(message)}${count > 1 ? ` (${count} occurrences)` : ""}</li>`
+  ).join("");
   const cards = assets.length ? assets.map(equipmentCard).join("") : `<div class="equipment-unavailable">N/A<br><span>No represented equipment assets were retained.</span></div>`;
   const npvRows = Object.entries(equipment.equipment_npvs || {}).map(([id, value]) => `<tr><th scope="row">${esc(id)}</th><td>${equipmentValue(value, 2, "currency")}</td></tr>`).join("");
   const npvTable = npvRows ? `<div class="equipment-table-wrap"><table class="equipment-table"><thead><tr><th scope="col">Asset</th><th scope="col">NPV (currency)</th></tr></thead><tbody>${npvRows}</tbody></table></div>` : `<div class="equipment-unavailable">N/A</div>`;

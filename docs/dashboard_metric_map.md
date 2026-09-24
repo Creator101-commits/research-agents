@@ -1,6 +1,14 @@
 # Dashboard Metric Map
 
-Phase 1 inventory for the repository-native dashboard rebuild.
+Historical Phase 1 inventory for the earlier twelve-page dashboard. The current eight-page Conventional implementation uses `dairy_abm/dashboard_conventional.py`; the mappings below describe the retained `/api/run` contract and should not be read as the current browser page list.
+
+## Current Conventional contract
+
+`POST /api/conventional/run` returns `{series, avg, totals, days, n, cfg, herdSummary}` from a seeded Python `DairyFarmModel` run. `series` maps model daily records to the target charts; `avg` and `totals` aggregate those same records. Milk, manure, feed, water, energy, emissions, revenue, costs, and profit remain in their model source units. `netFeed` is the nonnegative DMI less the model's feed loop offset; FCR divides kilograms of feed by kilograms of milk and is unavailable on zero-milk days. `energyVal` excludes `heatVal` so the display does not count heat twice. Sludge fertilizer remains liters and is not added to organic fertilizer kilograms. `wheyFoods` is unavailable because the Python model does not report that target quantity. Other herd costs and revenue reconcile displayed total revenue and costs to model profit. The `herdSummary` ranks retained per-cow histories; it is not a reconstruction of missing dated packet records. Cow ranking shows a short display ID and retains the model's full cow ID in `modelId` and the table tooltip.
+
+`POST /api/conventional/compare` runs all sixteen loop combinations with identical controls. `GET /api/conventional/params` identifies supported controls and defaults. `GET /api/conventional/parity` serves the saved eight-seed workbook comparison. The target's eight equipment ROI rows are catalogue-based scenario estimates and do not replace the Python farm manager's investment report. The top bar's official exports use the cached Python context.
+
+The additional Formulas & Values page reads only the generated static file `web/data/formulas_values.json`. It contains calibration metadata, scenario/genetics values, indexed Python calculations and literals, the scheduler order, and full source text. It does not call the simulation or calculate new model values. `scripts/generate_formula_reference.py --check` verifies that its snapshot matches the current source.
 
 This document maps dashboard requirements to authoritative Python outputs before frontend work begins. It covers the metrics named in `docs/research-agents-dashboard-plan-2.md` and the fields currently used by `webapp.py`. It is a data contract planning document, not a second simulation specification.
 
