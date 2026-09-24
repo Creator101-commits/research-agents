@@ -1,100 +1,90 @@
 {
   "id": "cdairy_airand_year15",
-  "label": "Cdairy AIRAND year-15 reference",
+  "label": "Cdairy AIRAND year-15 published Tables values",
   "source": {
     "workbook": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm",
     "strategy": "AIRAND",
     "strategy_definition": "AI with random calf selection and parent-average Net Merit sire genetics",
     "sheet": "Tables",
-    "ranges": ["B43:AG74", "B6:C36"],
+    "ranges": [
+      "B43:AG74",
+      "B6:C36"
+    ],
     "horizon": "year 15",
     "replications": 1000,
-    "selection_note": "The workbook's active experiment is MAST_AIRAND. AIRAND is the matching named strategy column in the displayed year-15 summary table."
+    "selection_note": "The workbook's active experiment is MAST_AIRAND. AIRAND is the matching named strategy column in the displayed year-15 summary table.",
+    "note": "Values as displayed on the workbook Tables sheet (pasted values). The model comparison uses the live Stats_MAST formula results in cdairy_stats_mast.json; the published AIRAND milk component sales (5044) differ from the live Stats_MAST result (5068.14)."
   },
   "metrics": {
     "milk_kg_per_cow_year": {
       "target": 12668.0,
       "unit": "kg/cow/year",
-      "source_cell": "Tables!D69",
-      "comparison": "comparable"
+      "source_cell": "Tables!D69"
     },
     "annual_pregnancy_rate_pct": {
       "target": 36.5,
       "unit": "%",
-      "source_cell": "Tables!D67",
-      "comparison": "not_equivalent"
+      "source_cell": "Tables!D67"
     },
     "days_open": {
       "target": 111.0,
       "unit": "days",
-      "source_cell": "Tables!D68",
-      "comparison": "not_modeled"
+      "source_cell": "Tables!D68"
     },
     "annual_cull_rate_pct": {
       "target": 36.7,
       "unit": "%",
-      "source_cell": "Tables!D70",
-      "comparison": "not_modeled"
+      "source_cell": "Tables!D70"
     },
     "mastitis_incidence_pct": {
       "target": 17.3,
       "unit": "%",
-      "source_cell": "Tables!D73",
-      "comparison": "not_equivalent"
+      "source_cell": "Tables!D73"
     },
     "annual_antibiotic_doses": {
       "target": 284.0,
       "unit": "doses/year",
-      "source_cell": "Tables!D74",
-      "comparison": "not_modeled"
+      "source_cell": "Tables!D74"
     },
     "milk_component_sales_per_cow_year": {
       "target": 5044.0,
       "unit": "currency/cow/year",
-      "source_cell": "Tables!P46",
-      "comparison": "not_equivalent"
+      "source_cell": "Tables!P46"
     },
     "cow_sales_per_cow_year": {
       "target": 304.0,
       "unit": "currency/cow/year",
-      "source_cell": "Tables!P47",
-      "comparison": "not_modeled"
+      "source_cell": "Tables!P47"
     },
     "calf_sales_per_cow_year": {
       "target": 154.0,
       "unit": "currency/cow/year",
-      "source_cell": "Tables!P48",
-      "comparison": "not_modeled"
+      "source_cell": "Tables!P48"
     },
     "total_revenue_per_cow_year": {
       "target": 5734.0,
       "unit": "currency/cow/year",
-      "source_cell": "Tables!P50",
-      "comparison": "not_equivalent"
+      "source_cell": "Tables!P50"
     },
     "feeding_cost_per_cow_year": {
       "target": 2599.0,
       "unit": "currency/cow/year",
-      "source_cell": "Tables!P52",
-      "comparison": "not_equivalent"
+      "source_cell": "Tables!P52"
     },
     "total_cost_per_cow_year": {
       "target": 4217.0,
       "unit": "currency/cow/year",
-      "source_cell": "Tables!P61",
-      "comparison": "not_equivalent"
+      "source_cell": "Tables!P61"
     },
     "profit_per_cow_year": {
       "target": 1517.0,
       "unit": "currency/cow/year",
-      "source_cell": "Tables!P63",
-      "comparison": "not_equivalent"
+      "source_cell": "Tables!P63"
     },
     "profit_npv_per_cow": {
       "target": 728.0,
       "unit": "currency/cow",
-      "source_cell": "Tables!P64",
-      "comparison": "not_equivalent"
+      "source_cell": "Tables!P64"
     }
   }
 }
