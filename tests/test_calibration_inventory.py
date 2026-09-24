@@ -11,6 +11,7 @@ from dairy_abm.core import ConfigError
 
 
 EXPECTED_AGENTS = {
+    "cdairy_economics",
     "cow",
     "dairy_processor",
     "disease",
@@ -19,6 +20,7 @@ EXPECTED_AGENTS = {
     "farm_manager",
     "feed_crop",
     "genetics",
+    "herd",
     "land",
     "manure",
     "market",

@@ -101,21 +101,21 @@
       "assumption": true,
       "description": "Health weight multiplier applied when active disease cases exceed the stress threshold."
     },
-    "low_cull_price_threshold": {
-      "value": 700.0,
+    "high_cull_price_threshold": {
+      "value": 900.0,
       "unit": "currency/cow",
       "valid_range": "0..",
       "source": "implementation",
       "assumption": true,
-      "description": "Cull-price threshold below which survivability receives additional breeding emphasis."
+      "description": "Cull-price threshold above which livability receives additional breeding emphasis (blueprint 4.4: a high cull price or mortality raises livability). Set above the workbook cull value of 800."
     },
-    "survivability_weight_multiplier_under_low_cull_price": {
+    "survivability_weight_multiplier_under_high_cull_price": {
       "value": 1.15,
       "unit": "multiplier",
       "valid_range": "1..",
       "source": "implementation",
       "assumption": true,
-      "description": "Survivability weight multiplier applied when the cull-price signal is low."
+      "description": "Livability weight multiplier applied when the cull-price signal is high or cows have died."
     },
     "trait_weights": {
       "milk_yield": {
@@ -161,14 +161,6 @@
     }
   },
   "cow": {
-    "base_milk_l_per_cow_day": {
-      "value": 30.0,
-      "unit": "L/cow/day",
-      "valid_range": "0..",
-      "source": "implementation",
-      "assumption": true,
-      "description": "Baseline daily milk production before health, genetics, and heat-stress modifiers."
-    },
     "base_dmi_kg_per_cow_day": {
       "value": 22.0,
       "unit": "kg dry matter/cow/day",
@@ -208,22 +200,6 @@
       "source": "implementation",
       "assumption": true,
       "description": "Milk reduction when heat stress is active."
-    },
-    "mortality_rate_annual": {
-      "value": 0.04,
-      "unit": "fraction/year",
-      "valid_range": "0..1",
-      "source": "implementation",
-      "assumption": true,
-      "description": "Baseline annual mortality probability."
-    },
-    "pregnancy_rate_monthly": {
-      "value": 0.18,
-      "unit": "fraction/month",
-      "valid_range": "0..1",
-      "source": "implementation",
-      "assumption": true,
-      "description": "Baseline monthly pregnancy probability for eligible cows."
     },
     "initial_age_days": {
       "value": 1460,
@@ -329,13 +305,13 @@
       "assumption": false,
       "description": "Consecutive low-pH observations required before SARA production effects apply."
     },
-    "sara_dmi_loss_fraction": {
+    "sara_digestibility_loss_fraction": {
       "value": 0.10,
       "unit": "fraction",
       "valid_range": "0..1",
       "source": "abm_blueprint.html",
       "assumption": false,
-      "description": "DMI reduction applied to cows affected by sustained SARA."
+      "description": "Diet digestibility reduction for cows with sustained SARA (blueprint 8.5: digestibility -10%); lowers effective ME, so FCR and CH4 per kg DMI worsen while intake is unchanged."
     },
     "sara_milk_loss_fraction": {
       "value": 0.06,
@@ -344,14 +320,6 @@
       "source": "abm_blueprint.html",
       "assumption": true,
       "description": "Milk reduction applied to cows affected by sustained SARA."
-    },
-    "reproduction_eligibility_days_in_milk": {
-      "value": 60,
-      "unit": "days",
-      "valid_range": "0..",
-      "source": "implementation",
-      "assumption": true,
-      "description": "Minimum lactation day before a non-pregnant cow enters the reproduction pool."
     },
     "ration_shortfall_milk_loss_fraction": {
       "value": 1.0,
@@ -370,28 +338,44 @@
       "description": "Dry-matter intake contribution from pasture grazing per hectare."
     },
     "milk_protein_fraction": {
-      "value": 0.033,
+      "value": 0.031484,
       "unit": "kg protein/L milk",
       "valid_range": "0..1",
-      "source": "implementation",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BQ14 / BQ12 (0.030567 kg/kg) x 1.03 kg/L",
       "assumption": true,
-      "description": "Milk protein mass represented per litre of simulated milk."
+      "description": "Milk protein mass per litre of simulated milk; workbook protein content (Excel values take precedence)."
     },
-    "replacement_maturity_days": {
-      "value": 730,
-      "unit": "days",
-      "valid_range": "365..1200",
-      "source": "implementation",
+    "dmi_level_calibration_factor": {
+      "value": 1.19,
+      "unit": "multiplier",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST AIRAND year 15 lactating-cow DMI (AT73 / AT21 = 26.2 kg/milking cow-day)",
       "assumption": true,
-      "description": "Age at which a female replacement enters first lactation in the simplified lifecycle."
+      "description": "Scales the NASEM Eq 2-1 intake level so lactating-cow dry-matter intake matches the workbook (Excel precedence); the equation form is unchanged."
     },
-    "lactation_peak_days": {
-      "value": 60,
+    "heat_stress_conception_reduction_fraction": {
+      "value": 0.2,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html section 8.4 (THI > 72 raises reproductive-failure probability; magnitude not clearly specified)",
+      "assumption": true,
+      "description": "Relative reduction of conception probability on days with THI above the severe heat-stress threshold."
+    },
+    "eq2_1_max_dim_days": {
+      "value": 368,
       "unit": "days in milk",
-      "valid_range": "1..365",
-      "source": "implementation",
-      "assumption": true,
-      "description": "Peak-day parameter for the normalized Wood-style lactation curve."
+      "valid_range": "1..",
+      "source": "abm_blueprint.html section 9 (Eq 2-1 envelope about 1-368 DIM)",
+      "assumption": false,
+      "description": "Days in milk beyond which NASEM Eq 2-1 is evaluated at its envelope limit (fallback)."
+    },
+    "dmi_stochastic_cv": {
+      "value": 0.15,
+      "unit": "coefficient of variation",
+      "valid_range": "0.11..0.22",
+      "source": "abm_blueprint.html section 8.1 (CV 0.11-0.22, default 0.15)",
+      "assumption": false,
+      "description": "Day-to-day stochastic variation of realised DMI around expected DMI."
     }
   },
   "feed_crop": {
@@ -444,12 +428,12 @@
       "description": "Nitrogen mass fraction represented by ration crude protein."
     },
     "ration_cost_per_kg_dm": {
-      "value": 0.32,
+      "value": 0.3,
       "unit": "currency/kg dry matter",
       "valid_range": "0..",
-      "source": "implementation",
-      "assumption": true,
-      "description": "Baseline ration cost used when no market packet overrides feed cost."
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV19 ($dmi_wet/kg)",
+      "assumption": false,
+      "description": "Fallback lactating-cow ration price per kg dry matter when no market packet is present (workbook)."
     },
     "crop_yield_kg_dm_per_ha_day": {
       "value": 35.0,
@@ -554,6 +538,38 @@
       "source": "implementation",
       "assumption": true,
       "description": "Neutral-detergent fibre fraction of ration dry matter."
+    },
+    "mp_requirement_fraction_of_dm": {
+      "value": 0.105,
+      "unit": "kg MP requirement/kg DM",
+      "valid_range": "0..1",
+      "source": "abm_blueprint.html section 2.5 mp_requirement_pct (value not clearly specified)",
+      "assumption": true,
+      "description": "Metabolizable-protein requirement proxy as a share of DM, used in excess_N = (dietary CP - MP requirement) x DMI."
+    },
+    "forage_ndf_pct_of_dm": {
+      "value": 24.0,
+      "unit": "% of diet DM",
+      "valid_range": "0..100",
+      "source": "implementation (diet composition not clearly specified in the blueprint)",
+      "assumption": true,
+      "description": "Forage NDF as percent of diet DM (fNDF) for NASEM Eq 2-2."
+    },
+    "adf_to_ndf_ratio": {
+      "value": 0.6,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "implementation (diet composition not clearly specified in the blueprint)",
+      "assumption": true,
+      "description": "ADF as a fraction of diet NDF for NASEM Eq 2-2."
+    },
+    "forage_ndf_digestibility_pct": {
+      "value": 52.0,
+      "unit": "%",
+      "valid_range": "0..100",
+      "source": "abm_blueprint.html section 4.4 (fNDFD fallback 52.0%)",
+      "assumption": false,
+      "description": "Forage NDF digestibility (fNDFD) for NASEM Eq 2-2; blueprint fallback value."
     }
   },
   "manure": {
@@ -740,6 +756,30 @@
       "source": "implementation",
       "assumption": true,
       "description": "Syngas energy yield retained as a physical reporting output until externally calibrated."
+    },
+    "compost_product_yield_fraction": {
+      "value": 0.4,
+      "unit": "kg compost/kg manure composted",
+      "valid_range": "0..1",
+      "source": "Dairy_bioeconomy_dashboard.html (Conventional preset) compost_kg_per_kg_manure_to_compost (not specified in the workbook or blueprint)",
+      "assumption": true,
+      "description": "Finished compost mass per kg of manure routed to composting."
+    },
+    "digestate_yield_fraction": {
+      "value": 0.9,
+      "unit": "kg digestate/kg digester feedstock",
+      "valid_range": "0..1",
+      "source": "Dairy_bioeconomy_dashboard.html (Conventional preset) digestate_kg_per_kg_manure_to_digester (not specified in the workbook or blueprint)",
+      "assumption": true,
+      "description": "Digestate mass leaving the digester per kg of feedstock."
+    },
+    "compost_value_per_kg": {
+      "value": 0.05,
+      "unit": "currency/kg compost",
+      "valid_range": "0..",
+      "source": "Dairy_bioeconomy_dashboard.html (Conventional preset) compost_value_currency_per_kg (not specified in the workbook or blueprint)",
+      "assumption": true,
+      "description": "Sale value of finished compost (L1 nutrient loop revenue)."
     }
   },
   "energy": {
@@ -817,14 +857,6 @@
     }
   },
   "disease": {
-    "mastitis_daily_probability": {
-      "value": 0.0008,
-      "unit": "probability/cow/day",
-      "valid_range": "0..1",
-      "source": "implementation",
-      "assumption": true,
-      "description": "Baseline daily mastitis transition probability."
-    },
     "lameness_daily_probability": {
       "value": 0.0005,
       "unit": "probability/cow/day",
@@ -1020,22 +1052,6 @@
       "source": "implementation",
       "assumption": true,
       "description": "Enable optional thermochemical manure valorization routes."
-    },
-    "labor_cost_per_cow_day": {
-      "value": 3.5,
-      "unit": "currency/cow/day",
-      "valid_range": "0..",
-      "source": "implementation",
-      "assumption": true,
-      "description": "Baseline labor cost."
-    },
-    "fixed_cost_per_day": {
-      "value": 250.0,
-      "unit": "currency/day",
-      "valid_range": "0..",
-      "source": "implementation",
-      "assumption": true,
-      "description": "Baseline non-labor fixed operating cost."
     },
     "discount_rate_annual": {
       "value": 0.08,
@@ -1596,32 +1612,64 @@
       "source": "abm_blueprint.html",
       "assumption": false,
       "description": "Share of waste milk routed to feed when safety allows."
+    },
+    "milk_snf_fraction": {
+      "value": 0.087,
+      "unit": "kg SNF/kg milk",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Skim (non-fat) solids content of processed milk for the component ledger."
+    },
+    "butter_yield_kg_per_kg_milk": {
+      "value": 0.045,
+      "unit": "kg butter/kg milk routed to butter",
+      "valid_range": "0..1",
+      "source": "implementation (plant yields are not clearly specified in the blueprint)",
+      "assumption": true,
+      "description": "Butter output per kg of milk routed to the butter stream, used with the USDA ERS fat/SNF draws."
+    },
+    "cheese_yield_kg_per_kg_milk": {
+      "value": 0.1,
+      "unit": "kg cheese/kg milk routed to cheese",
+      "valid_range": "0..1",
+      "source": "implementation (plant yields are not clearly specified in the blueprint)",
+      "assumption": true,
+      "description": "American-type cheese output per kg of milk routed to cheese."
+    },
+    "dry_whey_yield_kg_per_kg_whey": {
+      "value": 0.065,
+      "unit": "kg dry whey/kg liquid whey",
+      "valid_range": "0..1",
+      "source": "implementation (plant yields are not clearly specified in the blueprint)",
+      "assumption": true,
+      "description": "Dry whey solids recoverable per kg of liquid whey."
     }
   },
   "market": {
     "milk_price_per_l": {
-      "value": 0.42,
+      "value": 0.4219,
       "unit": "currency/L",
       "valid_range": "0..",
-      "source": "implementation",
-      "assumption": true,
-      "description": "Static farm-gate milk price when CSV market data is absent."
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV12:BV15 component prices at the workbook fat, protein and SCS levels, x 1.03 kg/L",
+      "assumption": false,
+      "description": "Milk-equivalent price per litre implied by the workbook component prices; used where a single litre price is needed (processor raw-milk value). Herd milk revenue uses the component prices directly."
     },
     "feed_cost_per_kg_dm": {
-      "value": 0.32,
+      "value": 0.3,
       "unit": "currency/kg dry matter",
       "valid_range": "0..",
-      "source": "implementation",
-      "assumption": true,
-      "description": "Static feed cost when CSV market data is absent."
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV19 ($dmi_wet/kg)",
+      "assumption": false,
+      "description": "Lactating-cow ration price per kg dry matter (workbook). Dry-cow DM uses cdairy_economics.dmi_dry_price_per_kg."
     },
     "cull_cow_price": {
-      "value": 900.0,
+      "value": 800.0,
       "unit": "currency/cow",
       "valid_range": "0..",
-      "source": "implementation",
-      "assumption": true,
-      "description": "Static cull-cow value for management and genetics signals."
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV16 ($cull cow value)",
+      "assumption": false,
+      "description": "Cull cow value per head (workbook)."
     },
     "price_shock_stddev_fraction": {
       "value": 0.0,
@@ -1706,6 +1754,810 @@
       "source": "implementation",
       "assumption": true,
       "description": "Annual genetics cycle emits on calendar year end."
+    }
+  },
+  "cdairy_economics": {
+    "profit_deviation_adjustment": {
+      "value": 1.0,
+      "unit": "fraction",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV10",
+      "assumption": false,
+      "description": "Adjustment_ProfitDeviation (multiplier on the calf, heifer, profit-deviation and embryo revenue rows). Workbook value; Excel formulas take precedence over other sources."
+    },
+    "milk_price_per_kg": {
+      "value": 0.07,
+      "unit": "currency/kg",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV12",
+      "assumption": false,
+      "description": "Milk price per kg milk. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "fat_price_per_kg": {
+      "value": 4.3,
+      "unit": "currency/kg",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV13",
+      "assumption": false,
+      "description": "Fat price per kg fat. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "protein_price_per_kg": {
+      "value": 5.47,
+      "unit": "currency/kg",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV14",
+      "assumption": false,
+      "description": "Protein price per kg protein. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "scs_penalty": {
+      "value": -1.9e-05,
+      "unit": "currency per thousand SCC per kg milk",
+      "valid_range": "..0",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV15",
+      "assumption": false,
+      "description": "SCS penalty coefficient applied to SCC deviation (thousand cells/mL) x milk kg. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "cull_cow_value": {
+      "value": 800.0,
+      "unit": "currency/head",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV16",
+      "assumption": false,
+      "description": "Cull cow value per head. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "bull_calf_value": {
+      "value": 150.0,
+      "unit": "currency/head",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV17",
+      "assumption": false,
+      "description": "Sold bull calf base value per head. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "female_calf_value": {
+      "value": 500.0,
+      "unit": "currency/head",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV18",
+      "assumption": false,
+      "description": "Sold heifer calf value per head (female calf, cull value). Workbook value; Excel formulas take precedence over other sources."
+    },
+    "dmi_wet_price_per_kg": {
+      "value": 0.3,
+      "unit": "currency/kg",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV19",
+      "assumption": false,
+      "description": "Feed price per kg dry matter, lactating (wet) cow. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "dmi_dry_price_per_kg": {
+      "value": 0.2,
+      "unit": "currency/kg",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV20",
+      "assumption": false,
+      "description": "Feed price per kg dry matter, dry cow and heifer. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "presynch_cost": {
+      "value": 4.0,
+      "unit": "currency/event",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV21",
+      "assumption": false,
+      "description": "Presynch protocol cost. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "firstsynch_cost": {
+      "value": 10.0,
+      "unit": "currency/event",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV22",
+      "assumption": false,
+      "description": "Firstsynch protocol cost. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "resynch_f_cost": {
+      "value": 2.5,
+      "unit": "currency/event",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV23",
+      "assumption": false,
+      "description": "ResynchF cost (usually GnRH). Workbook value; Excel formulas take precedence over other sources."
+    },
+    "resynch_s_cost": {
+      "value": 7.5,
+      "unit": "currency/event",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV24",
+      "assumption": false,
+      "description": "ResynchS cost (usually PGF). Workbook value; Excel formulas take precedence over other sources."
+    },
+    "pregnancy_diagnosis_1_cost": {
+      "value": 5.0,
+      "unit": "currency/event",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV25",
+      "assumption": false,
+      "description": "Pregnancy diagnosis 1 (early blood test). Workbook value; Excel formulas take precedence over other sources."
+    },
+    "pregnancy_diagnosis_2_cost": {
+      "value": 5.0,
+      "unit": "currency/event",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV26",
+      "assumption": false,
+      "description": "Pregnancy diagnosis 2. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "pregnancy_diagnosis_3_cost": {
+      "value": 5.0,
+      "unit": "currency/event",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV27",
+      "assumption": false,
+      "description": "Pregnancy diagnosis 3. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "pregnancy_diagnosis_4_cost": {
+      "value": 5.0,
+      "unit": "currency/event",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV28",
+      "assumption": false,
+      "description": "Pregnancy diagnosis 4. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "ai_cost": {
+      "value": 15.0,
+      "unit": "currency/event",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV29",
+      "assumption": false,
+      "description": "Conventional semen insemination. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "sexed_semen_cost": {
+      "value": 30.0,
+      "unit": "currency/event",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV30",
+      "assumption": false,
+      "description": "Sexed semen insemination. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "donor_cow_cost": {
+      "value": 12.5,
+      "unit": "currency/head",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV31",
+      "assumption": false,
+      "description": "Embryo donor cost per cow. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "donor_heifer_cost": {
+      "value": 8.7,
+      "unit": "currency/head",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV32",
+      "assumption": false,
+      "description": "Embryo donor cost per heifer. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "fresh_embryo_cost": {
+      "value": 135.0,
+      "unit": "currency/event",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV33",
+      "assumption": false,
+      "description": "Fresh embryo production and transfer. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "frozen_embryo_cost": {
+      "value": 145.0,
+      "unit": "currency/event",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV34",
+      "assumption": false,
+      "description": "Frozen embryo production and transfer. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "vwp_cow_day_cost": {
+      "value": 0.0,
+      "unit": "currency/cow-day",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV35",
+      "assumption": false,
+      "description": "Cost per VWP cow-day (calving to VWP). Workbook value; Excel formulas take precedence over other sources."
+    },
+    "eligible_cow_day_cost": {
+      "value": 0.0,
+      "unit": "currency/cow-day",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV36",
+      "assumption": false,
+      "description": "Cost per eligible cow-day (VWP to DNB). Workbook value; Excel formulas take precedence over other sources."
+    },
+    "dnb_cow_day_cost": {
+      "value": 0.0,
+      "unit": "currency/cow-day",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV37",
+      "assumption": false,
+      "description": "Cost per DNB cow-day (DNB to culling). Workbook value; Excel formulas take precedence over other sources."
+    },
+    "pregnant_wet_cow_day_cost": {
+      "value": 0.0,
+      "unit": "currency/cow-day",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV38",
+      "assumption": false,
+      "description": "Cost per pregnant wet cow-day (conception to dry-off). Workbook value; Excel formulas take precedence over other sources."
+    },
+    "milking_cow_day_cost": {
+      "value": 0.5,
+      "unit": "currency/cow-day",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV39",
+      "assumption": false,
+      "description": "Other variable cost per milking cow-day. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "dry_cow_day_cost": {
+      "value": 0.5,
+      "unit": "currency/cow-day",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV40",
+      "assumption": false,
+      "description": "Other variable cost per dry cow-day. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "replacement_heifer_cost": {
+      "value": 1500.0,
+      "unit": "currency/head",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV41",
+      "assumption": false,
+      "description": "Replacement heifer purchase cost used by the heifer-purchased cost row (Tables!C25 lists 2000; the live formula uses this cell). Workbook value; Excel formulas take precedence over other sources."
+    },
+    "fixed_cost_per_cow_day": {
+      "value": 2.0,
+      "unit": "currency/cow-day",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV42",
+      "assumption": false,
+      "description": "Fixed cost per cow (stall) per day. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "genomic_testing_cost": {
+      "value": 40.0,
+      "unit": "currency/event",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV43",
+      "assumption": false,
+      "description": "Genomic testing cost per test. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "heifer_raising_cost_per_day": {
+      "value": 2.0,
+      "unit": "currency/cow-day",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV44",
+      "assumption": false,
+      "description": "Heifer raising cost per heifer-day. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "cull_price_per_kg": {
+      "value": 2.0,
+      "unit": "currency/kg",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV45",
+      "assumption": false,
+      "description": "Cull price per kg body weight. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "heat_detection_cost_per_cow_day": {
+      "value": 0.05,
+      "unit": "currency/cow-day",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV46",
+      "assumption": false,
+      "description": "Heat detection labour per eligible cow-day. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "heat_detection_cost_per_heifer_day": {
+      "value": 0.1,
+      "unit": "currency/cow-day",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV47",
+      "assumption": false,
+      "description": "Heat detection labour per eligible heifer-day. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "extra_embryo_sale_price": {
+      "value": 150.0,
+      "unit": "currency/event",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV48",
+      "assumption": false,
+      "description": "Extra embryo sale price. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "gram_positive_mastitis_cost": {
+      "value": 73.5,
+      "unit": "currency/case",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV49",
+      "assumption": false,
+      "description": "Gram-positive clinical mastitis treatment cost per case. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "gram_negative_mastitis_cost": {
+      "value": 35.5,
+      "unit": "currency/case",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV50",
+      "assumption": false,
+      "description": "Gram-negative clinical mastitis treatment cost per case. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "other_mastitis_cost": {
+      "value": 45.5,
+      "unit": "currency/case",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV51",
+      "assumption": false,
+      "description": "Other clinical mastitis treatment cost per case. Workbook value; Excel formulas take precedence over other sources."
+    },
+    "dry_cow_therapy_cost": {
+      "value": 19.5,
+      "unit": "currency/event",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BV52",
+      "assumption": false,
+      "description": "Blanket dry cow therapy antibiotic cost per dry period. Workbook value; Excel formulas take precedence over other sources."
+    }
+  },
+  "herd": {
+    "vwp_cows_days": {
+      "value": 70,
+      "unit": "days",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, herdInputs!A2 vwp(cows)",
+      "assumption": false,
+      "description": "Voluntary waiting period after calving before cows are eligible for insemination."
+    },
+    "ovulation_interval_low_days": {
+      "value": 14.0,
+      "unit": "days",
+      "valid_range": "1..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, herdInputs!D2 ov_low_c(0)",
+      "assumption": false,
+      "description": "Lower truncation of the interval between ovulations."
+    },
+    "ovulation_interval_mean_days": {
+      "value": 21.0,
+      "unit": "days",
+      "valid_range": "1..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, herdInputs!E2 ov_mean_c(0)",
+      "assumption": false,
+      "description": "Mean interval between ovulations (estrous cycle length)."
+    },
+    "ovulation_interval_high_days": {
+      "value": 28.0,
+      "unit": "days",
+      "valid_range": "1..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, herdInputs!F2 ov_high_c(0)",
+      "assumption": false,
+      "description": "Upper truncation of the interval between ovulations."
+    },
+    "ovulation_interval_std_days": {
+      "value": 2.0,
+      "unit": "days",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, herdInputs!G2 ov_std_c(0)",
+      "assumption": false,
+      "description": "Standard deviation of the interval between ovulations."
+    },
+    "pr_insemination_at_estrus_cows": {
+      "value": 0.61,
+      "unit": "probability",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, herdInputs!AP2 pr_insem_estrus_c",
+      "assumption": false,
+      "description": "Probability a cow in estrus is detected and inseminated."
+    },
+    "pr_insemination_at_estrus_heifers": {
+      "value": 0.61,
+      "unit": "probability",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, herdInputs!BP2 pr_insem_estrus_h",
+      "assumption": false,
+      "description": "Probability a heifer in estrus is detected and inseminated."
+    },
+    "pr_conception_estrus_cows": {
+      "value": 0.4,
+      "unit": "probability",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, herdInputs!AR2 pr_concept_estrus_c(1)",
+      "assumption": false,
+      "description": "Base probability of conception per insemination at estrus (cows)."
+    },
+    "pr_conception_estrus_heifers": {
+      "value": 0.4,
+      "unit": "probability",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, herdInputs!BR2 pr_concept_estrus_h(1)",
+      "assumption": false,
+      "description": "Base probability of conception per insemination at estrus (heifers)."
+    },
+    "conception_genetic_multiplier_cows": {
+      "value": 1.59,
+      "unit": "multiplier",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST AIRAND year 15 (calibration target)",
+      "assumption": true,
+      "description": "Fertility improvement from 15 years of genetic selection in the herd program, calibrated so cow conception rate matches Stats_MAST!BQ65."
+    },
+    "conception_genetic_multiplier_heifers": {
+      "value": 1.65,
+      "unit": "multiplier",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST AIRAND year 15 (calibration target)",
+      "assumption": true,
+      "description": "Fertility improvement from genetic selection, calibrated so heifer conception rate matches Stats_MAST!BQ108."
+    },
+    "estrus_expression_probability": {
+      "value": 0.88,
+      "unit": "probability",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST AIRAND year 15 (calibration target)",
+      "assumption": true,
+      "description": "Probability an ovulation is accompanied by observable estrus; calibrated to the 21-day service rate (Stats_MAST!BQ57)."
+    },
+    "pregcheck_2_days": {
+      "value": 42,
+      "unit": "days since insemination",
+      "valid_range": "1..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, herdInputs!AE2 pregcheck(2)",
+      "assumption": false,
+      "description": "Day of the second pregnancy diagnosis (the first, pregcheck(1), is disabled with -1)."
+    },
+    "pregcheck_3_days": {
+      "value": 60,
+      "unit": "days since insemination",
+      "valid_range": "1..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, herdInputs!AF2 pregcheck(3)",
+      "assumption": false,
+      "description": "Day of the third pregnancy diagnosis."
+    },
+    "pregcheck_4_days": {
+      "value": 220,
+      "unit": "days since insemination",
+      "valid_range": "1..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, herdInputs!AG2 pregcheck(4)",
+      "assumption": false,
+      "description": "Day of the fourth pregnancy diagnosis."
+    },
+    "gestation_days": {
+      "value": 283,
+      "unit": "days",
+      "valid_range": "200..320",
+      "source": "Dairy_bioeconomy_dashboard.html (Conventional preset) hidden default gestation_days; consistent with Cdairy_mc_kk_current_PS_CM_Strategies.xlsm Stats_MAST intercalving interval minus days open",
+      "assumption": true,
+      "description": "Gestation length."
+    },
+    "dry_period_days": {
+      "value": 63,
+      "unit": "days",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, herdInputs!AG2 pregcheck(4) = 220 d; with 283-d gestation cows are dried off at the last pregnancy check (workbook dry cow-days per cow match a 63-d dry period)",
+      "assumption": true,
+      "description": "Dry period before expected calving."
+    },
+    "dry_cow_dmi_kg_per_day": {
+      "value": 12.5,
+      "unit": "kg DM/cow/day",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, herdInputs!BK2 dmidry",
+      "assumption": false,
+      "description": "Dry-matter intake of a dry cow."
+    },
+    "cull_milk_threshold_kg_per_day": {
+      "value": 12.5,
+      "unit": "kg milk/day",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, herdInputs!BL2 cullmilk",
+      "assumption": false,
+      "description": "Do-not-breed cows are culled once daily milk falls below this level."
+    },
+    "do_not_breed_after_dim_days": {
+      "value": 380,
+      "unit": "days in milk",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST AIRAND year 15 (calibration target)",
+      "assumption": true,
+      "description": "Open cows past this DIM are marked do-not-breed; with the cull-milk rule this reproduces the workbook average DNB cull DIM (Stats_MAST!BQ77, 424 d)."
+    },
+    "max_parity": {
+      "value": 6,
+      "unit": "parity",
+      "valid_range": "1..",
+      "source": "Dairy_bioeconomy_dashboard.html (Conventional preset) max_parity (cull threshold)",
+      "assumption": true,
+      "description": "Cows completing this lactation are culled at dry-off (workbook \"end of last parity\" culling)."
+    },
+    "pregnancy_loss_probability_cows": {
+      "value": 0.0872,
+      "unit": "fraction of pregnancies",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BQ97 abortion % (cows)",
+      "assumption": false,
+      "description": "Pregnancy loss between the first and last pregnancy check (cows)."
+    },
+    "pregnancy_loss_probability_heifers": {
+      "value": 0.0438,
+      "unit": "fraction of pregnancies",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST AIRAND year 15 raw rows 358/53 (heifer abortions / heifer conceptions)",
+      "assumption": false,
+      "description": "Pregnancy loss between the first and last pregnancy check (heifers)."
+    },
+    "cow_death_rate_annual": {
+      "value": 0.0259,
+      "unit": "fraction/year",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!AT65 / present cows (AIRAND year 15)",
+      "assumption": true,
+      "description": "Involuntary on-farm death rate of adult cows."
+    },
+    "cow_involuntary_cull_rate_annual": {
+      "value": 0.0843,
+      "unit": "fraction/year",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!AT66 / present cows (AIRAND year 15)",
+      "assumption": true,
+      "description": "Involuntary live culling rate of adult cows (sold at cull cow value)."
+    },
+    "heifer_death_rate_annual": {
+      "value": 0.0139,
+      "unit": "fraction/year",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!AT69 / present heifers (AIRAND year 15)",
+      "assumption": true,
+      "description": "Heifer death rate."
+    },
+    "heifer_involuntary_cull_rate_annual": {
+      "value": 0.0162,
+      "unit": "fraction/year",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST AIRAND year 15 raw rows 169+175 / present heifers",
+      "assumption": true,
+      "description": "Heifer involuntary live culling rate (sold by body weight)."
+    },
+    "heifer_breeding_age_days": {
+      "value": 400,
+      "unit": "days of age",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST AIRAND year 15 (calibration target)",
+      "assumption": true,
+      "description": "Age at which heifers become eligible for insemination; calibrated to age at first calving (Stats_MAST!BQ95, 735 d). herdInputs!BM2 lists vwp(heifers)=305, which does not reproduce the workbook first-calving age."
+    },
+    "barren_heifer_cull_age_days": {
+      "value": 600,
+      "unit": "days of age",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST AIRAND year 15 (calibration target)",
+      "assumption": true,
+      "description": "Heifers still open at this age are culled as barren (workbook culled(12))."
+    },
+    "female_calf_sale_age_days": {
+      "value": 105,
+      "unit": "days of age",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Tables!B34 note 2 (sale at 105 d of age)",
+      "assumption": false,
+      "description": "Age at which surplus female calves are sold."
+    },
+    "female_calf_sale_fraction": {
+      "value": 0.255,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BQ99 (AIRAND, random calf selection)",
+      "assumption": true,
+      "description": "Share of female calves sold as surplus under random calf selection."
+    },
+    "stillbirth_fraction": {
+      "value": 0.0295,
+      "unit": "fraction of calvings",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST AIRAND year 15 (1 - calves born / calvings, BQ83/BQ84)",
+      "assumption": true,
+      "description": "Calvings that yield no live calf."
+    },
+    "male_calf_fraction": {
+      "value": 0.5196,
+      "unit": "fraction of live calves",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST AIRAND year 15 (BQ80 / BQ83)",
+      "assumption": true,
+      "description": "Share of live calves that are male (sold as bull calves)."
+    },
+    "heifer_birth_weight_kg": {
+      "value": 40.0,
+      "unit": "kg",
+      "valid_range": "0..",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Calf body weight at birth."
+    },
+    "heifer_growth_kg_per_day": {
+      "value": 0.68,
+      "unit": "kg/day",
+      "valid_range": "0..",
+      "source": "Dairy_bioeconomy_dashboard.html (Conventional preset) bodyweight_first_parity_kg 540 at the workbook first-calving age",
+      "assumption": true,
+      "description": "Average heifer growth rate from birth to first calving."
+    },
+    "initial_heifers_per_cow": {
+      "value": 0.849,
+      "unit": "heifers/cow",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST AIRAND year 15 (present heifer days / present cow days)",
+      "assumption": true,
+      "description": "Replacement heifers present at the start of a generated herd."
+    },
+    "clinical_mastitis_incidence_parity1": {
+      "value": 0.1657,
+      "unit": "cases/milking cow-year",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!AT581",
+      "assumption": true,
+      "description": "Clinical mastitis incidence, first lactation."
+    },
+    "clinical_mastitis_incidence_parity2": {
+      "value": 0.1724,
+      "unit": "cases/milking cow-year",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!AT582",
+      "assumption": true,
+      "description": "Clinical mastitis incidence, second lactation."
+    },
+    "clinical_mastitis_incidence_parity3": {
+      "value": 0.1748,
+      "unit": "cases/milking cow-year",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!AT583",
+      "assumption": true,
+      "description": "Clinical mastitis incidence, third lactation."
+    },
+    "clinical_mastitis_incidence_parity4plus": {
+      "value": 0.1802,
+      "unit": "cases/milking cow-year",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!AT584",
+      "assumption": true,
+      "description": "Clinical mastitis incidence, fourth and later lactations."
+    },
+    "mastitis_gram_positive_share": {
+      "value": 0.3312,
+      "unit": "fraction of cases",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST AIRAND year 15 raw rows 1017-1031",
+      "assumption": true,
+      "description": "Share of clinical cases caused by gram-positive pathogens."
+    },
+    "mastitis_gram_negative_share": {
+      "value": 0.3295,
+      "unit": "fraction of cases",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST AIRAND year 15 raw rows 1017-1031",
+      "assumption": true,
+      "description": "Share of clinical cases caused by gram-negative pathogens (the rest are other / no growth)."
+    },
+    "antibiotic_daily_doses_per_gram_positive_case": {
+      "value": 5.0,
+      "unit": "doses/case",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST agg row 587 equals 5 x gram-positive cases in every year and strategy",
+      "assumption": false,
+      "description": "Antibiotic daily doses per treated gram-positive clinical case (only gram-positive cases receive antibiotics, Tables!B36)."
+    },
+    "average_scs": {
+      "value": 3.3416,
+      "unit": "linear score",
+      "valid_range": "0..10",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!AT19 (AIRAND year 15)",
+      "assumption": true,
+      "description": "Herd average test-day somatic cell score used by the SCS premium/penalty row; not simulated dynamically."
+    },
+    "milk_fat_fraction": {
+      "value": 0.037548,
+      "unit": "kg fat/kg milk",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BQ13 / BQ12 (AIRAND year 15)",
+      "assumption": true,
+      "description": "Milk fat content."
+    },
+    "milk_protein_fraction": {
+      "value": 0.030567,
+      "unit": "kg protein/kg milk",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BQ14 / BQ12 (AIRAND year 15)",
+      "assumption": true,
+      "description": "Milk true protein content."
+    },
+    "profit_deviation_cows_per_cow_year": {
+      "value": 119.2168,
+      "unit": "currency/cow/year",
+      "valid_range": "..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BQ23 (herd-program genetic profit deviation; exogenous, not simulated)",
+      "assumption": true,
+      "description": "Genetic profit deviation of cows, taken from the workbook because its herd-program formula is not available."
+    },
+    "profit_deviation_heifers_per_cow_year": {
+      "value": 112.2086,
+      "unit": "currency/cow/year",
+      "valid_range": "..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BQ25 (herd-program genetic profit deviation; exogenous, not simulated)",
+      "assumption": true,
+      "description": "Genetic profit deviation of heifers, taken from the workbook because its herd-program formula is not available."
+    },
+    "replacement_purchase_threshold_fraction": {
+      "value": 0.9,
+      "unit": "fraction of capacity",
+      "valid_range": "0..1",
+      "source": "implementation",
+      "assumption": true,
+      "description": "Replacement heifers are purchased when adult cows fall below this share of herd capacity."
+    },
+    "wood_b": {
+      "value": 0.2,
+      "unit": "dimensionless",
+      "valid_range": "0..",
+      "source": "Dairy_bioeconomy_dashboard.html (Conventional preset) wood_b (Wood's curve rise to peak)",
+      "assumption": true,
+      "description": "Wood's lactation curve shape parameter b (the blueprint does not specify a lactation equation)."
+    },
+    "wood_c": {
+      "value": 0.0055,
+      "unit": "1/day",
+      "valid_range": "0..",
+      "source": "Dairy_bioeconomy_dashboard.html (Conventional preset) wood_c (Wood's curve post-peak decline)",
+      "assumption": true,
+      "description": "Wood's lactation curve shape parameter c."
+    },
+    "peak_milk_l_first_parity": {
+      "value": 38.0,
+      "unit": "L/day",
+      "valid_range": "0..",
+      "source": "Dairy_bioeconomy_dashboard.html (Conventional preset) peak_milk_L_first_parity",
+      "assumption": true,
+      "description": "Peak daily milk of a first-lactation cow before the herd yield scale."
+    },
+    "peak_milk_l_mature": {
+      "value": 50.0,
+      "unit": "L/day",
+      "valid_range": "0..",
+      "source": "Dairy_bioeconomy_dashboard.html (Conventional preset) peak_milk_L_mature",
+      "assumption": true,
+      "description": "Peak daily milk of a mature cow before the herd yield scale."
+    },
+    "mature_parity": {
+      "value": 3,
+      "unit": "parity",
+      "valid_range": "1..",
+      "source": "Dairy_bioeconomy_dashboard.html (Conventional preset) mature_parity",
+      "assumption": true,
+      "description": "Parity at which peak milk reaches the mature level (linear in between)."
+    },
+    "milk_yield_scale": {
+      "value": 1.368,
+      "unit": "multiplier",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BQ12 (AIRAND year 15 milk 12,669 kg/cow/year)",
+      "assumption": true,
+      "description": "Scale applied to the dashboard Wood's peaks so herd milk per cow-year matches the workbook."
+    },
+    "cow_peak_std_fraction": {
+      "value": 0.12,
+      "unit": "fraction",
+      "valid_range": "0..1",
+      "source": "Dairy_bioeconomy_dashboard.html (Conventional preset) cow_peak_std_fraction",
+      "assumption": true,
+      "description": "Cow-to-cow standard deviation of the lactation peak."
+    },
+    "first_service_submission_probability": {
+      "value": 1.0,
+      "unit": "probability per estrus",
+      "valid_range": "0..1",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST AIRAND year 15 (calibration target: days to first service BQ73)",
+      "assumption": true,
+      "description": "Probability that the first estrus after the VWP leads to a first insemination; repeat services use estrus expression x pr_insemination_at_estrus."
+    },
+    "reproduction_rate_eligibility_start_dim": {
+      "value": 50,
+      "unit": "days in milk",
+      "valid_range": "0..",
+      "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, herdInputs!M2 firstsynch_dim = 50; Stats_MAST days open minus eligible days per conception is 45-54 d in years 0-15",
+      "assumption": true,
+      "description": "DIM from which cow-days count as eligible in the 21-day service- and pregnancy-rate statistics, reproducing the workbook definition (the VWP for breeding remains vwp_cows_days)."
     }
   }
 }

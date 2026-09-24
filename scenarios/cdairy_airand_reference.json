@@ -1,11 +1,10 @@
 {
   "name": "cdairy-airand-reference-comparison",
   "start_date": "2026-01-01",
-  "days": 365,
+  "days": 1095,
   "seed": 1,
   "herd_size": 400,
   "reference_benchmark": "cdairy_airand_year15",
-  "reference_calibration": "configs/reference_targets/cdairy_airand_milk_calibration.json",
   "enable_processor": false,
   "enable_whey_processing": false,
   "enable_land_agent": false,

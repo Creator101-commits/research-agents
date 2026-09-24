@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from dairy_abm.analysis.excel_parity import run_parity
 from dairy_abm.analysis.reference_benchmark import evaluate_reference_benchmark
 from dairy_abm.config import calibration_inventory, value
 from dairy_abm.core import SimulationContext, write_csv, write_json
@@ -136,11 +137,8 @@ def write_reports(output_dir: Path, ctx: SimulationContext) -> None:
         "policy": dict(ctx.state.get("policy", {})),
         "investment_analysis": ctx.state.get("investment_analysis", {}),
         "dmc_analysis": ctx.state.get("dmc_analysis", {}),
-        "reference_benchmark": evaluate_reference_benchmark(
-            ctx.scenario.get("reference_benchmark"),
-            ctx.daily_records,
-            float(ctx.scenario.get("milk_density_kg_per_l", 1.03)),
-        ),
+        "reference_benchmark": evaluate_reference_benchmark(ctx.scenario.get("reference_benchmark"), ctx),
+        "excel_parity": run_parity(ctx),
         "events": ctx.events.events,
         "latest_packets": {
             name: {

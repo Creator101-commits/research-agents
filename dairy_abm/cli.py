@@ -51,6 +51,16 @@ def build_parser() -> argparse.ArgumentParser:
     assess_parser.add_argument("--days", type=int)
     assess_parser.add_argument("--seeds", default="1")
 
+    parity_parser = subparsers.add_parser(
+        "parity", help="average several seeds and compare with the Cdairy workbook AIRAND year-15 results"
+    )
+    parity_parser.add_argument("--scenario", default="scenarios/cdairy_airand_reference.json")
+    parity_parser.add_argument("--calibration")
+    parity_parser.add_argument("--seeds", default="1,2,3,4")
+    parity_parser.add_argument("--days", type=int)
+    parity_parser.add_argument("--herd-size", type=int)
+    parity_parser.add_argument("--output")
+
     return parser
 
 
@@ -110,6 +120,39 @@ def main(argv: list[str] | None = None) -> int:
             seeds=seeds,
         )
         write_farm_system_assessment(Path(args.output), assessment)
+        return 0
+
+    if args.command == "parity":
+        from dairy_abm.analysis.excel_parity import aggregate_seed_runs, run_parity
+
+        scenario = read_json(Path(args.scenario))
+        if args.days is not None:
+            scenario["days"] = args.days
+        if args.herd_size is not None:
+            scenario["herd_size"] = args.herd_size
+        try:
+            seeds = [int(item.strip()) for item in args.seeds.split(",") if item.strip()]
+        except ValueError as exc:
+            raise SystemExit("--seeds must be a comma-separated list of integers") from exc
+        calibration = load_calibration(args.calibration)
+        runs = []
+        for seed in seeds:
+            ctx = DairyFarmModel({**scenario, "seed": seed}, calibration).run()
+            runs.append(run_parity(ctx))
+        aggregate = aggregate_seed_runs(runs)
+        if args.output:
+            write_json(Path(args.output), {"runs": runs, "aggregate": aggregate})
+        print(f"{'row':44s} {'model':>12s} {'workbook':>12s} {'gap %':>8s}  status")
+        for row in aggregate["comparison"]["rows"]:
+            observed, target = row["observed"], row["target"]
+            gap = row["relative_gap_fraction"]
+            print(
+                f"{row['label'][:44]:44s} "
+                f"{observed if observed is None else round(observed, 3):>12} "
+                f"{target if target is None else round(target, 3):>12} "
+                f"{'' if gap is None else round(100 * gap, 1):>8}  {row['status']}"
+            )
+        print(aggregate["comparison"]["status_counts"])
         return 0
 
     raise AssertionError(f"unhandled command {args.command}")

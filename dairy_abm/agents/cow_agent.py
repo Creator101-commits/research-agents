@@ -4,28 +4,68 @@ from datetime import date
 from math import exp, pow
 from typing import Any
 
+from dairy_abm.analysis.cdairy_economics import CdairyPrices, herd_total_economics
 from dairy_abm.config import value
 from dairy_abm.core import BaseAgent, Packet, require_fraction, require_nonnegative
+from dairy_abm.herd_lifecycle import HerdLifecycle, wood_shape
 
 
 class CowAgent(BaseAgent):
     name = "cow"
 
+    # Share of generated cows by parity (1, 2, 3, 4, 5, 6): workbook AIRAND
+    # year-15 present cows by parity (Stats_MAST raw rows 21-24) with the 4+
+    # group spread over parities 4-6.
+    _GENERATED_PARITY_WEIGHTS = (0.337, 0.250, 0.176, 0.12, 0.075, 0.042)
+
     def __init__(self, ctx) -> None:
         """Initialize the agent and create the configured starting herd."""
         super().__init__(ctx)
+        self.lifecycle = HerdLifecycle(ctx)
+        self._cached_params: tuple | None = None
+        self.prices = CdairyPrices.from_calibration(ctx.calibration)
         ctx.state.setdefault("cows", self._build_initial_herd())
+        if self.lifecycle.capacity <= 0:
+            self.lifecycle.capacity = sum(1 for cow in ctx.state["cows"] if int(cow.get("parity", 0)) >= 1)
+        ctx.state["herd_capacity"] = self.lifecycle.capacity
 
     def _build_initial_herd(self) -> list[dict[str, Any]]:
         """Build the herd from scenario animals or the configured herd size."""
         herd = self.ctx.scenario.get("herd")
         if isinstance(herd, list):
-            return [self._normalize_cow(cow, index) for index, cow in enumerate(herd)]
+            animals = []
+            for index, cow in enumerate(herd):
+                explicit = dict(cow)
+                explicit["_explicit"] = tuple(cow.keys())
+                animal = self._normalize_cow(explicit, index)
+                self.lifecycle.initialize_animal(animal, steady_state=False)
+                animals.append(animal)
+            return animals
         herd_size = int(self.ctx.scenario.get("herd_size", 100))
-        return [
-            self._normalize_cow({"id": f"cow-{index + 1}"}, index)
-            for index in range(herd_size)
-        ]
+        rng = self.ctx.rng
+        animals = []
+        for index in range(herd_size):
+            parity = 1 + self._weighted_index(self._GENERATED_PARITY_WEIGHTS, rng.random())
+            animal = self._normalize_cow({"id": f"cow-{index + 1}", "parity": parity}, index)
+            self.lifecycle.initialize_animal(animal, steady_state=True)
+            animal["age_days"] = 735 + (parity - 1) * 391 + int(animal.get("days_in_milk", 0))
+            animals.append(animal)
+        if bool(self.ctx.scenario.get("include_replacement_heifers", True)):
+            for heifer in self.lifecycle.initial_heifers(herd_size):
+                calf = self._normalize_cow(heifer, len(animals))
+                self.lifecycle.initialize_animal(calf, steady_state=False)
+                animals.append(calf)
+        return animals
+
+    @staticmethod
+    def _weighted_index(weights: tuple[float, ...], draw: float) -> int:
+        total = sum(weights)
+        cumulative = 0.0
+        for index, weight in enumerate(weights):
+            cumulative += weight / total
+            if draw < cumulative:
+                return index
+        return len(weights) - 1
 
     def _normalize_cow(self, cow: dict[str, Any], index: int) -> dict[str, Any]:
         """Fill missing cow state and normalize traits into the runtime schema."""
@@ -104,34 +144,96 @@ class CowAgent(BaseAgent):
         body_weight = float(cow.get("body_weight_kg", 650.0))
         bcs = float(cow.get("body_condition_score", 3.0))
         dim = max(1.0, float(cow.get("days_in_milk", 1)))
+        # Outside the Eq 2-1 envelope the limit DIM is used as the fallback.
+        dim = min(dim, float(cow.get("_eq2_1_max_dim", 368)))
         expected = (
             3.7 + 5.7 * parity + 0.305 * milk_e_mcal + 0.022 * body_weight
             + (-0.689 - 1.87 * parity) * bcs
         ) * (1.0 - (0.212 + 0.136 * parity) * exp(-0.053 * dim))
         return max(0.0, expected)
 
-    @staticmethod
-    def _milk_energy_mcal(milk_l: float, traits: dict[str, Any]) -> float:
-        """Calculate MilkE from milk mass and configurable component proxies."""
+    def _milk_energy_mcal(self, milk_l: float, traits: dict[str, Any]) -> float:
+        """Calculate MilkE from milk mass and the workbook milk fat and protein contents."""
         density = float(traits.get("milk_density_kg_per_l", 1.03))
-        fat = max(0.0, 0.039 * float(traits.get("butterfat_ebv", 1.0)))
-        protein = max(0.0, 0.032 * float(traits.get("protein_ebv", 1.0)))
+        fat = max(0.0, self.lifecycle.fat_fraction * float(traits.get("butterfat_ebv", 1.0)))
+        protein = max(0.0, self.lifecycle.protein_fraction * float(traits.get("protein_ebv", 1.0)))
         lactose = float(traits.get("lactose_fraction", 0.048))
         milk_kg = max(0.0, milk_l * density)
         return milk_kg * (0.0929 * fat * 100.0 + 0.0547 * protein * 100.0 + 0.0395 * lactose * 100.0)
 
-    @staticmethod
-    def _lactation_factor(days_in_milk: int, peak_days: float = 60.0) -> float:
-        """A normalized Wood-style curve keeps production tied to lactation stage."""
-        dim = max(1.0, float(days_in_milk))
-        peak = max(1.0, peak_days)
-        return max(0.25, (dim / peak) ** 0.2 * exp(0.2 * (1.0 - dim / peak)))
+    def _lactation_params(self) -> tuple[float, float, float, float, int, float]:
+        cal = self.ctx.calibration
+        return (
+            float(value(cal, "herd.wood_b")),
+            float(value(cal, "herd.wood_c")),
+            float(value(cal, "herd.peak_milk_l_first_parity")),
+            float(value(cal, "herd.peak_milk_l_mature")),
+            max(2, int(value(cal, "herd.mature_parity"))),
+            float(value(cal, "herd.milk_yield_scale")),
+        )
+
+    def _lactation_factor(self, days_in_milk: int) -> float:
+        """Wood's lactation curve normalised to 1 at peak (dashboard Animal Biology b, c)."""
+        b, c, *_ = self._cached_params or self._lactation_params()
+        return wood_shape(days_in_milk, b, c)
+
+    def _peak_milk_l(self, cow: dict[str, Any]) -> float:
+        """Parity-specific Wood's peak, scaled so herd yield matches the workbook."""
+        _b, _c, first, mature, mature_parity, scale = self._cached_params or self._lactation_params()
+        parity = max(1, int(cow.get("parity", 1)))
+        blend = min(1.0, max(0.0, (parity - 1) / (mature_parity - 1)))
+        return (first + (mature - first) * blend) * scale * float(cow.get("peak_factor", 1.0))
+
+    def _make_calf(self, dam: dict[str, Any], sex: str) -> dict[str, Any]:
+        """Create a retained calf; genetics supplies inherited traits when available."""
+        inherit = self.ctx.state.get("offspring_traits_fn")
+        dam_traits = dam.get("trait_vector", {})
+        traits = inherit(dam) if callable(inherit) else (dict(dam_traits) if isinstance(dam_traits, dict) else {})
+        calf = self._normalize_cow(
+            {
+                "id": self.lifecycle.next_id(f"calf-{dam['id']}"),
+                "age_days": 0,
+                "days_in_milk": 0,
+                "parity": 0,
+                "body_weight_kg": float(value(self.ctx.calibration, "herd.heifer_birth_weight_kg")),
+                "sex": sex,
+                "trait_vector": traits,
+                "parent_ids": [dam["id"]],
+            },
+            len(self.ctx.state.get("cows", [])),
+        )
+        self.lifecycle.initialize_animal(calf, steady_state=False)
+        return calf
+
+    def _purchase_heifers(self, count: int) -> list[dict[str, Any]]:
+        """Buy springing heifers to restore the herd (workbook new animals purchased)."""
+        gestation = self.lifecycle.gestation
+        bought = []
+        for _ in range(count):
+            heifer = self._normalize_cow(
+                {
+                    "id": self.lifecycle.next_id("purchased"),
+                    "age_days": 700,
+                    "days_in_milk": 0,
+                    "parity": 0,
+                    "pregnant": True,
+                    "days_pregnant": gestation - 30,
+                    "body_weight_kg": 520.0,
+                },
+                len(self.ctx.state.get("cows", [])),
+            )
+            self.lifecycle.initialize_animal(heifer, steady_state=False)
+            bought.append(heifer)
+        self.lifecycle.record_purchase(count)
+        return bought
 
     def tick(self, day: date) -> None:
-        """Advance each cow and publish daily production, health, and reproduction results."""
+        """Advance each animal and publish daily production, health, and reproduction results."""
         cows = self.ctx.state.get("cows", [])
+        lifecycle = self.lifecycle
+        lifecycle.begin_day()
+        self._cached_params = self._lactation_params()
         disease_packet = self.ctx.get_packet("disease_state_packet")
-        market_packet = self.ctx.get_packet("market_price_packet")
         prior_ration = self.ctx.get_packet("feed_crop_packet")
         water_delivery = self.ctx.get_packet("water_delivery_packet")
         sensor_packet = self.ctx.get_packet("sensor_observation_packet")
@@ -168,7 +270,6 @@ class CowAgent(BaseAgent):
         water_availability = float(water_delivery.payload.get("water_availability_fraction", 1.0)) if water_delivery else 1.0
         water_availability = min(1.0, max(0.0, water_availability))
 
-        base_milk = float(value(self.ctx.calibration, "cow.base_milk_l_per_cow_day"))
         base_dmi = float(value(self.ctx.calibration, "cow.base_dmi_kg_per_cow_day"))
         base_manure = float(value(self.ctx.calibration, "cow.base_manure_kg_per_cow_day"))
         base_enteric = float(value(self.ctx.calibration, "cow.enteric_ch4_kg_per_cow_day"))
@@ -185,9 +286,9 @@ class CowAgent(BaseAgent):
         enteric_ch4_kg = 0.0
         sick_cows = 0
         sara_affected_cows = 0
-        conceptions = 0
-        deaths = 0
-        newborns: list[dict[str, Any]] = []
+        milking_cows = 0
+        dry_cows = 0
+        heifers = 0
         active_cows: list[dict[str, Any]] = []
         total_days_in_milk = 0.0
         total_body_condition_score = 0.0
@@ -220,91 +321,95 @@ class CowAgent(BaseAgent):
             )
         sara_ph_threshold = float(value(self.ctx.calibration, "cow.sara_rumen_ph_threshold"))
         sara_required_ticks = int(value(self.ctx.calibration, "cow.sara_consecutive_ticks"))
-        sara_dmi_loss = require_fraction(
-            "cow.sara_dmi_loss_fraction", float(value(self.ctx.calibration, "cow.sara_dmi_loss_fraction"))
+        sara_digestibility_loss = require_fraction(
+            "cow.sara_digestibility_loss_fraction",
+            float(value(self.ctx.calibration, "cow.sara_digestibility_loss_fraction")),
         )
         sara_milk_loss = require_fraction(
             "cow.sara_milk_loss_fraction", float(value(self.ctx.calibration, "cow.sara_milk_loss_fraction"))
         )
-        pregnancy_rate_monthly = require_fraction(
-            "cow.pregnancy_rate_monthly", float(value(self.ctx.calibration, "cow.pregnancy_rate_monthly"))
+        density = lifecycle.density
+        lifecycle.conception_multiplier_today = (
+            1.0 - float(value(self.ctx.calibration, "cow.heat_stress_conception_reduction_fraction"))
+            if severe_heat_stress
+            else 1.0
         )
-        pregnancy_rate_daily = 1.0 - pow(1.0 - pregnancy_rate_monthly, 1.0 / 30.0)
-        mortality_rate_annual = require_fraction(
-            "cow.mortality_rate_annual", float(value(self.ctx.calibration, "cow.mortality_rate_annual"))
-        )
-        mortality_rate_daily = 1.0 - pow(1.0 - mortality_rate_annual, 1.0 / 365.0)
-        reproduction_eligibility_days = int(
-            value(self.ctx.calibration, "cow.reproduction_eligibility_days_in_milk")
-        )
+        eq_dim_limit = int(value(self.ctx.calibration, "cow.eq2_1_max_dim_days"))
 
-        for cow in cows:
+        for cow in list(cows):
             if not cow.get("alive", True):
                 continue
             cow["reproduction_event_flag"] = None
-            if str(cow.get("sex", "female")) != "female" or int(cow.get("days_in_milk", 0)) <= 0:
-                cow["age_days"] = int(cow.get("age_days", 0)) + 1
-                maturity_days = int(
-                    self.ctx.scenario.get(
-                        "replacement_maturity_days",
-                        value(self.ctx.calibration, "cow.replacement_maturity_days"),
+            cow["clinical_mastitis_today"] = None
+            if "category" not in cow:
+                lifecycle.initialize_animal(cow, steady_state=False)
+            if int(cow.get("parity", 0)) <= 0:
+                if str(cow.get("sex", "female")) == "female":
+                    heifers += 1
+                    lifecycle.heifer_day(cow, day)
+                else:
+                    cow["age_days"] = int(cow.get("age_days", 0)) + 1
+                continue
+            lactating = bool(cow.get("lactating", True))
+            cow_milk_l = 0.0
+            expected_dmi = 0.0
+            milk_e_mcal = 0.0
+            sara_active = False
+            trait_vector = cow.get("trait_vector", {})
+            if lactating:
+                milking_cows += 1
+                rumen_ph = rumen_ph_by_cow.get(cow["id"])
+                if isinstance(rumen_ph, (int, float)):
+                    cow["rumen_ph"] = float(rumen_ph)
+                    cow["sara_ticks"] = (
+                        int(cow["sara_ticks"]) + 1 if rumen_ph < sara_ph_threshold else 0
+                    )
+                sara_active = int(cow["sara_ticks"]) >= sara_required_ticks
+                if sara_active:
+                    sara_affected_cows += 1
+                milk_modifier = float(cow.get("milk_trait", 1.0))
+                # Blueprint 8.5: the Genetics agent supplies the cross-diet adjusted RFI.
+                rfi_fat = float(
+                    cow.get(
+                        "effective_rfi_fat",
+                        trait_vector.get("rfi_fat_ebv", 0.0) if isinstance(trait_vector, dict) else 0.0,
                     )
                 )
-                if (
-                    str(cow.get("sex", "female")) == "female"
-                    and int(cow.get("parity", 0)) == 0
-                    and int(cow["age_days"]) >= maturity_days
-                ):
-                    cow["parity"] = 1
-                    cow["days_in_milk"] = 1
-                    cow["calving_interval_days"] = 0
-                    cow["reproduction_event_flag"] = "first_calving"
-                    cow["reproduction_history"].append({"day": day.isoformat(), "event": "first_calving"})
-                continue
-            rumen_ph = rumen_ph_by_cow.get(cow["id"])
-            if isinstance(rumen_ph, (int, float)):
-                cow["rumen_ph"] = float(rumen_ph)
-                cow["sara_ticks"] = (
-                    int(cow["sara_ticks"]) + 1 if rumen_ph < sara_ph_threshold else 0
+                ration = per_cow_rations.get(str(cow["id"]), {})
+                cow_ration_coverage = min(1.0, max(0.0, float(ration.get("coverage_fraction", ration_coverage_fraction))))
+                ration_me = float(ration.get("me_mj_per_kg_dm", prior_ration.payload.get("ration_me_mj_per_kg_dm", 10.0) if prior_ration else 10.0))
+                peak_l = self._peak_milk_l(cow)
+                cow["_eq2_1_max_dim"] = eq_dim_limit
+                milk_e_mcal = self._milk_energy_mcal(float(cow.get("last_milk_l", peak_l * 0.7)), trait_vector if isinstance(trait_vector, dict) else {})
+                expected_dmi = self._expected_dmi(cow, milk_e_mcal) * float(value(self.ctx.calibration, "cow.dmi_level_calibration_factor"))
+                cow["expected_dmi_kg"] = expected_dmi
+                dmi_cv = min(0.22, max(0.11, float(self.ctx.scenario.get("dmi_stochastic_cv", value(self.ctx.calibration, "cow.dmi_stochastic_cv")))))
+                actual_dmi = max(0.0, expected_dmi + rfi_fat + self.ctx.rng.gauss(0.0, dmi_cv * expected_dmi))
+                if cow.get("health_status") != "healthy":
+                    health_signal = per_cow_health_signal.get(str(cow["id"]), {}) if isinstance(per_cow_health_signal, dict) else {}
+                    milk_modifier *= 1.0 - float(health_signal.get("milk_yield_penalty_fraction", sick_loss))
+                    sick_cows += 1
+                cow_milk_l = (
+                    peak_l
+                    * milk_modifier
+                    * self._lactation_factor(int(cow["days_in_milk"]))
+                    * (1.0 - heat_milk_loss)
+                    * (1.0 - (1.0 - cow_ration_coverage) * ration_shortfall_milk_loss)
+                    * water_availability
                 )
-            sara_active = int(cow["sara_ticks"]) >= sara_required_ticks
-            if sara_active:
-                sara_affected_cows += 1
-            milk_modifier = float(cow.get("milk_trait", 1.0))
-            efficiency_modifier = float(cow.get("feed_efficiency_trait", 1.0))
-            trait_vector = cow.get("trait_vector", {})
-            rfi_fat = float(trait_vector.get("rfi_fat_ebv", 0.0)) if isinstance(trait_vector, dict) else 0.0
-            ration = per_cow_rations.get(str(cow["id"]), {})
-            cow_ration_coverage = min(1.0, max(0.0, float(ration.get("coverage_fraction", ration_coverage_fraction))))
-            ration_me = float(ration.get("me_mj_per_kg_dm", prior_ration.payload.get("ration_me_mj_per_kg_dm", 10.0) if prior_ration else 10.0))
-            milk_e_mcal = self._milk_energy_mcal(float(cow.get("last_milk_l", base_milk)), trait_vector if isinstance(trait_vector, dict) else {})
-            expected_dmi = self._expected_dmi(cow, milk_e_mcal)
-            cow["expected_dmi_kg"] = expected_dmi
-            dmi_cv = min(0.22, max(0.11, float(self.ctx.scenario.get("dmi_stochastic_cv", 0.15))))
-            actual_dmi = max(0.0, expected_dmi + rfi_fat + self.ctx.rng.gauss(0.0, dmi_cv * expected_dmi))
-            if cow.get("health_status") != "healthy":
-                health_signal = per_cow_health_signal.get(str(cow["id"]), {}) if isinstance(per_cow_health_signal, dict) else {}
-                milk_modifier *= 1.0 - float(health_signal.get("milk_yield_penalty_fraction", sick_loss))
-                sick_cows += 1
-            cow_milk_l = (
-                base_milk
-                * milk_modifier
-                * self._lactation_factor(
-                    int(cow["days_in_milk"]),
-                    float(
-                        self.ctx.scenario.get(
-                            "lactation_peak_days", value(self.ctx.calibration, "cow.lactation_peak_days")
-                        )
-                    ),
-                )
-                * (1.0 - heat_milk_loss)
-                * (1.0 - (1.0 - cow_ration_coverage) * ration_shortfall_milk_loss)
-                * water_availability
-            )
-            cow_dmi_kg = actual_dmi * efficiency_modifier * (1.0 - heat_dmi_loss) * cow_ration_coverage * water_availability
-            if sara_active:
-                cow_milk_l *= 1.0 - sara_milk_loss
-                cow_dmi_kg *= 1.0 - sara_dmi_loss
+                # Blueprint 8.1: actual_DMI = expected_DMI + effective_RFI_fat + e, then
+                # the heat-stress penalty and the supply constraints (ration, water).
+                cow_dmi_kg = actual_dmi * (1.0 - heat_dmi_loss) * cow_ration_coverage * water_availability
+                if sara_active:
+                    # Blueprint 8.5: SARA lowers milk and diet digestibility, not intake.
+                    cow_milk_l *= 1.0 - sara_milk_loss
+                    ration_me *= 1.0 - sara_digestibility_loss
+            else:
+                dry_cows += 1
+                ration_me = float(prior_ration.payload.get("ration_me_mj_per_kg_dm", 10.0)) if prior_ration else 10.0
+                expected_dmi = lifecycle.dry_dmi
+                cow["expected_dmi_kg"] = expected_dmi
+                cow_dmi_kg = lifecycle.dry_dmi * water_availability
             milk_l += cow_milk_l
             dmi_kg += cow_dmi_kg
             cow["last_dmi_kg"] = cow_dmi_kg
@@ -313,15 +418,16 @@ class CowAgent(BaseAgent):
             manure_kg += cow_manure_kg
             enteric_ch4_kg += cow_ch4_kg
             cow["last_milk_l"] = cow_milk_l
-            energy_balance_fraction = cow_dmi_kg / max(expected_dmi, 0.001) - 1.0
-            cow["body_weight_kg"] = max(
-                300.0,
-                float(cow["body_weight_kg"]) + max(-1.0, min(1.0, energy_balance_fraction * 0.8)),
-            )
-            cow["body_condition_score"] = min(
-                5.0,
-                max(1.0, float(cow["body_condition_score"]) + max(-0.02, min(0.02, energy_balance_fraction * 0.02))),
-            )
+            if lactating:
+                energy_balance_fraction = cow_dmi_kg / max(expected_dmi, 0.001) - 1.0
+                cow["body_weight_kg"] = max(
+                    300.0,
+                    float(cow["body_weight_kg"]) + max(-1.0, min(1.0, energy_balance_fraction * 0.8)),
+                )
+                cow["body_condition_score"] = min(
+                    5.0,
+                    max(1.0, float(cow["body_condition_score"]) + max(-0.02, min(0.02, energy_balance_fraction * 0.02))),
+                )
             cow["dmi_history"].append(cow_dmi_kg)
             cow["milk_history"].append(cow_milk_l)
             cow["ch4_history"].append(cow_ch4_kg)
@@ -331,6 +437,7 @@ class CowAgent(BaseAgent):
             cow["bcs_history"].append(float(cow["body_condition_score"]))
             total_days_in_milk += float(cow["days_in_milk"])
             total_body_condition_score += float(cow["body_condition_score"])
+            lifecycle.cow_day(cow, cow_milk_l * density, cow_dmi_kg, day)
             cow_records.append(
                 {
                     "id": cow["id"],
@@ -338,6 +445,9 @@ class CowAgent(BaseAgent):
                     "dmi_kg": cow_dmi_kg,
                     "days_in_milk": cow["days_in_milk"],
                     "parity": cow["parity"],
+                    "lactating": lactating,
+                    "pregnant": bool(cow.get("pregnant", False)),
+                    "repro_state": cow.get("repro_state"),
                     "health_status": cow["health_status"],
                     "rumen_ph": cow["rumen_ph"],
                     "observed_dmi_kg": observed_dmi_by_cow.get(cow["id"]),
@@ -346,62 +456,39 @@ class CowAgent(BaseAgent):
                     "milk_e_mcal": milk_e_mcal,
                     "estrus_detected": bool(estrus_by_cow.get(cow["id"], False)),
                     "sara_active": sara_active,
+                    "clinical_mastitis": cow.get("clinical_mastitis_today"),
                 }
             )
-            active_cows.append(cow)
+            if cow.get("alive", True):
+                active_cows.append(cow)
+                cow["age_days"] = int(cow["age_days"]) + 1
+                if cow.get("lactating"):
+                    cow["days_in_milk"] = int(cow["days_in_milk"]) + 1
+                cow["calving_interval_days"] = int(cow.get("calving_interval_days", 0)) + 1
 
-        for cow in active_cows:
-            if cow["pregnant"]:
-                cow["days_pregnant"] = int(cow["days_pregnant"]) + 1
-                if int(cow["days_pregnant"]) >= int(self.ctx.scenario.get("gestation_days", 280)):
-                    cow["pregnant"] = False
-                    cow["days_pregnant"] = 0
-                    cow["days_in_milk"] = 0
-                    cow["parity"] = int(cow["parity"]) + 1
-                    cow["calving_interval_days"] = 0
-                    cow["reproduction_history"].append({"day": day.isoformat(), "event": "calving"})
-                    cow["reproduction_event_flag"] = "calving"
-                    dam_traits = cow.get("trait_vector", {})
-                    newborns.append(
-                        self._normalize_cow(
-                            {
-                                "id": f"calf-{cow['id']}-{day.isoformat()}",
-                                "age_days": 0,
-                                "days_in_milk": 0,
-                                "parity": 0,
-                                "body_weight_kg": 40.0,
-                                "sex": "female" if self.ctx.rng.random() < 0.5 else "male",
-                                "trait_vector": dict(dam_traits) if isinstance(dam_traits, dict) else {},
-                                "parent_ids": [cow["id"]],
-                            },
-                            len(cows) + len(newborns),
-                        )
-                    )
-            elif int(cow["days_in_milk"]) >= reproduction_eligibility_days:
-                estrus_detected = bool(estrus_by_cow.get(cow["id"], False))
-                estrus_required = bool(self.ctx.scenario.get("estrus_required_for_conception", True))
-                sensor_reliability = float(sensor_payload.get("estrus_reliability", 1.0))
-                conception_probability = pregnancy_rate_daily * float(cow.get("trait_vector", {}).get("fertility_score", 1.0)) * sensor_reliability
-                if (not estrus_required or estrus_detected) and self.ctx.rng.random() < min(1.0, conception_probability):
-                    cow["pregnant"] = True
-                    cow["days_pregnant"] = 0
-                    cow["reproduction_history"].append({"day": day.isoformat(), "event": "conception"})
-                    cow["reproduction_event_flag"] = "conception"
-                    conceptions += 1
-            cow["age_days"] = int(cow["age_days"]) + 1
-            cow["days_in_milk"] = int(cow["days_in_milk"]) + 1
-            cow["calving_interval_days"] = int(cow.get("calving_interval_days", 0)) + 1
-            if self.ctx.rng.random() < mortality_rate_daily:
-                cow["alive"] = False
-                deaths += 1
-
+        newborns = lifecycle.process_calvings(day, self._make_calf)
         if newborns:
             self.ctx.state["cows"].extend(newborns)
+        rebalanced = lifecycle.rebalance(self.ctx.state["cows"])
+        purchase = lifecycle.needs_purchase(self.ctx.state["cows"])
+        if purchase:
+            springing = [a for a in self.ctx.state["cows"] if a.get("alive", True) and int(a.get("parity", 0)) == 0 and a.get("pregnant")]
+            if not springing:
+                self.ctx.state["cows"].extend(self._purchase_heifers(purchase))
+        today = lifecycle.end_day(day)
+        workbook_inputs = {name: float(today.get(name, 0.0)) for name in self._workbook_input_names()}
+        workbook_inputs["avg_weighted_scs"] = lifecycle.scs
+        workbook_inputs["profit_deviation_cows"] = lifecycle.profit_dev_cows * workbook_inputs["present_cow_days"] / 365.0
+        workbook_inputs["profit_deviation_heifers"] = lifecycle.profit_dev_heifers * workbook_inputs["present_cow_days"] / 365.0
+        daily_economics = herd_total_economics(workbook_inputs, self.prices)
 
+        active_cows = [cow for cow in active_cows if cow.get("alive", True)]
         active_cow_count = len(active_cows)
-        pregnant_cows = sum(1 for cow in active_cows if cow["pregnant"])
-        feed_conversion_ratio = dmi_kg / milk_l if milk_l > 0.0 else 0.0
-        enteric_ch4_intensity = enteric_ch4_kg / milk_l if milk_l > 0.0 else 0.0
+        deaths = int(today.get("cows_died", 0))
+        pregnant_cows = sum(1 for cow in active_cows if cow.get("pregnant"))
+        # Blueprint 10: FCR is null when there is no milk.
+        feed_conversion_ratio = dmi_kg / milk_l if milk_l > 0.0 else None
+        enteric_ch4_intensity = enteric_ch4_kg / milk_l if milk_l > 0.0 else None
         milk_protein_nitrogen = (
             milk_l
             * float(value(self.ctx.calibration, "cow.milk_protein_fraction"))
@@ -422,39 +509,59 @@ class CowAgent(BaseAgent):
             )
             grazing_intake_kg = min(total_grazing_available, dmi_kg)
 
-        milk_price = (
-            float(market_packet.payload["milk_price_per_l"])
-            if market_packet is not None
-            else float(value(self.ctx.calibration, "market.milk_price_per_l"))
+        # Milk is priced with the workbook's component prices (Excel precedence).
+        milk_revenue = (
+            daily_economics["milk_sales"] + daily_economics["fat_sales"]
+            + daily_economics["protein_sales"] + daily_economics["scs_deviation"]
         )
-        milk_revenue = milk_l * milk_price
         packet = Packet(
             source=self.name,
             name="cow_daily_packet",
             day=day,
             payload={
                 "cow_count": active_cow_count,
+                "milking_cows": milking_cows,
+                "dry_cows": dry_cows,
+                "heifer_count": heifers,
                 "healthy_cows": active_cow_count - sick_cows,
                 "sick_cows": sick_cows,
                 "milk_l": require_nonnegative("milk_l", milk_l),
+                "milk_kg": milk_l * density,
+                "milk_fat_kg": milk_l * density * lifecycle.fat_fraction,
+                "milk_true_protein_kg": milk_l * density * lifecycle.protein_fraction,
                 "daily_milk_yield_l": require_nonnegative("daily_milk_yield_l", milk_l),
                 "dmi_kg": require_nonnegative("dmi_kg", dmi_kg),
+                "dmi_lactating_kg": float(today.get("dmi_wet_kg", 0.0)),
+                "dmi_dry_kg": float(today.get("dmi_dry_kg", 0.0)),
                 "actual_dmi_kg_dm": require_nonnegative("actual_dmi_kg_dm", dmi_kg),
                 "manure_kg": require_nonnegative("manure_kg", manure_kg),
                 "enteric_ch4_kg": require_nonnegative("enteric_ch4_kg", enteric_ch4_kg),
-                "milk_revenue": require_nonnegative("milk_revenue", milk_revenue),
+                "milk_revenue": require_nonnegative("milk_revenue", max(0.0, milk_revenue)),
                 "ration_coverage_fraction": ration_coverage_fraction,
                 "thi": float(thi) if isinstance(thi, (int, float)) else None,
                 "heat_stress_active": heat_stress_active,
                 "sara_affected_cows": sara_affected_cows,
                 "pregnant_cows": pregnant_cows,
-                "conceptions": conceptions,
+                "conceptions": int(today.get("_conceptions_total", 0)),
+                "calvings": int(today.get("_calvings_cows", 0) + today.get("_calvings_heifers", 0)),
                 "deaths": deaths,
+                "cows_culled": int(today.get("cows_culled_live", 0) + today.get("cows_culled_to_rebalance", 0)),
+                "cows_culled_rebalance": rebalanced,
+                "heifers_sold": int(today.get("heifers_sold", 0)),
+                "bull_calves_sold": int(today.get("male_calves_born", 0)),
+                "clinical_mastitis_cases": int(
+                    today.get("mastitis_gram_positive_cases", 0)
+                    + today.get("mastitis_gram_negative_cases", 0)
+                    + today.get("mastitis_other_cases", 0)
+                ),
+                "antibiotic_daily_doses": float(today.get("antibiotic_daily_doses", 0.0)),
                 "mean_days_in_milk": total_days_in_milk / active_cow_count if active_cow_count else 0.0,
                 "mean_body_condition_score": (
                     total_body_condition_score / active_cow_count if active_cow_count else 0.0
                 ),
                 "feed_conversion_ratio_kg_dm_per_l": feed_conversion_ratio,
+                "sara_digestibility_loss_fraction": sara_digestibility_loss if sara_affected_cows else 0.0,
+                "heat_stress_conception_multiplier": lifecycle.conception_multiplier_today,
                 "enteric_ch4_intensity_kg_per_l": enteric_ch4_intensity,
                 "milk_protein_nitrogen_kg": milk_protein_nitrogen,
                 "nitrogen_use_efficiency": nitrogen_use_efficiency,
@@ -463,8 +570,15 @@ class CowAgent(BaseAgent):
                 "water_availability_fraction": water_availability,
                 "health_mortality_signal": {"deaths": deaths, "sick_cows": sick_cows},
                 "reproduction_event_count": sum(1 for cow in active_cows if cow.get("reproduction_event_flag")),
+                "workbook_daily_economics": daily_economics,
                 "cow_records": cow_records,
             },
         )
         self.ctx.publish(packet)
         self.ctx.state.setdefault("execution_order", []).append(self.name)
+
+    @staticmethod
+    def _workbook_input_names() -> tuple[str, ...]:
+        from dairy_abm.analysis.cdairy_economics import INPUT_REFS
+
+        return tuple(INPUT_REFS)

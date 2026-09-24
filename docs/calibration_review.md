@@ -2,6 +2,8 @@
 
 This file records the values that must be reviewed or replaced before the model is used for scientific or financial decisions.
 
+The AIRAND herd lifecycle and `cdairy_economics` groups were calibrated against the supplied workbook's year-15 summary. `docs/parity/parity_report.md` gives the eight-seed comparison: six of 31 measures differ by more than 5%, including age of dam, pregnancy, mastitis, antibiotic use, breeding cost, and mastitis treatment cost. The workbook's external Java simulator is unavailable, so agreement of aggregated outputs does not verify identical event rules. The old one-point milk calibration is obsolete; the canonical parameters are in `configs/calibration.json`.
+
 The authoritative machine-readable list is generated on every run as `calibration_inventory.json`. Each row includes `key`, `default`, `unit`, `valid_range`, `source`, and `assumption`.
 
 Generate the full checklist:
@@ -13,6 +15,8 @@ python3 -m dairy_abm list-calibrations --output out/calibration_inventory.json
 ## Values Requiring Later Calibration
 
 These groups are currently marked `assumption: true` in `configs/calibration.json`.
+
+For the current status of any specific key, use the generated inventory; the examples below are a review checklist and can change as Blueprint and workbook values are added.
 
 - Cow physiology: `cow.base_milk_l_per_cow_day`, `cow.base_dmi_kg_per_cow_day`, `cow.base_manure_kg_per_cow_day`, `cow.enteric_ch4_kg_per_cow_day`, `cow.heat_stress_milk_loss_fraction`, `cow.mortality_rate_annual`, `cow.pregnancy_rate_monthly`.
 - Feed and crop: `feed_crop.ration_cost_per_kg_dm`, `feed_crop.crop_yield_kg_dm_per_ha_day`, `feed_crop.fertilizer_n_kg_per_ha_month`, `feed_crop.nutrient_return_efficiency`, `feed_crop.irrigation_l_per_ha_day`.
@@ -28,6 +32,8 @@ These groups are currently marked `assumption: true` in `configs/calibration.jso
 - Genetics implementation choices: `genetics.selection_intensity`, `genetics.trait_weights.milk_yield`, `genetics.trait_weights.feed_efficiency`, `genetics.trait_weights.fertility`, `genetics.trait_weights.health`, `genetics.trait_weights.survivability`.
 - Land scenario defaults: `land.cropland_ha`, `land.pasture_ha`.
 - Runtime conventions: `runtime.daily_tick_hours`, `runtime.monthly_report_day`, `runtime.annual_genetics_day`.
+- Herd lifecycle: reproduction timing, parity transitions, replacement/culling, clinical mastitis episodes, treatment dosing, and the conversion of events to annual per-cow measures.
+- Workbook economics: price and cost inputs in `cdairy_economics`; these reproduce formulas for workbook inputs but still depend on the model's simulated herd counts.
 
 Processor residual route fractions must remain in `0.0..1.0`; model construction revalidates in-memory calibration overrides before agents are initialized.
 
