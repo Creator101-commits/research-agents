@@ -272,6 +272,7 @@ class DiseaseAgent(BaseAgent):
             "quarantine_cost": quarantine_cost,
             "mortality_cost": mortality_cost,
             "outbreak_economic_cost": outbreak_day_cost,
+            "milk_loss_cost": milk_loss_cost,
             "outbreak_active_flag": bool(outbreak_state["active"]),
             "outbreak_start_day": outbreak_state["start_day"],
             "outbreak_end_day": outbreak_state["end_day"],

@@ -73,6 +73,8 @@ class FullBlueprintCoverageTest(unittest.TestCase):
     def test_manager_policy_changes_and_conflicts_follow_operating_signals(self) -> None:
         calibration = load_calibration()
         calibration["market"]["feed_cost_per_kg_dm"]["value"] = 100.0
+        # The ledger charges intake at the workbook price, so raise it too.
+        calibration["cdairy_economics"]["dmi_wet_price_per_kg"]["value"] = 100.0
         ctx = DairyFarmModel(
             {
                 "days": 1,

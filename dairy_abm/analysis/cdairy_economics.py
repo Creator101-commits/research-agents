@@ -166,6 +166,32 @@ def _require(inputs: Mapping[str, float], name: str) -> float:
     return float(inputs[name])
 
 
+def feed_cost_rows(wet_kg: float, dry_kg: float, prices: CdairyPrices, mult: float = 1.0) -> tuple[float, float]:
+    """Stats_MAST rows 28-29: every kg of lactating and dry-cow DMI is charged.
+
+    The workbook has no own-feed discount, so home-grown feed carries the same
+    price as bought feed. The farm ledger and the parity path both call this.
+    """
+    return (
+        wet_kg * prices["dmi_wet_price_per_kg"] * mult,
+        dry_kg * prices["dmi_dry_price_per_kg"] * mult,
+    )
+
+
+def loop_feed_saving(wet_kg: float, dry_kg: float, offset_kg: float, prices: CdairyPrices) -> float:
+    """Value of circular-loop feed offsets at the workbook feed prices.
+
+    Offsets reduce the charged kilograms, split between lactating and dry-cow
+    intake in proportion to each, and never below zero intake.
+    """
+    total = wet_kg + dry_kg
+    if total <= 0.0 or offset_kg <= 0.0:
+        return 0.0
+    offset = min(offset_kg, total)
+    wet_cost, dry_cost = feed_cost_rows(wet_kg, dry_kg, prices)
+    return (wet_cost + dry_cost) * offset / total
+
+
 def per_cow_year_economics(inputs: Mapping[str, float], prices: CdairyPrices) -> dict[str, float]:
     """Return the Stats_MAST AW rows 12-52 for one simulated year.
 
@@ -217,8 +243,7 @@ def _economics(inputs: Mapping[str, float], prices: CdairyPrices, mult: float) -
         + (out["female_calf_sales"] + out["profit_deviation_cows"] + out["other_heifer_sales"]
            + out["profit_deviation_heifers"] + out["extra_embryo_sales"]) * prices["profit_deviation_adjustment"]
     )
-    out["wet_feed_cost"] = get("dmi_wet_kg") * prices["dmi_wet_price_per_kg"] * mult  # row 28
-    out["dry_feed_cost"] = get("dmi_dry_kg") * prices["dmi_dry_price_per_kg"] * mult  # row 29
+    out["wet_feed_cost"], out["dry_feed_cost"] = feed_cost_rows(get("dmi_wet_kg"), get("dmi_dry_kg"), prices, mult)  # rows 28-29
     out["open_pregnant_wet_cost"] = (  # row 30
         get("vwp_days") * prices["vwp_cow_day_cost"]
         + get("eligible_days") * prices["eligible_cow_day_cost"]

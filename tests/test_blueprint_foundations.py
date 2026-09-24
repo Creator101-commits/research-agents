@@ -110,7 +110,10 @@ class BlueprintFoundationsTest(unittest.TestCase):
         )
 
         self.assertTrue(processor["enabled"])
-        self.assertEqual(manager["milk_revenue"], processor["processor_revenue"])
+        # Farm revenue keeps the workbook milk component sales; product sales are
+        # reported separately and are not part of profit.
+        self.assertEqual(manager["milk_revenue"], cow["milk_revenue"])
+        self.assertEqual(manager["processor_revenue_not_in_profit"], processor["processor_revenue"])
         self.assertEqual(manager["processing_energy_cost"], processor["processing_energy_kwh"] * electricity_price)
         self.assertEqual(manager["cooling_cost"], cooling_kwh * electricity_price)
 

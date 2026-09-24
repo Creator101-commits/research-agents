@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from dairy_abm.analysis.cdairy_economics import CdairyPrices, loop_feed_saving
 from dairy_abm.config import value
 from dairy_abm.core import BaseAgent, Packet, require_nonnegative
 
@@ -13,6 +14,7 @@ class FarmManagerAgent(BaseAgent):
     def __init__(self, ctx) -> None:
         """Initialize objective weights and manager history state."""
         super().__init__(ctx)
+        self.prices = CdairyPrices.from_calibration(ctx.calibration)
         ctx.state.setdefault(
             "objective_weights",
             {
@@ -97,12 +99,11 @@ class FarmManagerAgent(BaseAgent):
         cow_count = int(cow.payload["cow_count"]) if cow is not None else 0
         raw_milk_revenue = float(cow.payload["milk_revenue"]) if cow is not None else 0.0
         processor_enabled = bool(processor.payload["enabled"]) if processor is not None else False
-        milk_revenue = (
-            float(processor.payload["processor_revenue"])
-            if processor is not None and processor_enabled
-            else raw_milk_revenue
-        )
-        feed_cost = float(feed.payload["feed_cost"]) if feed is not None else 0.0
+        # Farm revenue always uses the workbook's milk component sales; processor
+        # product sales are reported separately and kept out of profit because
+        # the model carries no product-side costs (fix_prompt 2.3).
+        milk_revenue = raw_milk_revenue
+        purchased_feed_cost = float(feed.payload["feed_cost"]) if feed is not None else 0.0
         water_cost = float(water.payload["water_cost"]) if water is not None else 0.0
         energy_value = float(energy.payload["energy_value"]) if energy is not None else 0.0
         electricity_price = (
@@ -120,8 +121,10 @@ class FarmManagerAgent(BaseAgent):
             else 0.0
         )
         treatment_cost = float(disease.payload["treatment_cost"]) if disease is not None else 0.0
+        # Lost milk is already missing from milk sales, so it is not charged again.
         disease_cost = (
-            float(disease.payload.get("outbreak_economic_cost", treatment_cost))
+            max(0.0, float(disease.payload.get("outbreak_economic_cost", treatment_cost))
+                - float(disease.payload.get("milk_loss_cost", 0.0)))
             if disease is not None
             else 0.0
         )
@@ -148,13 +151,25 @@ class FarmManagerAgent(BaseAgent):
             + get("resynch_cost_heifers")
         )
         other_variable_cost = get("open_pregnant_wet_cost") + get("milking_dry_cost")
+        # Workbook rows 28-29 charge all intake, home-grown included; circular
+        # feed offsets (L1 nutrient, L4 by-product) are valued at the same prices.
+        workbook_feed_cost = get("wet_feed_cost") + get("dry_feed_cost")
+        loop_feed_offset_kg = (
+            float(feed.payload.get("l1_feed_offset_kg", 0.0)) + float(feed.payload.get("l4_feed_offset_kg", 0.0))
+            if feed is not None
+            else 0.0
+        )
+        dmi_wet = float(cow.payload.get("dmi_lactating_kg", 0.0)) if cow is not None else 0.0
+        dmi_dry = float(cow.payload.get("dmi_dry_kg", 0.0)) if cow is not None else 0.0
+        loop_feed_saving_value = loop_feed_saving(dmi_wet, dmi_dry, loop_feed_offset_kg, self.prices)
+        feed_cost = max(0.0, workbook_feed_cost - loop_feed_saving_value)
         heifer_cost = get("heifer_raised_cost") + get("heifer_purchased_cost") + get("genomic_testing_cost")
         mastitis_cost = get("mastitis_treatment_cost")
         dry_cow_therapy_cost = get("dry_cow_therapy_cost")
         fixed_cost = get("fixed_costs")
         herd_revenue = milk_revenue + cow_sales + calf_sales + profit_deviation
         herd_cost = (
-            feed_cost + breeding_cost + reproduction_cost + other_variable_cost + heifer_cost
+            workbook_feed_cost + breeding_cost + reproduction_cost + other_variable_cost + heifer_cost
             + mastitis_cost + dry_cow_therapy_cost + fixed_cost
         )
         manure_packet = self.ctx.get_packet("manure_packet")
@@ -164,10 +179,27 @@ class FarmManagerAgent(BaseAgent):
             if manure_packet is not None
             else 0.0
         )
+        heat_value = float(energy.payload.get("heat_value", 0.0)) if energy is not None else 0.0
+        electricity_value = energy_value - heat_value
+        # Circular-loop layer, listed line by line on top of the workbook herd economics.
+        loop_lines = {
+            "electricity_value": electricity_value,
+            "heat_value": heat_value,
+            "carbon_credit_value": carbon_credit_value,
+            "compost_revenue": compost_revenue,
+            "byproduct_revenue": byproduct_revenue,
+            "loop_feed_saving": loop_feed_saving_value,
+            "water_cost": -water_cost,
+            "cooling_cost": -cooling_cost,
+            "processing_energy_cost": -processing_energy_cost,
+            "disease_cost": -disease_cost,
+        }
         loop_revenue = byproduct_revenue + energy_value + carbon_credit_value + compost_revenue
         loop_cost = water_cost + cooling_cost + processing_energy_cost + disease_cost
+        loop_net = sum(loop_lines.values())
         total_revenue = herd_revenue + loop_revenue
-        total_cost = herd_cost + loop_cost
+        # The feed saving lowers the charged feed cost rather than adding revenue.
+        total_cost = herd_cost - loop_feed_saving_value + loop_cost
         profit = total_revenue - total_cost
 
         circularity_score = float(environment.payload.get("circularity_score", 0.0)) if environment is not None else 0.0
@@ -201,10 +233,7 @@ class FarmManagerAgent(BaseAgent):
         scheduled_cost = sum(float(item.get("cost", 0.0)) for item in schedule if isinstance(item, dict))
         investment_cost = self.ctx.scenario.get("circular_investment_cost", scheduled_cost or None)
         annual_circular_benefit = (
-            energy_value
-            + carbon_credit_value
-            + byproduct_revenue
-            + max(0.0, processor_revenue - raw_milk_revenue)
+            energy_value + carbon_credit_value + byproduct_revenue + compost_revenue + loop_feed_saving_value
         ) * 365.0
         if investment_cost is None or float(investment_cost) <= 0.0:
             roi_circular_investment = None
@@ -238,6 +267,11 @@ class FarmManagerAgent(BaseAgent):
                     "energy_value": require_nonnegative("energy_value", energy_value),
                     "carbon_credit_value": require_nonnegative("carbon_credit_value", carbon_credit_value),
                     "feed_cost": require_nonnegative("feed_cost", feed_cost),
+                    "workbook_feed_cost": require_nonnegative("workbook_feed_cost", workbook_feed_cost),
+                    "loop_feed_saving": require_nonnegative("loop_feed_saving", loop_feed_saving_value),
+                    "loop_feed_offset_kg": loop_feed_offset_kg,
+                    "purchased_feed_cost": require_nonnegative("purchased_feed_cost", purchased_feed_cost),
+                    "processor_revenue_not_in_profit": require_nonnegative("processor_revenue_not_in_profit", processor_revenue),
                     "water_cost": require_nonnegative("water_cost", water_cost),
                     "cooling_cost": require_nonnegative("cooling_cost", cooling_cost),
                     "processing_energy_cost": require_nonnegative(
@@ -262,6 +296,8 @@ class FarmManagerAgent(BaseAgent):
                     "loop_revenue": loop_revenue,
                     "compost_revenue": compost_revenue,
                     "loop_cost": loop_cost,
+                    "loop_lines": loop_lines,
+                    "loop_net": loop_net,
                     "total_revenue": total_revenue,
                     "total_cost": require_nonnegative("total_cost", total_cost),
                     "profit": profit,
