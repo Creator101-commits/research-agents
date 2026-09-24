@@ -228,7 +228,7 @@ FIELD_MAP = {
     "workbookFeedCost": "workbook_feed_cost", "loopFeedSaving": "loop_feed_saving",
     "purchasedFeedCost": "purchased_feed_cost", "herdRevenue": "herd_revenue",
     "herdCost": "herd_cost", "herdProfit": "herd_profit", "loopNet": "loop_net",
-    "coolingCost": "cooling_cost", "processingEnergyCost": "processing_energy_cost",
+    "coolingCost": "cooling_cost", "processorEnergyCostNotInProfit": "processor_energy_cost_not_in_profit",
     "diseaseCost": "disease_cost", "carbonCredits": "carbon_credit_value",
     "processorRevenueNotInProfit": "processor_revenue_not_in_profit",
     "digesterManure": "digester_kg", "compostManure": "compost_kg",
@@ -300,7 +300,7 @@ def serialize_run(ctx, cfg: dict, *, include_series: bool = True) -> dict:
         "electricityValue": totals["energyVal"], "heatValue": totals["heatVal"],
         "carbonCredits": totals["carbonCredits"], "compostRevenue": totals["compostRev"],
         "loopFeedSaving": totals["loopFeedSaving"], "waterCost": -totals["waterCost"],
-        "coolingCost": -totals["coolingCost"], "processingEnergyCost": -totals["processingEnergyCost"],
+        "coolingCost": -totals["coolingCost"],
         "diseaseCost": -totals["diseaseCost"],
     }
     notes = {}
@@ -337,6 +337,9 @@ def serialize_run(ctx, cfg: dict, *, include_series: bool = True) -> dict:
             "days": days,
             "source": "DairyFarmModel",
             "loops": {key: bool(ctx.scenario.get(field)) for key, field in LOOP_SCENARIO_KEYS.items()},
+            # The processor is a separate business: both figures are reported, neither is in profit.
+            "processorRevenueNotInProfit": totals["processorRevenueNotInProfit"],
+            "processorEnergyCostNotInProfit": totals["processorEnergyCostNotInProfit"],
         },
     }
     return result

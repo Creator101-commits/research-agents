@@ -456,7 +456,8 @@ function buildLoops(res) {
       metrics: [
         ['Whey → functional foods', avg.wheyFoods == null ? 'N/A' : n1(avg.wheyFoods) + ' L/day'],
         ['Sludge → fertilizer', n1(avg.sludgeFertilizer) + ' L/day'],
-      ]
+      ],
+      note: `Feed return is the dry matter of whey and waste milk sent to feed. The processor is treated as a separate business: its product sales ($${n0(res.totals.processorRevenueNotInProfit)}) and processing energy ($${n0(res.totals.processorEnergyCostNotInProfit)}) over the run are reported but not in farm profit.`
     },
   ];
 
@@ -1689,7 +1690,7 @@ const EQUIPMENT_CATALOGUE = [
     loop: 'L4',
     loopClass: 'equip-l4',
     name: 'Whey Processing Unit',
-    desc: 'Converts whey and dairy byproducts into animal feed, reducing purchased feed costs and closing the dairy value loop.',
+    desc: 'Converts whey and dairy byproducts into animal feed, lowering the charged feed cost by the dry matter returned. The processor runs as a separate business, so its product sales and processing energy are not in farm profit.',
     capitalFn: (n) => Math.max(40000, n * 280),
     annualBenefitFn: (totals, simYears, cfg) => {
       // The model's L4 feed saving at workbook feed prices (lower charged feed cost).
@@ -1705,6 +1706,7 @@ const EQUIPMENT_CATALOGUE = [
       { label: 'Waste Milk to Feed/yr',        val: () => perYr(totals.wasteToFeed, simYears).toLocaleString('en',{maximumFractionDigits:0})+' L' },
       { label: 'Waste Disposal Saved/yr',      val: () => money0(perYr((totals.wheyToFeed||0)+(totals.wasteToFeed||0), simYears)/1000*40) },
       { label: 'Whey Processed/day',           val: () => (perYr(totals.whey, simYears)/365).toFixed(1)+' L/day' },
+      { label: 'Processor Energy (not in profit)/yr', val: () => money0(perYr(totals.processorEnergyCostNotInProfit, simYears)) },
     ],
     verdict: (roi) => roi > 60 ? 'good' : roi > 15 ? 'warn' : 'bad',
     verdictLabel: (pb) => pb <= 5 ? `Strong: ${pb.toFixed(1)}-yr payback from direct feed cost reduction` : pb <= 12 ? `Good: ${pb.toFixed(1)}-yr payback — premium whey products further improve this` : `Fair: ${pb.toFixed(1)} yrs — consider smaller unit or functional food upgrade`,
@@ -2246,7 +2248,9 @@ async function runSimulation() {
     const details = res.modelDetails;
     document.getElementById('modelDetailsContent').textContent =
       `${details.source} · ${details.name} · ${details.days.toLocaleString()} days · seed ${details.seed}. ` +
-      'The Python farm model supplies every simulation result. Controls without a Python equivalent are disabled.';
+      'The Python farm model supplies every simulation result. Controls without a Python equivalent are disabled. ' +
+      `The processor is treated as a separate business, so neither its product sales (${fmtCurrency(details.processorRevenueNotInProfit || 0)}) ` +
+      `nor its processing energy (${fmtCurrency(details.processorEnergyCostNotInProfit || 0)}) is in farm profit; milk cooling stays in farm costs.`;
     setStatus('ready'); markParamsClean();
     document.getElementById('statusBadge').title='Python farm model';
   } catch(error) {

@@ -394,7 +394,7 @@ class DairyFarmModel:
                 "scotta_l": processor_packet.payload.get("scotta_l", 0.0) if processor_packet is not None else 0.0,
                 "processor_residual_energy_kg": processor_packet.payload.get("residual_energy_kg", 0.0) if processor_packet is not None else 0.0,
                 "cooling_cost": manager_packet.payload["cooling_cost"] if manager_packet is not None else 0.0,
-                "processing_energy_cost": manager_packet.payload["processing_energy_cost"] if manager_packet is not None else 0.0,
+                "processor_energy_cost_not_in_profit": manager_packet.payload["processor_energy_cost_not_in_profit"] if manager_packet is not None else 0.0,
                 "cash_balance": manager_packet.payload["cash_balance"] if manager_packet is not None else 0.0,
                 "roi_circular_investment": manager_packet.payload["roi_circular_investment"] if manager_packet is not None else None,
                 "payback_period_years": manager_packet.payload["payback_period_years"] if manager_packet is not None else None,

@@ -115,7 +115,10 @@ class FarmManagerAgent(BaseAgent):
         cooling_cost = milk_l * float(
             value(self.ctx.calibration, "dairy_processor.milk_cooling_kwh_per_l_milk")
         ) * electricity_price
-        processing_energy_cost = (
+        # The processor is treated as a separate business: its product sales are
+        # excluded from farm profit, and so is its processing energy. Milk
+        # cooling is a farm-side cost and stays in the loop layer.
+        processor_energy_cost = (
             float(processor.payload["processing_energy_kwh"]) * electricity_price
             if processor is not None and processor_enabled
             else 0.0
@@ -191,11 +194,10 @@ class FarmManagerAgent(BaseAgent):
             "loop_feed_saving": loop_feed_saving_value,
             "water_cost": -water_cost,
             "cooling_cost": -cooling_cost,
-            "processing_energy_cost": -processing_energy_cost,
             "disease_cost": -disease_cost,
         }
         loop_revenue = byproduct_revenue + energy_value + carbon_credit_value + compost_revenue
-        loop_cost = water_cost + cooling_cost + processing_energy_cost + disease_cost
+        loop_cost = water_cost + cooling_cost + disease_cost
         loop_net = sum(loop_lines.values())
         total_revenue = herd_revenue + loop_revenue
         # The feed saving lowers the charged feed cost rather than adding revenue.
@@ -274,8 +276,8 @@ class FarmManagerAgent(BaseAgent):
                     "processor_revenue_not_in_profit": require_nonnegative("processor_revenue_not_in_profit", processor_revenue),
                     "water_cost": require_nonnegative("water_cost", water_cost),
                     "cooling_cost": require_nonnegative("cooling_cost", cooling_cost),
-                    "processing_energy_cost": require_nonnegative(
-                        "processing_energy_cost", processing_energy_cost
+                    "processor_energy_cost_not_in_profit": require_nonnegative(
+                        "processor_energy_cost_not_in_profit", processor_energy_cost
                     ),
                     "treatment_cost": require_nonnegative("treatment_cost", treatment_cost),
                     "disease_cost": require_nonnegative("disease_cost", disease_cost),

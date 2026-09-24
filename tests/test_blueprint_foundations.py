@@ -114,7 +114,7 @@ class BlueprintFoundationsTest(unittest.TestCase):
         # reported separately and are not part of profit.
         self.assertEqual(manager["milk_revenue"], cow["milk_revenue"])
         self.assertEqual(manager["processor_revenue_not_in_profit"], processor["processor_revenue"])
-        self.assertEqual(manager["processing_energy_cost"], processor["processing_energy_kwh"] * electricity_price)
+        self.assertEqual(manager["processor_energy_cost_not_in_profit"], processor["processing_energy_kwh"] * electricity_price)
         self.assertEqual(manager["cooling_cost"], cooling_kwh * electricity_price)
 
     def test_coproduct_policy_blocks_whey_feed_credit(self) -> None:

@@ -59,6 +59,7 @@ REPORT_CONTRACT = {
             "herd_profit": "currency/day",
             "loop_net": "currency/day",
             "processor_revenue_not_in_profit": "currency/day",
+            "processor_energy_cost_not_in_profit": "currency/day",
             "heat_value": "currency/day",
             "surplus_energy_kwh": "kWh/day",
             "displaced_grid_energy_kwh": "kWh/day",

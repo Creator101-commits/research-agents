@@ -65,12 +65,15 @@ class LedgerReconciliationTest(unittest.TestCase):
         self.assertEqual(
             set(lines),
             {"electricity_value", "heat_value", "carbon_credit_value", "compost_revenue", "byproduct_revenue",
-             "loop_feed_saving", "water_cost", "cooling_cost", "processing_energy_cost", "disease_cost"},
+             "loop_feed_saving", "water_cost", "cooling_cost", "disease_cost"},
         )
 
     def test_processor_product_sales_stay_out_of_profit(self) -> None:
         processor = sum(r["processor_revenue_not_in_profit"] for r in self.on.daily_records)
         self.assertGreater(processor, 0.0)
+        # Processing energy belongs to the processor business, like its sales.
+        self.assertGreater(sum(r["processor_energy_cost_not_in_profit"] for r in self.on.daily_records), 0.0)
+        self.assertNotIn("processing_energy_cost", self.on.packets["manager_packet"].payload["loop_lines"])
         for record in self.on.daily_records:
             self.assertAlmostEqual(record["milk_revenue"], record["raw_milk_revenue"])
 
