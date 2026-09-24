@@ -31,7 +31,7 @@ from dairy_abm.dashboard import (
     serialize_dashboard_run,
 )
 from dairy_abm.dashboard_conventional import (
-    PARAMETERS as CONVENTIONAL_PARAMETERS,
+    SUPPORTED_PARAMETERS as CONVENTIONAL_PARAMETERS,
     compare_one as conventional_compare_one,
     comparison_keys as conventional_comparison_keys,
     default_config as conventional_default_config,

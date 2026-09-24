@@ -622,3 +622,7 @@ td.col-diff .delta-neutral{color:var(--color-text-faint)}
 .export-menu button{display:block;width:100%;padding:8px 10px;text-align:left;color:var(--color-text);border-radius:var(--radius-sm);font-size:var(--text-sm)}
 .export-menu button:hover{background:var(--color-surface-offset)}
 .param-row:has(:disabled),.toggle-wrap:has(:disabled){opacity:.52}
+
+/* Short on-screen reason for a series that is legitimately zero for this farm. */
+.chart-note{margin-top:var(--space-2);font-size:var(--text-xs);color:var(--color-text-muted);line-height:1.4}
+.chart-note:empty{display:none}

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import threading
 import unittest
+from pathlib import Path
 from http.server import ThreadingHTTPServer
 from urllib.request import Request, urlopen
 
@@ -96,7 +97,10 @@ class ConventionalHTTPTests(unittest.TestCase):
         with urlopen(self.base + "/api/conventional/parity") as response:
             result = json.load(response)
         self.assertEqual(result["seeds"], 8)
-        self.assertEqual(result["status_counts"]["match"], 21)
+        saved = json.loads((Path(__file__).resolve().parents[1] / "docs/parity/parity_results_8_seeds.json").read_text())
+        self.assertEqual(result["status_counts"], saved["aggregate"]["comparison"]["status_counts"])
+        # Acceptance bar for the parity work: at least 21 of 31 rows within 2%.
+        self.assertGreaterEqual(result["status_counts"]["match"], 21)
         self.assertIn("profit", result["selected"])
 
 

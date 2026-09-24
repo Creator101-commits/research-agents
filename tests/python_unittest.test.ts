@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 
-test("python unittest suite passes", { timeout: 30_000 }, async () => {
+// The suite includes multi-year ledger, body-weight and per-control runs (about 35 s).
+test("python unittest suite passes", { timeout: 120_000 }, async () => {
   const proc = Bun.spawn(["python3", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"], {
     stdout: "pipe",
     stderr: "pipe",

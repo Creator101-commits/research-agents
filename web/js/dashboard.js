@@ -139,6 +139,30 @@ function getActiveLoops(scenarioKey) {
   };
 }
 
+// Small inline SVG icons for parameter group headers (no emojis).
+const GROUP_ICONS = {
+  "Herd & Simulation Setup": '<path d="M3 7h18M3 12h18M3 17h18"/><circle cx="8" cy="7" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="10" cy="17" r="1.5"/>',
+  "Per-Cow Daily Rates": '<path d="M12 3c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11Z"/>',
+  "Smart Technology": '<rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"/>',
+  "Manure Management": '<path d="M4 18c1-8 7-12 16-12-1 9-5 15-13 14"/><path d="M5 20c3-6 6-9 12-11"/>',
+  "Energy": '<path d="m13 2-9 12h7l-1 8 10-13h-7V2Z"/>',
+  "Milk Processing": '<path d="M3 21V10l6 4V10l6 4V6l6 4v11Z"/>',
+  "Milk Market & Pricing": '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  "Economics": '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  "GHG & Climate": '<path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.5A4 4 0 0 0 6.5 19Z"/>',
+  "Land Resources": '<path d="M3 20h18M5 20V10l7-6 7 6v10"/><path d="M9 20v-6h6v6"/>',
+  "Variability": '<path d="M18 20V10M12 20V4M6 20v-6"/>',
+  "Animal Biology (Wood's Curve)": '<path d="M3 20c2-12 5-14 7-14s4 4 11 12"/>',
+  "Lactation — Wood's Curve": '<path d="M3 20c2-12 5-14 7-14s4 4 11 12"/>',
+  "Health & Culling": '<path d="M12 21s-8-4.5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 6.5-8 11-8 11Z"/>',
+  "Health & Disease": '<path d="M12 21s-8-4.5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 6.5-8 11-8 11Z"/>',
+  "Reproduction & Culling": '<path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>',
+  "Body Weight & Intake": '<path d="M12 3v18M5 7h14M5 7l-3 7a3 3 0 0 0 6 0ZM19 7l-3 7a3 3 0 0 0 6 0Z"/>',
+};
+const groupIcon = title => GROUP_ICONS[title]
+  ? `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${GROUP_ICONS[title]}</svg>`
+  : '';
+
 const PARAM_GROUPS = [
   {
     title: "Herd & Simulation Setup", icon: "",
@@ -326,6 +350,8 @@ function dayLabels(days) { return days.map(d => `Day ${d}`); }
 
 function buildOverviewCharts(res) {
   const L = dayLabels(res.series.day); const co = getChartColors();
+  const revenueNote = document.getElementById('chartRevenueNote');
+  if (revenueNote) revenueNote.innerHTML = zeroSeriesNote(res, 'heatVal').replace(/<[^>]+>/g, '');
   requestAnimationFrame(() => {
     makeChart('chartMilk','line', L, [{label:'Milk (L/day)', data:res.series.milk, borderColor:co.primary, backgroundColor:co.primary+'22', fill:true, pointRadius:0, tension:.3}]);
     makeChart('chartRevenue','line', L, [
@@ -362,13 +388,21 @@ function buildAllCharts(res) {
     {id:'ts_rev_compost', title:'Compost Revenue ($/day)', key:'compostRev', color:co.success},
     {id:'ts_fcr', title:'Feed Conversion Ratio (kg/kg)', key:'fcr', color:co.blue},
   ];
-  grid.innerHTML = charts.map(c => `<div class="card"><div class="card-header"><div class="card-title">${c.title}</div></div><div class="card-body"><div class="chart-wrap"><canvas id="${c.id}"></canvas></div></div></div>`).join('');
+  grid.innerHTML = charts.map(c => `<div class="card"><div class="card-header"><div class="card-title">${c.title}</div></div><div class="card-body"><div class="chart-wrap"><canvas id="${c.id}"></canvas></div>${zeroSeriesNote(res, c.key)}</div></div>`).join('');
   // rAF ensures canvases are painted in DOM before Chart.js measures dimensions
   requestAnimationFrame(() => {
     charts.forEach(c => {
       makeChart(c.id,'line',L,[{label:c.title, data:res.series[c.key], borderColor:c.color, backgroundColor:c.color+'22', fill:true, pointRadius:0, tension:.3}]);
     });
   });
+}
+
+// A legitimately zero series gets its reason on screen instead of a bare flat line.
+function zeroSeriesNote(res, key) {
+  const values = res.series?.[key] || [];
+  if (values.some(v => v)) return '';
+  const note = {heatVal: res.notes?.heatVal, solar: res.notes?.solar}[key];
+  return note ? `<div class="chart-note">${note}</div>` : '';
 }
 
 function buildLoops(res) {
@@ -392,7 +426,8 @@ function buildLoops(res) {
         ['Phosphorus recovered', n2(avg.pRec) + ' kg/day'],
         ['Potassium recovered', n2(avg.kRec) + ' kg/day'],
         ['Digestate applied', n1(avg.digestate) + ' kg/day'],
-      ]
+      ],
+      note: `Feed offset is 0: the Blueprint defines no feed offset for this loop. Compost and digestate N/P/K return to cropland instead, avoiding ${n1(avg.fertilizerNSaved)} kg/day of synthetic fertilizer N (${n1(avg.fertilizerOffsetCO2e)} kgCO₂e/day); no fertilizer price is configured, so this is not monetized.`
     },
     {
       cls: 'lhc-l2', icon: '<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c-3 5-7 9-7 14a7 7 0 0 0 14 0c0-5-4-9-7-14Z"/></svg>', badge: 'Loop 2', title: 'Water Cycle',
@@ -452,6 +487,7 @@ function buildLoops(res) {
             <span class="lhc-row-name">${name}</span>
             <span class="lhc-row-val">${val}</span>
           </div>`).join('')}
+        ${ld.note ? `<div class="chart-note">${ld.note}</div>` : ''}
       </div>
     </div>
   `).join('');
@@ -479,6 +515,9 @@ function buildLoops(res) {
     offsetData.push(res.series.feedOffset[i] ?? 0);
   }
 
+  const nutrientNote = document.getElementById('chartNutrientNote');
+  if (nutrientNote) nutrientNote.textContent = (res.series.feedOffset || []).some(v => v)
+    ? '' : 'Feed offset is 0: the Blueprint defines no feed offset for the nutrient loop; compost N/P/K lowers synthetic fertilizer need instead.';
   destroyChart('chartNutrient');
   const elN = document.getElementById('chartNutrient');
   if (elN) {
@@ -606,10 +645,28 @@ function fmtCurrency(v) {
   return '$'+v.toFixed(2);
 }
 
+function energyNote(res) {
+  const a = res?.avg || {};
+  return `Displaced farm demand only (${(a.farmElecDemand ?? 0).toFixed(0)} kWh/day, an implementation assumption). `
+    + `${(a.surplusElec ?? 0).toFixed(0)} kWh/day surplus is reported but not valued (Blueprint Energy 10).`;
+}
+function heatNote(res) {
+  const a = res?.avg || {};
+  return (a.heatDemand ?? 0) > 0
+    ? 'Heat valued up to the configured farm heat demand.'
+    : `${(a.heat ?? 0).toFixed(0)} kWh/day of heat is generated but not valued: no farm heat demand is configured (Blueprint Energy 8.5).`;
+}
+const KPI_NOTES = {
+  energyVal: energyNote,
+  heatVal: heatNote,
+  totalElec: res => (res?.totals?.solar ?? 0) > 0 ? '' : 'Biogas electricity only: no solar capacity is configured.',
+};
+
 function renderKPIs(avg) {
   const grid = document.getElementById('kpiGrid');
+  const noteFor = k => KPI_NOTES[k.key] ? KPI_NOTES[k.key](lastResult).replace(/"/g, '&quot;') : '';
   grid.innerHTML = KPI_DEFS.map(k => `
-    <div class="kpi-card">
+    <div class="kpi-card"${noteFor(k) ? ` title="${noteFor(k)}"` : ''}>
       <div class="kpi-icon ${k.icon}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${k.iconSvg}</svg></div>
       <div class="kpi-label">${k.label}</div>
       <div class="kpi-value" id="${k.id}">${fmt(avg[k.key]||0, k.key)}<span class="kpi-unit">${k.unit}</span></div>
@@ -674,6 +731,9 @@ function updateRevSummary(res) {
   set('revTotalWaterCost', '−' + fmtCurrency(totalWaterCost));
   set('revDailyWaterCost', '−' + fmtCurrency(totalWaterCost / d) + '/day avg');
   set('revOtherHerdNet', (t.otherHerdNet >= 0 ? '+' : '−') + fmtCurrency(Math.abs(t.otherHerdNet)));
+  // Model-driven limits, stated on the cards instead of unexplained numbers.
+  set('revNoteEnergy', energyNote(res));
+  set('revNoteHeat', heatNote(res));
 
   // ── Donut legend % ──
   set('legendPctMilk',    pct(rMilk));
@@ -732,6 +792,13 @@ function setStatus(s) {
   const badge = document.getElementById('statusBadge');
   badge.className = 'status-badge '+s;
   badge.textContent = s.charAt(0).toUpperCase()+s.slice(1);
+  // Farm summary pill, as in the target: running, then complete.
+  const pill = document.getElementById('farmSummaryStatus');
+  if (pill) {
+    const text = {running: 'Running simulation…', ready: 'Simulation complete', error: 'Simulation failed'}[s];
+    if (text) pill.textContent = text;
+    pill.style.color = s === 'ready' ? 'var(--color-success,#437a22)' : s === 'error' ? 'var(--color-error)' : 'var(--color-text-muted)';
+  }
 }
 
 let lcCharts = {};
@@ -1313,7 +1380,7 @@ function buildParamForms() {
   const container = document.getElementById('paramGroups');
   container.innerHTML = PARAM_GROUPS.map(group => `
     <div class="param-group">
-      <div class="param-group-header">${group.icon} ${group.title}</div>
+      <div class="param-group-header">${groupIcon(group.title)} ${group.title}</div>
       <div class="param-group-body">
         ${group.params.map(p => buildParamHTML(p)).join('')}
       </div>
@@ -1369,7 +1436,7 @@ function buildParamForms() {
   ];
   animalContainer.innerHTML = animalGroups.map(group => `
     <div class="param-group">
-      <div class="param-group-header">${group.icon} ${group.title}</div>
+      <div class="param-group-header">${groupIcon(group.title)} ${group.title}</div>
       <div class="param-group-body">
         ${group.params.map(p => buildParamHTML(p, true)).join('')}
       </div>
@@ -1481,43 +1548,57 @@ let equipROIChartBenefit = null;
 
 // Equipment catalogue — cost formulae reference cfg / herd size
 // annualBenefitFn(totals, simYears, cfg) → $/year
+// Inline SVG icons in the loop-card style; the target's emoji icons are not used.
+const EQUIP_ICONS = {
+  biodigester: '<path d="M4 20v-8a8 8 0 0 1 16 0v8"/><path d="M2 20h20M9 20v-4h6v4M12 4V2"/>',
+  chp: '<rect x="3" y="8" width="13" height="10" rx="1"/><path d="M16 11h3l2 2v3h-5M7 8V5h5v3"/><path d="m10 10-2 3h3l-2 3"/>',
+  separator: '<path d="M3 4h18l-7 8v6l-4 2v-8Z"/>',
+  solar: '<path d="M3 15h18l-3-9H6Z"/><path d="M12 6v9M4.5 10.5h15M12 15v4M8 19h8"/>',
+  whey: '<path d="M9 2h6M10 2v4l-3 4v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V10l-3-4V2"/><path d="M7 13h10"/>',
+  wastewater: '<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/><path d="M12 8c-1.5 2-3 3.5-3 5a3 3 0 0 0 6 0c0-1.5-1.5-3-3-5Z"/>',
+  smartsensors: '<rect x="7" y="7" width="10" height="10" rx="2"/><path d="M10 10h4v4h-4zM9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"/>',
+  beefcross: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+};
+const equipIcon = id => `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${EQUIP_ICONS[id] || ''}</svg>`;
+
+// Prices, factors and flows come from the Python run (res.cfg and res.totals).
+// Numbers written inline below are catalogue scenario estimates with no model
+// equivalent; the ROI methodology note lists them.
+const roiValue = (cfg, key) => Number(cfg?.[key] ?? 0);
+const perYr = (v, simYears) => (v || 0) / simYears;
+const money0 = v => '$' + (v || 0).toLocaleString('en', {maximumFractionDigits: 0});
+// Split the model's displaced-electricity value between biogas and solar by kWh.
+const elecShare = (totals, source) => {
+  const total = (totals.elec || 0) + (totals.solar || 0);
+  return total > 0 ? (totals[source] || 0) / total : 0;
+};
+
 const EQUIPMENT_CATALOGUE = [
   {
     id: 'biodigester',
     loop: 'L3',
     loopClass: 'equip-l3',
-    icon: '',
     name: 'Anaerobic Biodigester',
     desc: 'Processes the liquid manure fraction into biogas + digestate. Core of the energy loop — feeds the CHP engine. Produces digestate fertilizer (N+P) and eliminates liquid manure disposal costs. The solid fraction is handled separately by the Manure Separator (L1).',
-    // Realistic: $500-800/cow for farm-scale AD vessel, mixing, gas storage
+    // Catalogue estimate: $700/cow for a farm-scale AD vessel, mixing and gas storage.
     capitalFn: (n) => n * 700,
     annualBenefitFn: (totals, simYears, cfg) => {
-      // Digestate N fertilizer: use actual totals.digestate from simulation
-      // (liquid × digestate_kg_per_kg_manure_to_digester)
-      const digestate_kg   = totals.digestate / simYears;
-      const digestateNVal  = digestate_kg * 0.005 * 1.20;   // 0.5% N @ $1.20/kg N
-      const digestatePVal  = digestate_kg * 0.002 * 2.50;   // 0.2% P @ $2.50/kg P
-      // Manure disposal saving: $3/tonne liquid manure processed
-      const liquid_kg      = totals.biogasM3 / simYears / (cfg.biogas_m3_per_kg_manure_to_digester || 0.025);
-      const disposalSaving = (liquid_kg / 1000) * 3.0;
-      // Carbon credits: biogas methane displacement $30/tonne CO2e
-      const carbonVal      = (totals.biogasM3 / simYears * 1.5) / 1000 * 30.0;
-      // NOTE: compost revenue is NOT included here — that belongs entirely to the
-      // Manure Separator card (L1) which owns the solid fraction.
-      return digestateNVal + digestatePVal + disposalSaving + carbonVal;
+      // Model digestate N and P mass, valued at catalogue fertilizer prices.
+      const digestateVal   = perYr(totals.digestateN, simYears) * 1.20 + perYr(totals.digestateP, simYears) * 2.50;
+      // Model manure sent to the digester; catalogue disposal cost $3/tonne.
+      const disposalSaving = perYr(totals.digesterManure, simYears) / 1000 * 3.0;
+      // Catalogue displacement 1.5 kgCO2e/m3 at the model's carbon-credit price.
+      const carbonVal      = perYr(totals.biogasM3, simYears) * 1.5 / 1000 * roiValue(cfg, 'carbon_credit_price_per_tonne_co2e');
+      return digestateVal + disposalSaving + carbonVal;
     },
-    metrics: (totals, simYears, cfg) => {
-      const digestate_kg = totals.digestate / simYears;
-      const liquid_kg    = totals.biogasM3 / simYears / (cfg.biogas_m3_per_kg_manure_to_digester || 0.025);
-      return [
-        { label: 'Biogas Produced/yr',          val: () => (totals.biogasM3/simYears).toLocaleString('en',{maximumFractionDigits:0})+' m³ (→ feeds CHP)' },
-        { label: 'Avg Biogas Output',            val: () => (totals.biogasM3/simYears/365).toFixed(1)+' m³/day' },
-        { label: 'Digestate N+P Value/yr',       val: () => '$'+((digestate_kg*0.005*1.20)+(digestate_kg*0.002*2.50)).toLocaleString('en',{maximumFractionDigits:0}) },
-        { label: 'Digestate Produced/day',       val: () => (digestate_kg/365).toFixed(0)+' kg/day (liquid frac)' },
-        { label: 'Manure Disposal Saved/yr',     val: () => '$'+(liquid_kg/1000*3).toLocaleString('en',{maximumFractionDigits:0}) },
-        { label: 'Carbon Credits/yr',            val: () => '$'+(totals.biogasM3/simYears*1.5/1000*30).toLocaleString('en',{maximumFractionDigits:0}) },
-      ];
-    },
+    metrics: (totals, simYears, cfg) => [
+      { label: 'Biogas Produced/yr',          val: () => perYr(totals.biogasM3, simYears).toLocaleString('en',{maximumFractionDigits:0})+' m³ (→ feeds CHP)' },
+      { label: 'Avg Biogas Output',            val: () => (perYr(totals.biogasM3, simYears)/365).toFixed(1)+' m³/day' },
+      { label: 'Digestate N+P Value/yr',       val: () => money0(perYr(totals.digestateN, simYears)*1.20 + perYr(totals.digestateP, simYears)*2.50) },
+      { label: 'Manure to Digester/day',       val: () => (perYr(totals.digesterManure, simYears)/365).toFixed(0)+' kg/day' },
+      { label: 'Manure Disposal Saved/yr',     val: () => money0(perYr(totals.digesterManure, simYears)/1000*3) },
+      { label: 'Carbon Credits/yr',            val: () => money0(perYr(totals.biogasM3, simYears)*1.5/1000*roiValue(cfg, 'carbon_credit_price_per_tonne_co2e')) },
+    ],
     verdict: (roi) => roi > 80 ? 'good' : roi > 20 ? 'warn' : 'bad',
     verdictLabel: (pb) => pb <= 6 ? `Excellent: ${pb.toFixed(1)}-yr payback — foundation of the bioeconomy loop` : pb <= 12 ? `Strong: ${pb.toFixed(1)}-yr payback, 20-yr design life` : `Good: ${pb.toFixed(1)} yrs — carbon incentives accelerate recovery`,
   },
@@ -1525,43 +1606,30 @@ const EQUIPMENT_CATALOGUE = [
     id: 'chp',
     loop: 'L3',
     loopClass: 'equip-l3',
-    icon: '',
     name: 'Biogas CHP Engine',
-    desc: 'Combined Heat & Power engine converts biogas from the digester into on-farm electricity (~44% efficiency) and usable heat (~31% efficiency). Eliminates grid electricity bills and replaces natural gas for heating.',
-    // Realistic: $2,500–4,000/kWe installed for farm-scale gas CHP
-    capitalFn: (n) => {
-      const dailyBiogas = n * 55 * 0.65 * 0.025; // m³/day from manure
-      const kWe = dailyBiogas * 2.0 / 24;         // electrical capacity
-      return Math.max(50000, kWe * 3500) * 1.15;  // $3,500/kWe + 15% install
-    },
+    desc: 'Combined Heat & Power engine converts biogas from the digester into on-farm electricity and usable heat. Only electricity that displaces farm demand is valued; surplus and heat are reported without value unless a demand is configured.',
+    // Catalogue estimate: $3,500/kWe + 15% install, sized from the model's mean electrical output.
+    capitalFn: (n, totals, simYears) => Math.max(50000, perYr(totals.elec, simYears) / 365 / 24 * 3500) * 1.15,
     annualBenefitFn: (totals, simYears, cfg) => {
-      // Use configured electricity & heat prices — stays consistent with simulation revenue
-      const elecPrice      = cfg.electricity_price_currency_per_kWh || 0.16;
-      const heatPrice      = cfg.heat_value_currency_per_kWh || 0.06;
-      const elecAvoided    = (totals.elec   / simYears) * elecPrice;
-      // Heat: replaces natural gas at configured heat value
-      const heatAvoided    = (totals.heat   / simYears) * heatPrice;
-      // Demand charge savings (~25% of electricity rate for peak demand reduction)
-      const demandSaving   = (totals.elec   / simYears) * elecPrice * 0.25;
-      // Grid CO2e avoided carbon credits ($30/tonne)
-      const carbonVal      = (totals.avoidedGrid / simYears) / 1000 * 30.0;
-      // Energy independence premium (5% of avoided electricity)
+      // The model's displaced-demand electricity value (Blueprint Energy 8.2-8.3) and heat value.
+      const elecAvoided    = perYr(totals.energyVal, simYears) * elecShare(totals, 'elec');
+      const heatAvoided    = perYr(totals.heatVal, simYears);
+      // Catalogue estimates: demand-charge saving 25% and energy-security premium 5% of avoided cost.
+      const demandSaving   = elecAvoided * 0.25;
       const energySecurity = elecAvoided * 0.05;
+      const carbonVal      = perYr(totals.avoidedGrid, simYears) / 1000 * roiValue(cfg, 'carbon_credit_price_per_tonne_co2e');
       return elecAvoided + heatAvoided + demandSaving + carbonVal + energySecurity;
     },
-    metrics: (totals, simYears, cfg) => {
-      const kWe = (totals.elec/simYears/365/24).toFixed(2);
-      return [
-        { label: 'Electricity Generated/yr',     val: () => (totals.elec/simYears).toLocaleString('en',{maximumFractionDigits:0})+' kWh' },
-        { label: 'Heat Generated/yr',            val: () => (totals.heat/simYears).toLocaleString('en',{maximumFractionDigits:0})+' kWh thermal' },
-        { label: 'Avg Electrical Capacity',      val: () => kWe+' kWe (continuous)' },
-        { label: 'Avoided Grid Cost/yr',         val: () => '$'+((totals.elec/simYears)*(activeFarmType==='conventional'?(cfg.electricity_price_currency_per_kWh||0.16):0.18)).toLocaleString('en',{maximumFractionDigits:0}) },
-        { label: 'Heat Value/yr (gas displace)', val: () => '$'+((totals.heat/simYears)*0.06).toLocaleString('en',{maximumFractionDigits:0}) },
-        { label: 'Grid CO₂e Avoided/yr',         val: () => (totals.avoidedGrid/simYears).toFixed(0)+' kg CO₂e' },
-        { label: 'Carbon Credits/yr',            val: () => '$'+(totals.avoidedGrid/simYears/1000*30).toLocaleString('en',{maximumFractionDigits:0}) },
-        { label: 'Combined Efficiency',          val: () => '~75% (44% elec + 31% thermal)' },
-      ];
-    },
+    metrics: (totals, simYears, cfg) => [
+      { label: 'Electricity Generated/yr',     val: () => perYr(totals.elec, simYears).toLocaleString('en',{maximumFractionDigits:0})+' kWh' },
+      { label: 'Displaced Farm Demand Value/yr', val: () => money0(perYr(totals.energyVal, simYears)*elecShare(totals, 'elec')) },
+      { label: 'Surplus Not Valued/yr',        val: () => perYr(totals.surplusElec, simYears).toLocaleString('en',{maximumFractionDigits:0})+' kWh' },
+      { label: 'Heat Generated/yr',            val: () => perYr(totals.heat, simYears).toLocaleString('en',{maximumFractionDigits:0})+' kWh thermal' },
+      { label: 'Heat Value/yr',                val: () => (totals.heatVal || 0) > 0 ? money0(perYr(totals.heatVal, simYears)) : '$0 (no heat demand configured)' },
+      { label: 'Avg Electrical Capacity',      val: () => (perYr(totals.elec, simYears)/365/24).toFixed(2)+' kWe (continuous)' },
+      { label: 'Grid CO₂e Avoided/yr',         val: () => perYr(totals.avoidedGrid, simYears).toFixed(0)+' kg CO₂e' },
+      { label: 'Carbon Credits/yr',            val: () => money0(perYr(totals.avoidedGrid, simYears)/1000*roiValue(cfg, 'carbon_credit_price_per_tonne_co2e')) },
+    ],
     verdict: (roi) => roi > 60 ? 'good' : roi > 15 ? 'warn' : 'bad',
     verdictLabel: (pb) => pb <= 4 ? `Exceptional: ${pb.toFixed(1)}-yr payback — on-farm energy self-sufficiency` : pb <= 8 ? `Excellent: ${pb.toFixed(1)}-yr payback, 15–20yr engine life` : `Strong: ${pb.toFixed(1)} yrs — pairs with digester for full biogas value`,
   },
@@ -1569,23 +1637,22 @@ const EQUIPMENT_CATALOGUE = [
     id: 'separator',
     loop: 'L1',
     loopClass: 'equip-l1',
-    icon: '',
     name: 'Manure Separator',
-    desc: 'Mechanically separates manure into solid and liquid fractions. The solid fraction yields compost revenue and N/P/K fertilizer recovery. The liquid fraction feeds the Anaerobic Biodigester (L3). Enabling this loop (L1) represents the decision to capture value from the solid stream.',
+    desc: 'Mechanically separates manure into solid and liquid fractions. The solid fraction yields compost revenue and N/P/K fertilizer recovery. The liquid fraction feeds the Anaerobic Biodigester (L3), whose digestate is valued on that card.',
     capitalFn: (n) => Math.max(15000, n * 180),
     annualBenefitFn: (totals, simYears, cfg) => {
-      const compostRev  = totals.compostRev / simYears;
-      const nutrientVal = (totals.nRecTotal + totals.pRecTotal + totals.kRecTotal) / simYears * 0.80;
-      const feedOffset  = (totals.feedCost  / simYears) * 0.08;
-      const orgFertVal  = (totals.organicFert / simYears) * 0.015;
-      return compostRev + nutrientVal + feedOffset + orgFertVal;
+      // Separator and compost outputs only: model compost revenue and compost N/P/K at a
+      // catalogue $0.80/kg (fertilizer value; the model has no fertilizer price).
+      const compostRev  = perYr(totals.compostRev, simYears);
+      const nutrientVal = perYr((totals.nRec || 0) + (totals.pRec || 0) + (totals.kRec || 0), simYears) * 0.80;
+      return compostRev + nutrientVal;
     },
     metrics: (totals, simYears, cfg) => [
-      { label: 'Compost Revenue/yr',          val: () => '$'+(totals.compostRev/simYears).toLocaleString('en',{maximumFractionDigits:0}) },
-      { label: 'N+P+K Fertilizer Value/yr',   val: () => '$'+((totals.nRecTotal+totals.pRecTotal+totals.kRecTotal)/simYears*0.80).toLocaleString('en',{maximumFractionDigits:0}) },
-      { label: 'Feed Cost Offset/yr (organic subst.)', val: () => '$'+((totals.feedCost/simYears)*0.08).toLocaleString('en',{maximumFractionDigits:0}) },
-      { label: 'Compost Produced',            val: () => (totals.compost/simYears/365).toFixed(1)+' kg/day' },
-      { label: 'N/P/K Recovered/yr',          val: () => ((totals.nRecTotal+totals.pRecTotal+totals.kRecTotal)/simYears).toFixed(0)+' kg/yr' },
+      { label: 'Compost Revenue/yr',          val: () => money0(perYr(totals.compostRev, simYears)) },
+      { label: 'Compost N+P+K Value/yr',      val: () => money0(perYr((totals.nRec||0)+(totals.pRec||0)+(totals.kRec||0), simYears)*0.80) },
+      { label: 'Feed Offset/yr',              val: () => '$0 (compost is fertilizer, not feed)' },
+      { label: 'Compost Produced',            val: () => (perYr(totals.compost, simYears)/365).toFixed(1)+' kg/day' },
+      { label: 'Compost N/P/K Recovered/yr',  val: () => perYr((totals.nRec||0)+(totals.pRec||0)+(totals.kRec||0), simYears).toFixed(0)+' kg/yr' },
     ],
     verdict: (roi) => roi > 150 ? 'good' : roi > 40 ? 'warn' : 'bad',
     verdictLabel: (pb) => pb <= 2 ? `Exceptional: ${pb.toFixed(1)}-yr payback — highest ROI in the system` : pb <= 8 ? `Excellent: ${pb.toFixed(1)}-yr payback — immediate revenue from compost` : `Good: ${pb.toFixed(1)}-yr payback`,
@@ -1594,24 +1661,24 @@ const EQUIPMENT_CATALOGUE = [
     id: 'solar',
     loop: 'L3',
     loopClass: 'equip-l3',
-    icon: '',
     name: 'Solar PV Array',
     desc: 'On-farm solar electricity supplements CHP output during daylight hours. Valued at avoided retail electricity cost, not export tariff.',
-    capitalFn: (n) => Math.max(30000, n * 350),
+    // With no configured capacity there is nothing to buy, so the item is excluded.
+    capitalFn: (n, totals) => (totals.solar || 0) > 0 ? Math.max(30000, n * 350) : 0,
+    unavailable: (totals) => (totals.solar || 0) > 0 ? null
+      : 'No solar capacity is configured (the Blueprint and workbook give no solar assumption), so this item is excluded from the portfolio.',
     annualBenefitFn: (totals, simYears, cfg) => {
-      // Use configured electricity price — consistent with simulation
-      const elecPrice      = cfg.electricity_price_currency_per_kWh || 0.16;
-      const avoidedRetail  = (totals.solar / simYears) * elecPrice;
-      const carbonVal      = (totals.solar / simYears) * (cfg.grid_avoided_kg_co2e_per_kWh || 0.40) / 1000 * 30.0;
+      const avoidedRetail  = perYr(totals.energyVal, simYears) * elecShare(totals, 'solar');
+      const carbonVal      = perYr(totals.solar, simYears) * roiValue(cfg, 'grid_avoided_kg_co2e_per_kWh') / 1000 * roiValue(cfg, 'carbon_credit_price_per_tonne_co2e');
       const energySecPrem  = avoidedRetail * 0.05;
       return avoidedRetail + carbonVal + energySecPrem;
     },
     metrics: (totals, simYears, cfg) => [
-      { label: 'Solar kWh Generated/yr',       val: () => (totals.solar/simYears).toLocaleString('en',{maximumFractionDigits:0})+' kWh' },
-      { label: 'Avoided Grid Cost/yr',         val: () => '$'+((totals.solar/simYears)*(activeFarmType==='conventional'?(cfg.electricity_price_currency_per_kWh||0.16):0.18)).toLocaleString('en',{maximumFractionDigits:0}) },
-      { label: 'Carbon Credits/yr',            val: () => '$'+((totals.solar/simYears)*(cfg.grid_avoided_kg_co2e_per_kWh||0.40)/1000*30).toLocaleString('en',{maximumFractionDigits:0}) },
-      { label: 'Grid CO₂e Avoided/yr',         val: () => ((totals.solar/simYears)*(cfg.grid_avoided_kg_co2e_per_kWh||0.40)).toFixed(0)+' kg' },
-      { label: 'Avg Solar Output/day',          val: () => (totals.solar/simYears/365).toFixed(1)+' kWh/day' },
+      { label: 'Solar kWh Generated/yr',       val: () => perYr(totals.solar, simYears).toLocaleString('en',{maximumFractionDigits:0})+' kWh' },
+      { label: 'Avoided Grid Cost/yr',         val: () => money0(perYr(totals.energyVal, simYears)*elecShare(totals, 'solar')) },
+      { label: 'Carbon Credits/yr',            val: () => money0(perYr(totals.solar, simYears)*roiValue(cfg, 'grid_avoided_kg_co2e_per_kWh')/1000*roiValue(cfg, 'carbon_credit_price_per_tonne_co2e')) },
+      { label: 'Grid CO₂e Avoided/yr',         val: () => (perYr(totals.solar, simYears)*roiValue(cfg, 'grid_avoided_kg_co2e_per_kWh')).toFixed(0)+' kg' },
+      { label: 'Avg Solar Output/day',          val: () => (perYr(totals.solar, simYears)/365).toFixed(1)+' kWh/day' },
     ],
     verdict: (roi) => roi > 50 ? 'good' : roi > 10 ? 'warn' : 'bad',
     verdictLabel: (pb) => pb <= 8 ? `Excellent: ${pb.toFixed(1)}-yr payback with 25-yr panel life` : pb <= 15 ? `Good: ${pb.toFixed(1)}-yr payback — industry standard for farm solar` : `Fair: ${pb.toFixed(1)} yrs — increase panel area or check tariff incentives`,
@@ -1621,35 +1688,23 @@ const EQUIPMENT_CATALOGUE = [
     id: 'whey',
     loop: 'L4',
     loopClass: 'equip-l4',
-    icon: '',
     name: 'Whey Processing Unit',
     desc: 'Converts whey and dairy byproducts into animal feed, reducing purchased feed costs and closing the dairy value loop.',
     capitalFn: (n) => Math.max(40000, n * 280),
     annualBenefitFn: (totals, simYears, cfg) => {
-      // feedReturn = (wheyToFeed + wasteToFeed) × byproduct_substitution_kg_per_kg
-      // This is the net feed demand reduction — the one correct metric to value.
-      // wheyToFeed/wasteToFeed raw volumes are NOT added separately (that would double-count)
-      // and byproductFeedCredit (the sim's cumulative queue total) is NOT added (already captured here).
-      const feedCost       = cfg.feed_cost_per_kg || 0.22;
-      const feedReturnVal  = (totals.feedReturn  / simYears) * feedCost;
-      // Waste disposal cost avoided: $40/tonne of whey + waste milk diverted from disposal
-      const wasteAvoided   = (totals.wheyToFeed + totals.wasteToFeed) / simYears / 1000 * 40.0;
-      // Functional food / bioactive value premium on high-value whey fraction
-      const functionalPrem = (totals.whey / simYears) * (cfg.fraction_whey_to_functional_foods_bioproducts || 0.5) * 0.08;
+      // The model's L4 feed saving at workbook feed prices (lower charged feed cost).
+      const feedReturnVal  = perYr(totals.l4FeedSaving, simYears);
+      // Catalogue estimates: $40/tonne disposal avoided, $0.08/L premium on half the whey.
+      const wasteAvoided   = perYr((totals.wheyToFeed || 0) + (totals.wasteToFeed || 0), simYears) / 1000 * 40.0;
+      const functionalPrem = perYr(totals.whey, simYears) * 0.5 * 0.08;
       return feedReturnVal + wasteAvoided + functionalPrem;
     },
-    metrics: (totals, simYears, cfg) => activeFarmType === 'conventional' ? [
-      { label: 'Feed Return Value/yr',         val: () => '$'+((totals.feedReturn/simYears)*(cfg.feed_cost_per_kg||0.22)).toLocaleString('en',{maximumFractionDigits:0}) },
-      { label: 'Whey to Feed/yr',              val: () => (totals.wheyToFeed/simYears).toLocaleString('en',{maximumFractionDigits:0})+' L' },
-      { label: 'Waste Milk to Feed/yr',        val: () => (totals.wasteToFeed/simYears).toLocaleString('en',{maximumFractionDigits:0})+' L' },
-      { label: 'Waste Disposal Saved/yr',      val: () => '$'+((totals.wheyToFeed+totals.wasteToFeed)/simYears/1000*40).toLocaleString('en',{maximumFractionDigits:0}) },
-      { label: 'Whey Processed/day',           val: () => (totals.whey/simYears/365).toFixed(1)+' L/day' },
-    ] : [
-      { label: 'Feed Replaced from Whey/yr',   val: () => '$'+((totals.wheyToFeed/simYears)*(cfg.feed_cost_per_kg||0.22)).toLocaleString('en',{maximumFractionDigits:0}) },
-      { label: 'Feed Replaced from Waste/yr',  val: () => '$'+((totals.wasteToFeed/simYears)*(cfg.feed_cost_per_kg||0.22)).toLocaleString('en',{maximumFractionDigits:0}) },
-      { label: 'Byproduct Feed Credit/yr',     val: () => '$'+(totals.byproductFeedCredit/simYears).toLocaleString('en',{maximumFractionDigits:0}) },
-      { label: 'Waste Disposal Saved/yr',      val: () => '$'+((totals.wheyToFeed+totals.wasteToFeed)/simYears/1000*40).toLocaleString('en',{maximumFractionDigits:0}) },
-      { label: 'Whey Processed/day',           val: () => (totals.wheyToFeed/simYears/365).toFixed(1)+' kg/day' },
+    metrics: (totals, simYears, cfg) => [
+      { label: 'Feed Return Value/yr (model)', val: () => money0(perYr(totals.l4FeedSaving, simYears)) },
+      { label: 'Whey to Feed/yr',              val: () => perYr(totals.wheyToFeed, simYears).toLocaleString('en',{maximumFractionDigits:0})+' L' },
+      { label: 'Waste Milk to Feed/yr',        val: () => perYr(totals.wasteToFeed, simYears).toLocaleString('en',{maximumFractionDigits:0})+' L' },
+      { label: 'Waste Disposal Saved/yr',      val: () => money0(perYr((totals.wheyToFeed||0)+(totals.wasteToFeed||0), simYears)/1000*40) },
+      { label: 'Whey Processed/day',           val: () => (perYr(totals.whey, simYears)/365).toFixed(1)+' L/day' },
     ],
     verdict: (roi) => roi > 60 ? 'good' : roi > 15 ? 'warn' : 'bad',
     verdictLabel: (pb) => pb <= 5 ? `Strong: ${pb.toFixed(1)}-yr payback from direct feed cost reduction` : pb <= 12 ? `Good: ${pb.toFixed(1)}-yr payback — premium whey products further improve this` : `Fair: ${pb.toFixed(1)} yrs — consider smaller unit or functional food upgrade`,
@@ -1659,23 +1714,24 @@ const EQUIPMENT_CATALOGUE = [
     id: 'wastewater',
     loop: 'L2',
     loopClass: 'equip-l2',
-    icon: '',
     name: 'Water Recycling System',
     desc: 'Recycles dairy wastewater for crop irrigation, recovers dissolved N/P/K nutrients, and reduces municipal water purchase.',
     capitalFn: (n) => Math.max(25000, n * 220),
     annualBenefitFn: (totals, simYears, cfg) => {
-      const waterIrrigVal  = (totals.recycledIrrig / simYears) * (cfg.water_cost_per_L || 0.0008) * 2.5;
-      const freshAvoided   = (totals.freshOffset   / simYears) * (cfg.water_cost_per_L || 0.0008);
-      const treatmentSaved = (totals.recycledIrrig / simYears) / 1000 * 0.50;
-      const nutrientVal    = (totals.wN + totals.wP + totals.wK) / simYears * 0.80;
+      const waterPrice     = roiValue(cfg, 'water_cost_per_L');
+      // Catalogue estimates: irrigation value 2.5x the water price, $0.50/m3 treatment, $0.80/kg nutrients.
+      const waterIrrigVal  = perYr(totals.recycledIrrig, simYears) * waterPrice * 2.5;
+      const freshAvoided   = perYr(totals.freshOffset, simYears) * waterPrice;
+      const treatmentSaved = perYr(totals.recycledIrrig, simYears) / 1000 * 0.50;
+      const nutrientVal    = perYr((totals.wN || 0) + (totals.wP || 0) + (totals.wK || 0), simYears) * 0.80;
       return waterIrrigVal + freshAvoided + treatmentSaved + nutrientVal;
     },
     metrics: (totals, simYears, cfg) => [
-      { label: 'Irrigation Water Value/yr',    val: () => '$'+((totals.recycledIrrig/simYears)*(cfg.water_cost_per_L||0.0008)*2.5).toLocaleString('en',{maximumFractionDigits:0}) },
-      { label: 'Fresh Water Avoided/yr',       val: () => (totals.freshOffset/simYears).toLocaleString('en',{maximumFractionDigits:0})+' L' },
-      { label: 'Treatment Cost Saved/yr',      val: () => '$'+((totals.recycledIrrig/simYears)/1000*0.50).toLocaleString('en',{maximumFractionDigits:0}) },
-      { label: 'Nutrient Recovery Value/yr',   val: () => '$'+((totals.wN+totals.wP+totals.wK)/simYears*0.80).toLocaleString('en',{maximumFractionDigits:0}) },
-      { label: 'Water Recycled/day',           val: () => (totals.recycledIrrig/simYears/365).toFixed(0)+' L/day' },
+      { label: 'Irrigation Water Value/yr',    val: () => money0(perYr(totals.recycledIrrig, simYears)*roiValue(cfg, 'water_cost_per_L')*2.5) },
+      { label: 'Fresh Water Avoided/yr',       val: () => perYr(totals.freshOffset, simYears).toLocaleString('en',{maximumFractionDigits:0})+' L' },
+      { label: 'Treatment Cost Saved/yr',      val: () => money0(perYr(totals.recycledIrrig, simYears)/1000*0.50) },
+      { label: 'Nutrient Recovery Value/yr',   val: () => money0(perYr((totals.wN||0)+(totals.wP||0)+(totals.wK||0), simYears)*0.80) },
+      { label: 'Water Recycled/day',           val: () => (perYr(totals.recycledIrrig, simYears)/365).toFixed(0)+' L/day' },
     ],
     verdict: (roi) => roi > 60 ? 'good' : roi > 10 ? 'warn' : 'bad',
     verdictLabel: (pb) => pb <= 6 ? `Strong: ${pb.toFixed(1)}-yr payback — excellent in water-stressed regions` : pb <= 12 ? `Good: ${pb.toFixed(1)}-yr payback — justified by water scarcity value` : `Long-term: ${pb.toFixed(1)} yrs — strong ESG case for water security`,
@@ -1683,51 +1739,35 @@ const EQUIPMENT_CATALOGUE = [
     id: 'smartsensors',
     loop: 'L1',
     loopClass: 'equip-l1',
-    icon: '',
     name: 'Smart Feed & Health Sensors',
-    desc: 'Precision feeding and real-time health monitoring — improves milk yield ~3% and reduces feed waste ~5%. Highest ROI per dollar invested.',
+    desc: 'Precision feeding and real-time health monitoring. The Python model has no smart-technology factors, so milk and feed uplift are zero; vet and culling benefits are catalogue estimates.',
     capitalFn: (n) => Math.max(20000, n * 120),
     annualBenefitFn: (totals, simYears, cfg) => {
-      if (activeFarmType === 'conventional') {
-        const milkFactor = (cfg.smart_tech_milk_yield_factor || 1) - 1;
-        const feedFactor = 1 - (cfg.smart_tech_feed_efficiency_factor || 1);
-        const milkUplift     = (totals.milkRev  / simYears) * Math.max(0, milkFactor);
-        const feedSaving     = (totals.feedCost / simYears) * Math.max(0, feedFactor);
-        const vetSaving      = (cfg.number_of_cows || 100) * 50;
-        const cullingBenefit = (totals.milkRev  / simYears) * 0.015;
-        return milkUplift + feedSaving + vetSaving + cullingBenefit;
-      }
-      const milkUplift     = (totals.milkRev  / simYears) * 0.03;
-      const feedSaving     = (totals.feedCost / simYears) * 0.05;
+      const milkFactor     = (cfg.smart_tech_milk_yield_factor || 1) - 1;
+      const feedFactor     = 1 - (cfg.smart_tech_feed_efficiency_factor || 1);
+      const milkUplift     = perYr(totals.milkRev, simYears) * Math.max(0, milkFactor);
+      const feedSaving     = perYr(totals.feedCost, simYears) * Math.max(0, feedFactor);
+      // Catalogue estimates: $50/cow vet saving and 1.5% of milk revenue from reduced culling.
       const vetSaving      = (cfg.number_of_cows || 100) * 50;
-      const cullingBenefit = (totals.milkRev  / simYears) * 0.015;
+      const cullingBenefit = perYr(totals.milkRev, simYears) * 0.015;
       return milkUplift + feedSaving + vetSaving + cullingBenefit;
     },
     metrics: (totals, simYears, cfg) => {
-      if (activeFarmType === 'conventional') {
-        const milkFactor = (cfg.smart_tech_milk_yield_factor || 1) - 1;
-        const feedFactor = 1 - (cfg.smart_tech_feed_efficiency_factor || 1);
-        return [
-          { label: 'Milk Uplift/yr',               val: () => '$'+((totals.milkRev/simYears)*Math.max(0,milkFactor)).toLocaleString('en',{maximumFractionDigits:0}) },
-          { label: 'Feed Savings/yr',              val: () => '$'+((totals.feedCost/simYears)*Math.max(0,feedFactor)).toLocaleString('en',{maximumFractionDigits:0}) },
-          { label: 'Vet Cost Savings/yr',          val: () => '$'+((cfg.number_of_cows||100)*50).toLocaleString('en',{maximumFractionDigits:0}) },
-          { label: 'Reduced Culling Benefit/yr',   val: () => '$'+((totals.milkRev/simYears)*0.015).toLocaleString('en',{maximumFractionDigits:0}) },
-          { label: 'Milk Revenue (simulated)',     val: () => '$'+(totals.milkRev/simYears).toLocaleString('en',{maximumFractionDigits:0})+'/yr' },
-        ];
-      }
+      const milkFactor = (cfg.smart_tech_milk_yield_factor || 1) - 1;
+      const feedFactor = 1 - (cfg.smart_tech_feed_efficiency_factor || 1);
       return [
-        { label: 'Milk Uplift 3%/yr',           val: () => '$'+((totals.milkRev/simYears)*0.03).toLocaleString('en',{maximumFractionDigits:0}) },
-        { label: 'Feed Savings 5%/yr',           val: () => '$'+((totals.feedCost/simYears)*0.05).toLocaleString('en',{maximumFractionDigits:0}) },
-        { label: 'Vet Cost Savings/yr',          val: () => '$'+((cfg.number_of_cows||100)*50).toLocaleString('en',{maximumFractionDigits:0}) },
-        { label: 'Reduced Culling Benefit/yr',   val: () => '$'+((totals.milkRev/simYears)*0.015).toLocaleString('en',{maximumFractionDigits:0}) },
-        { label: 'Milk Revenue (simulated)',     val: () => '$'+(totals.milkRev/simYears).toLocaleString('en',{maximumFractionDigits:0})+'/yr' },
+        { label: 'Milk Uplift/yr',               val: () => money0(perYr(totals.milkRev, simYears)*Math.max(0,milkFactor)) },
+        { label: 'Feed Savings/yr',              val: () => money0(perYr(totals.feedCost, simYears)*Math.max(0,feedFactor)) },
+        { label: 'Vet Cost Savings/yr',          val: () => money0((cfg.number_of_cows||100)*50) },
+        { label: 'Reduced Culling Benefit/yr',   val: () => money0(perYr(totals.milkRev, simYears)*0.015) },
+        { label: 'Milk Revenue (simulated)',     val: () => money0(perYr(totals.milkRev, simYears))+'/yr' },
       ];
     },
     verdict: (roi) => roi > 150 ? 'good' : roi > 50 ? 'warn' : 'bad',
     verdictLabel: (pb) => pb <= 3 ? `Exceptional: ${pb.toFixed(1)}-yr payback — best ROI/$ in entire portfolio` : pb <= 6 ? `Excellent: ${pb.toFixed(1)}-yr payback — low cost, high-impact precision tech` : `Strong: ${pb.toFixed(1)} yrs — literature confirms 200–400% lifetime ROI`,
   },
   {
-    id: 'beefcross', loop: 'L4', loopClass: 'equip-l4', icon: '',
+    id: 'beefcross', loop: 'L4', loopClass: 'equip-l4',
     name: 'Beef-on-Dairy Program',
     desc: 'Beef-breed semen on 45% of cows. Bull calves sold as premium weaners ($420/head). Fully activated on Beef-on-Dairy farm type only.',
     capitalFn: (n) => Math.max(3000, n * 35),
@@ -1747,7 +1787,7 @@ const EQUIPMENT_CATALOGUE = [
         { label: 'Bull calves sold/yr',  val: () => calves.toFixed(0) + ' head' },
         { label: 'Value per weaner',     val: () => '$' + val },
         { label: 'Gross calf revenue/yr',val: () => '$' + (calves * val).toLocaleString('en', {maximumFractionDigits:0}) },
-        { label: 'Active on this farm',  val: () => (p && p.beefOnDairy) ? ' Beef-on-Dairy' : ' Switch to Beef-on-Dairy farm type' },
+        { label: 'Active on this farm',  val: () => (p && p.beefOnDairy) ? 'Beef-on-Dairy' : 'Switch to Beef-on-Dairy farm type' },
       ];
     },
     verdict:      (roi) => roi > 200 ? 'good' : roi > 50 ? 'warn' : 'bad',
@@ -1796,7 +1836,7 @@ function buildEquipROI(res) {
 
   // Compute each equipment
   const results = EQUIPMENT_CATALOGUE.map(eq => {
-    const baseCapital    = eq.capitalFn(n);
+    const baseCapital    = eq.capitalFn(n, totals, simYears);
     const totalCapital   = baseCapital * (1 + installPct);
     const annualBenefit  = activeFarmType === 'conventional'
       ? eq.annualBenefitFn(totals, simYears, simCfg)
@@ -1823,9 +1863,10 @@ function buildEquipROI(res) {
   document.getElementById('roiNPVSub').textContent        = `at ${(discRate*100).toFixed(1)}% · ${lifespan}yr`;
   document.getElementById('roiPortfolioDesc').textContent = `${results.length} equipment items · ${simYears}-year simulation · herd of ${n}`;
 
-  // ── Portfolio Payback Chart ──
+  // ── Portfolio Payback Chart ── (items the model cannot support are left out)
+  const chartResults = results.filter(r => !(r.eq.unavailable && r.eq.unavailable(totals)));
   const years = Array.from({length: lifespan + 1}, (_, i) => i);
-  const paybackDatasets = results.map(r => ({
+  const paybackDatasets = chartResults.map(r => ({
     label: r.eq.name,
     data: years.map(y => -r.totalCapital + r.annualNet * y),
     borderWidth: 2,
@@ -1866,12 +1907,12 @@ function buildEquipROI(res) {
   equipROIChartBenefit = new Chart(document.getElementById('chartEquipBenefit'), {
     type: 'bar',
     data: {
-      labels: results.map(r => r.eq.name.split(' ').slice(0, 2).join(' ')),
+      labels: chartResults.map(r => r.eq.name.split(' ').slice(0, 2).join(' ')),
       datasets: [
-        { label: 'Annual Benefit', data: results.map(r => r.annualBenefit),
+        { label: 'Annual Benefit', data: chartResults.map(r => r.annualBenefit),
           backgroundColor: colors.map(c => c + 'bb'), borderRadius: 5, borderSkipped: false },
-        { label: 'Annual Maint.', data: results.map(r => -r.annualMaint),
-          backgroundColor: results.map(() => (isDark ? 'rgba(200,80,80,.5)' : 'rgba(161,44,123,.35)')),
+        { label: 'Annual Maint.', data: chartResults.map(r => -r.annualMaint),
+          backgroundColor: chartResults.map(() => (isDark ? 'rgba(200,80,80,.5)' : 'rgba(161,44,123,.35)')),
           borderRadius: 5, borderSkipped: false }
       ]
     },
@@ -1894,8 +1935,9 @@ function buildEquipROI(res) {
 
   results.forEach((r, idx) => {
     const { eq, totalCapital, annualBenefit, annualNet, payback, npv, roi } = r;
-    const verdictClass = eq.verdict(roi);
-    const verdictText  = eq.verdictLabel(payback);
+    const unavailable  = eq.unavailable ? eq.unavailable(totals) : null;
+    const verdictClass = unavailable ? 'warn' : eq.verdict(roi);
+    const verdictText  = unavailable || eq.verdictLabel(payback);
     const pbPct        = Math.min(100, (lifespan / Math.max(0.01, payback)) * 100);
     const annROI       = (annualNet / Math.max(1, totalCapital)) * 100;
 
@@ -1908,7 +1950,7 @@ function buildEquipROI(res) {
     card.style.animationDelay = (idx * 0.05) + 's';
     card.innerHTML = `
       <div class="equip-card-header">
-        <div class="equip-icon">${eq.icon}</div>
+        <div class="equip-icon">${equipIcon(eq.id)}</div>
         <div class="equip-meta">
           <div class="equip-loop-badge">${eq.loop} — ${eq.id === 'smartsensors' ? 'Precision Tech' : eq.loop === 'L3' ? 'Energy Loop' : eq.loop === 'L2' ? 'Water Loop' : eq.loop === 'L4' ? 'Dairy Loop' : 'Nutrient Loop'}</div>
           <div class="equip-name">${eq.name}</div>
@@ -2246,12 +2288,17 @@ function generateRanking() {
   const avgFCR=fcrCows.length?fcrCows.reduce((a,c)=>a+c.fcr,0)/fcrCows.length:null;
   const avgMilk=rankData.length?rankData.reduce((a,c)=>a+c.milk,0)/rankData.length:0;
   const best=rankData[0];
+  const eliteN=rankData.filter(c=>c.tier==='elite').length;
   document.getElementById('rankKpiRow').innerHTML=[
-    {label:'Best FCR Cow',val:best?.id??'—',sub:best?.fcr?.toFixed(3)??'—'},
-    {label:'Herd Avg FCR',val:avgFCR?.toFixed(3)??'—',sub:'kg feed per kg milk'},
-    {label:'Avg Milk / Cow',val:avgMilk.toFixed(1)+' L',sub:'per cow per milking day'},
-    {label:'Elite Cows',val:rankData.filter(c=>c.tier==='elite').length,sub:'of ranked cows'}
-  ].map(k=>`<div class="kpi-card"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.val}</div><div class="kpi-unit">${k.sub}</div></div>`).join('');
+    {label:'Best FCR Cow',val:best?.id??'—',sub:best?.fcr!=null?best.fcr.toFixed(3)+' kg/kg':'—',color:'var(--color-primary)'},
+    {label:'Herd Avg FCR',val:avgFCR!=null?avgFCR.toFixed(3):'—',sub:'kg feed per kg milk',color:'var(--color-gold)'},
+    {label:'Avg Milk / Cow',val:avgMilk.toFixed(1)+' L',sub:'per cow per milking day',color:'var(--color-success)'},
+    {label:'Elite Cows',val:eliteN,sub:(rankData.length?Math.round(eliteN/rankData.length*100):0)+'% of all cows',color:'var(--color-orange)'}
+  ].map(k=>`<div class="kpi-card">
+        <div class="kpi-label">${k.label}</div>
+        <div class="kpi-value" style="font-size:var(--text-lg);color:${k.color};font-weight:800">${k.val}</div>
+        <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:4px">${k.sub}</div>
+      </div>`).join('');
   rankSortKey='rank';rankSortAsc=true;rankFilterTier='all';
   renderRankTable();renderRankCharts();
   document.getElementById('rankResults').style.display='block';
