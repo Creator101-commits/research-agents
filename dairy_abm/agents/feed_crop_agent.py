@@ -314,12 +314,9 @@ class FeedCropAgent(BaseAgent):
                 "me_mj_per_kg_dm": ration_me_mj_per_kg_dm,
                 "crude_protein_fraction": ration_crude_protein / total_feed_supplied if total_feed_supplied else 0.0,
                 "ndf_fraction": ration_ndf_fraction,
-                "coverage_fraction": min(
-                    1.0,
-                    ration_coverage_fraction
-                    * total_dmi / max(0.001, target_total)
-                    * raw_ration_targets[str(cow["id"])] / max(0.001, total_dmi / max(1, cow_count)),
-                ),
+                # Supply is shared in proportion to each cow's target, so every cow
+                # receives the same fraction of its own need as the herd as a whole.
+                "coverage_fraction": min(1.0, ration_coverage_fraction),
                 "lysine_adequacy": lysine_adequacy,
                 "methionine_adequacy": methionine_adequacy,
             }

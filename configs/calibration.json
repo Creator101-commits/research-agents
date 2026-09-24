@@ -233,6 +233,22 @@
       "assumption": true,
       "description": "Default body weight assigned when a scenario does not provide one."
     },
+    "bodyweight_first_parity_kg": {
+      "value": 540.0,
+      "unit": "kg/cow",
+      "valid_range": "300..800",
+      "source": "Dairy_bioeconomy_dashboard.html (Conventional preset) DEFAULTS_ANIMAL bodyweight_first_parity_kg (docs/parity/conventional_dashboard_target.html). No Blueprint or workbook value; the Blueprint's NASEM Eq 2-1 support data give BW 624 +/- 80.2 kg (Cow agent 8.1).",
+      "assumption": true,
+      "description": "Baseline body weight of a first-parity cow; the parity baseline rises linearly to bodyweight_mature_kg at herd.mature_parity. Owner decision 2026-09-23."
+    },
+    "bodyweight_mature_kg": {
+      "value": 680.0,
+      "unit": "kg/cow",
+      "valid_range": "400..1000",
+      "source": "Dairy_bioeconomy_dashboard.html (Conventional preset) DEFAULTS_ANIMAL bodyweight_mature_kg (docs/parity/conventional_dashboard_target.html). No Blueprint or workbook value; the Blueprint's NASEM Eq 2-1 support data give BW 624 +/- 80.2 kg (Cow agent 8.1).",
+      "assumption": true,
+      "description": "Baseline body weight of a cow at or above herd.mature_parity. Daily energy balance moves body weight around this baseline within a lactation. Owner decision 2026-09-23."
+    },
     "initial_body_condition_score": {
       "value": 3.0,
       "unit": "score",
@@ -346,12 +362,12 @@
       "description": "Milk protein mass per litre of simulated milk; workbook protein content (Excel values take precedence)."
     },
     "dmi_level_calibration_factor": {
-      "value": 1.19,
+      "value": 1.1169,
       "unit": "multiplier",
       "valid_range": "0..",
       "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST AIRAND year 15 lactating-cow DMI (AT73 / AT21 = 26.2 kg/milking cow-day)",
       "assumption": true,
-      "description": "Scales the NASEM Eq 2-1 intake level so lactating-cow dry-matter intake matches the workbook (Excel precedence); the equation form is unchanged."
+      "description": "Scales the NASEM Eq 2-1 intake level so lactating-cow dry-matter intake matches the workbook (Excel precedence); the equation form is unchanged. Refit 2026-09-24 from 1.19 after the per-cow ration-coverage fix."
     },
     "heat_stress_conception_reduction_fraction": {
       "value": 0.2,
@@ -2512,12 +2528,12 @@
       "description": "Parity at which peak milk reaches the mature level (linear in between)."
     },
     "milk_yield_scale": {
-      "value": 1.368,
+      "value": 1.3016,
       "unit": "multiplier",
       "valid_range": "0..",
       "source": "Cdairy_mc_kk_current_PS_CM_Strategies.xlsm, Stats_MAST!BQ12 (AIRAND year 15 milk 12,669 kg/cow/year)",
       "assumption": true,
-      "description": "Scale applied to the dashboard Wood's peaks so herd milk per cow-year matches the workbook."
+      "description": "Scale applied to the dashboard Wood's peaks so herd milk per cow-year matches the workbook. Refit 2026-09-24 from 1.368 after the per-cow ration-coverage fix."
     },
     "cow_peak_std_fraction": {
       "value": 0.12,

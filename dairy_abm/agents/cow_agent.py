@@ -108,6 +108,12 @@ class CowAgent(BaseAgent):
             "days_in_milk", int(value(self.ctx.calibration, "cow.initial_days_in_milk"))
         )
         normalized.setdefault("parity", int(value(self.ctx.calibration, "cow.initial_parity")))
+        if int(normalized["parity"]) >= 1:
+            # Adult body weight follows the parity baseline; an explicit starting
+            # weight is kept as a fixed offset from that baseline.
+            baseline = self._baseline_body_weight(int(normalized["parity"]))
+            normalized.setdefault("body_weight_kg", baseline)
+            normalized.setdefault("body_weight_offset_kg", float(normalized["body_weight_kg"]) - baseline)
         normalized.setdefault(
             "body_weight_kg", float(value(self.ctx.calibration, "cow.initial_body_weight_kg"))
         )
@@ -183,6 +189,19 @@ class CowAgent(BaseAgent):
         parity = max(1, int(cow.get("parity", 1)))
         blend = min(1.0, max(0.0, (parity - 1) / (mature_parity - 1)))
         return (first + (mature - first) * blend) * scale * float(cow.get("peak_factor", 1.0))
+
+    def _baseline_body_weight(self, parity: int) -> float:
+        """Parity body-weight baseline: first-parity weight rising linearly to mature weight.
+
+        Values come from the target dashboard's Animal Biology defaults (owner
+        decision 2026-09-23); the Blueprint and the workbook give no BW rule.
+        """
+        cal = self.ctx.calibration
+        first = float(value(cal, "cow.bodyweight_first_parity_kg"))
+        mature = float(value(cal, "cow.bodyweight_mature_kg"))
+        mature_parity = max(2, int(value(cal, "herd.mature_parity")))
+        blend = min(1.0, max(0.0, (max(1, parity) - 1) / (mature_parity - 1)))
+        return first + (mature - first) * blend
 
     def _make_calf(self, dam: dict[str, Any], sex: str) -> dict[str, Any]:
         """Create a retained calf; genetics supplies inherited traits when available."""
@@ -351,6 +370,11 @@ class CowAgent(BaseAgent):
                     cow["age_days"] = int(cow.get("age_days", 0)) + 1
                 continue
             lactating = bool(cow.get("lactating", True))
+            if cow.get("_bw_parity") != int(cow["parity"]):
+                # A new lactation starts from the parity baseline.
+                cow["_bw_parity"] = int(cow["parity"])
+                cow["body_weight_deviation_kg"] = 0.0
+            energy_balance_fraction = 0.0
             cow_milk_l = 0.0
             expected_dmi = 0.0
             milk_e_mcal = 0.0
@@ -385,6 +409,10 @@ class CowAgent(BaseAgent):
                 cow["expected_dmi_kg"] = expected_dmi
                 dmi_cv = min(0.22, max(0.11, float(self.ctx.scenario.get("dmi_stochastic_cv", value(self.ctx.calibration, "cow.dmi_stochastic_cv")))))
                 actual_dmi = max(0.0, expected_dmi + rfi_fat + self.ctx.rng.gauss(0.0, dmi_cv * expected_dmi))
+                # Only the daily residual e moves body reserves: heat stress and supply
+                # shortfalls cut milk and intake together (Blueprint Cow 8.1, 8.5), and
+                # RFI is by definition intake not explained by energy use or BW change.
+                energy_balance_fraction = (actual_dmi - rfi_fat) / max(expected_dmi, 0.001) - 1.0
                 if cow.get("health_status") != "healthy":
                     health_signal = per_cow_health_signal.get(str(cow["id"]), {}) if isinstance(per_cow_health_signal, dict) else {}
                     milk_modifier *= 1.0 - float(health_signal.get("milk_yield_penalty_fraction", sick_loss))
@@ -419,15 +447,19 @@ class CowAgent(BaseAgent):
             enteric_ch4_kg += cow_ch4_kg
             cow["last_milk_l"] = cow_milk_l
             if lactating:
-                energy_balance_fraction = cow_dmi_kg / max(expected_dmi, 0.001) - 1.0
-                cow["body_weight_kg"] = max(
-                    300.0,
-                    float(cow["body_weight_kg"]) + max(-1.0, min(1.0, energy_balance_fraction * 0.8)),
+                cow["body_weight_deviation_kg"] = float(cow.get("body_weight_deviation_kg", 0.0)) + max(
+                    -1.0, min(1.0, energy_balance_fraction * 0.8)
                 )
                 cow["body_condition_score"] = min(
                     5.0,
                     max(1.0, float(cow["body_condition_score"]) + max(-0.02, min(0.02, energy_balance_fraction * 0.02))),
                 )
+            cow["body_weight_kg"] = max(
+                300.0,
+                self._baseline_body_weight(int(cow["parity"]))
+                + float(cow.get("body_weight_offset_kg", 0.0))
+                + float(cow.get("body_weight_deviation_kg", 0.0)),
+            )
             cow["dmi_history"].append(cow_dmi_kg)
             cow["milk_history"].append(cow_milk_l)
             cow["ch4_history"].append(cow_ch4_kg)

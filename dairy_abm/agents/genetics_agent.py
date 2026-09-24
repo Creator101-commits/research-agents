@@ -186,7 +186,8 @@ class GeneticsAgent(BaseAgent):
         sire_traits = self.ctx.state.get("sire_pool_traits") or dam_traits
         variation_fraction = float(value(self.ctx.calibration, "genetics.offspring_trait_variation_fraction"))
         offspring: dict[str, float] = {}
-        for trait in set(dam_traits) | set(self._INHERITED_TRAITS):
+        # Insertion order, not a set: RNG draws must not follow the per-process string hash.
+        for trait in dict.fromkeys([*dam_traits, *self._INHERITED_TRAITS]):
             default = 0.0 if trait == "rfi_fat_ebv" else 1.0
             mean = (float(dam_traits.get(trait, default)) + float(sire_traits.get(trait, default))) / 2.0
             draw = mean + (self.ctx.rng.gauss(0.0, abs(mean) * variation_fraction) if variation_fraction and mean else 0.0)
